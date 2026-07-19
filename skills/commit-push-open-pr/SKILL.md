@@ -1,0 +1,48 @@
+---
+name: commit-push-open-pr
+description: Commit the current tracked and untracked work on the current branch, push the branch to the remote, and open a GitHub pull request with `gh`. Use when the user wants the concrete commit-to-push-to-PR workflow handled end-to-end with explicit choices for commit message, PR title, PR body, draft status, or base branch instead of hand-wavy guessing. Does not create a new branch — operates on whatever branch is currently checked out. Requires `git` and `gh` CLI access. Do not use for partial staging, rebases, stacked PRs, branch creation, or merge/close workflows.
+---
+
+# Commit Push Open PR
+
+## Overview
+
+Use this skill to turn an in-progress local worktree into a reviewable PR without inventing missing details. The skill operates on the current branch — it never creates or switches branches. Prefer explicit inputs and repository evidence over assumptions.
+
+## Workflow
+
+1. Inspect the local state before changing anything.
+   - Run `git status --short`, `git branch --show-current`, and a remote check such as `git remote -v`.
+   - Detect the likely base branch from the current branch config, remote default branch, or existing repo conventions.
+   - Note any existing tracking relationship via `git rev-parse --abbrev-ref @{u}` to know whether this is the first push.
+2. Resolve the required decisions explicitly.
+   - Required outputs are: commit message, PR title, PR body, base branch, and whether the PR should be draft.
+   - If the user already provided a value, use it.
+   - If repo conventions and the current task make a value obvious, state the assumption and proceed.
+   - If a value is still ambiguous, ask a focused question instead of guessing.
+3. Stage intentionally.
+   - Default to `git add -A` only when the task is to ship all current work.
+   - If the worktree contains unrelated changes, stop and clarify scope instead of sweeping everything into one PR.
+4. Commit with a descriptive message.
+   - Use one commit unless the user asked for a different history shape.
+   - If there is nothing to commit, say so clearly and do not fabricate a commit step.
+5. Push the current branch.
+   - Prefer `git push -u origin <current-branch>` on the first push.
+   - On subsequent pushes, `git push` is sufficient.
+   - If `origin` is not the right remote, detect the writable remote instead of assuming.
+6. Open the PR with explicit fields.
+   - Prefer `gh pr create --base <base> --title <title> --body <body>`.
+   - Add `--draft` only when the user asked for a draft PR.
+   - Avoid `--fill` unless the user explicitly wants commit-derived PR text.
+   - Capture the returned PR URL and number.
+7. Report the exact result.
+   - Include the branch name, commit hash, push target, PR number, and PR URL.
+   - Call out any assumptions you made for base branch or PR wording.
+
+## Guardrails
+
+- Do not silently invent PR metadata when a short clarifying question would prevent a misleading PR.
+- Do not rewrite or clean unrelated user changes just to make the commit easier to ship.
+- Do not create, switch, or rename branches — the current branch is always used as-is.
+- Do not use browser-based `gh pr create --web` unless the user asked for a browser flow.
+- Do not open a PR before confirming the branch was pushed successfully.

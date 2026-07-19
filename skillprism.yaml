@@ -1,0 +1,5 @@
+name: constitutional-framework-skills
+harnesses:
+  - claude
+  - opencode
+skills_dir: skills

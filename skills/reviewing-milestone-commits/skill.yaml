@@ -1,0 +1,2 @@
+name: reviewing-milestone-commits
+description: "Router for milestone commit reviews. Directs the subagent to follow either standards, spec, or full review workflows under references/."
