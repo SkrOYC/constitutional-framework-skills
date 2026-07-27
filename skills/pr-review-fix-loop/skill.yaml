@@ -1,2 +1,3 @@
+skillprism: '1'
 name: pr-review-fix-loop
 description: "Run an autonomous post-PR review loop by repeatedly spawning an isolated subagent with the reviewing-pull-requests skill, waiting for the review, fixing valid findings locally, committing and pushing the fixes, and repeating until two consecutive review rounds find no high-priority bugs. Use after a PR already exists and the user wants ongoing self-review rounds without supervising each pass. Requires the Agent tool plus git and gh CLI access."

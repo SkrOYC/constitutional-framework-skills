@@ -1,4 +1,3 @@
-name: constitutional-framework-skills
 harnesses:
   - claude
   - opencode

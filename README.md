@@ -19,21 +19,29 @@ Managed with [skillprism](https://tuvren.github.io/skillprism/).
 ## Usage
 
 ```bash
-skillprism build        # compile skills to all configured harnesses
-skillprism validate     # check templates without writing output
-skillprism build --diff # preview changes without writing files
+skillprism validate             # check templates without writing output
+skillprism build                # compile skills into dist/<harness>/ (compile-only, never touches live agent dirs)
+skillprism build --diff         # preview compiled changes without writing files
+
+skillprism add .                # install these skills into this project's live harness directories
+skillprism add . --target user  # install into your user-level config instead
+skillprism list                 # list installed skills in live harness directories
+skillprism update                # update installed skills to their latest source versions
+skillprism remove <skill> ...    # remove installed skills
 ```
+
+`build` is compile-only: it always renders into `dist/<harness>/` for inspection and never writes into live agent directories. To install a skill where an agent harness (Claude Code, opencode, etc.) will actually load it from — `.claude/skills/`, `.opencode/skills/` — use `skillprism add`.
 
 ## Project Structure
 
 ```
 skills/                  # Skill templates (source of truth)
   <name>/
-    skill.yaml           # Metadata and variables
+    skill.yaml           # Metadata (skillprism: '1' header, name, description, variables)
     SKILL.md             # MiniJinja template
     references/          # Supporting reference files
     assets/              # Templates and other static files
-.claude/skills/          # Compiled output for Claude Code
-.opencode/skills/        # Compiled output for Opencode
-skillprism.yaml          # Project configuration
+harnesses/                # Custom harness definitions (skillprism init harness <name>)
+skillprism.yaml            # Project configuration (harnesses, skills_dir)
+dist/                      # skillprism build output, per harness (gitignored)
 ```

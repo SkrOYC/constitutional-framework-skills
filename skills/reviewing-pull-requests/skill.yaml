@@ -1,2 +1,3 @@
+skillprism: '1'
 name: reviewing-pull-requests
 description: "Router for pull request reviews. Directs the subagent to follow either standards, spec, or full review workflows under references/."
