@@ -98,14 +98,14 @@ For each planned milestone in sequence:
 After committing each milestone and **before** starting the next one, execute the review based on the mode chosen in Step 1:
 
 *   **If Standard Single-Pass Review was chosen:**
-    1. Spawn an isolated subagent with no parent conversation context. Default to `model: "opus"` unless the user has explicitly specified a different model preference.
-    2. Instruct the subagent to load and execute the `/reviewing-milestone-commits` skill, passing `mode: "full"`, the target committed milestone SHA, and the work item context — in Epic mode the target epic file and its Gherkin criteria; in Issue mode the issue number/URL and the derived acceptance criteria.
+    1. Spawn an isolated subagent with no parent conversation context, {% if harness.id == "opencode" %}using the `task` tool (`subagent_type: "reviewer"`).{% else %}using the `Agent` tool. Default to `model: "opus"` unless the user has explicitly specified a different model preference.{% endif %}
+    2. Instruct the subagent to {% if harness.id == "opencode" %}call `skill({ name: "reviewing-milestone-commits" })` and then follow it{% else %}load and execute the `/reviewing-milestone-commits` skill{% endif %}, passing `mode: "full"`, the target committed milestone SHA, and the work item context — in Epic mode the target epic file and its Gherkin criteria; in Issue mode the issue number/URL and the derived acceptance criteria.
     3. Wait for the subagent's review results.
     4. Format the output directly.
 *   **If Dual-Axis Parallel Review was chosen:**
-    1. Spawn **two parallel subagents** with no parent conversation context. Default to `model: "opus"` for both subagents unless the user has explicitly specified a different model preference.
-    2. Instruct Subagent 1 (Standards) to load and execute `/reviewing-milestone-commits` passing `mode: "standards"` and the target committed milestone SHA.
-    3. Instruct Subagent 2 (Spec) to load and execute `/reviewing-milestone-commits` passing `mode: "spec"`, the target committed milestone SHA, and the work item context (Epic mode: the epic file and Gherkin criteria; Issue mode: the issue number/URL and derived acceptance criteria).
+    1. Spawn **two parallel subagents** with no parent conversation context, {% if harness.id == "opencode" %}using the `task` tool (`subagent_type: "reviewer"`) — one `task` call per subagent in the same message.{% else %}using the `Agent` tool. Default to `model: "opus"` for both subagents unless the user has explicitly specified a different model preference.{% endif %}
+    2. Instruct Subagent 1 (Standards) to {% if harness.id == "opencode" %}call `skill({ name: "reviewing-milestone-commits" })` and then follow it{% else %}load and execute `/reviewing-milestone-commits`{% endif %} passing `mode: "standards"` and the target committed milestone SHA.
+    3. Instruct Subagent 2 (Spec) to {% if harness.id == "opencode" %}call `skill({ name: "reviewing-milestone-commits" })` and then follow it{% else %}load and execute `/reviewing-milestone-commits`{% endif %}, passing `mode: "spec"`, the target committed milestone SHA, and the work item context (Epic mode: the epic file and Gherkin criteria; Issue mode: the issue number/URL and derived acceptance criteria).
     4. Wait for both subagents to complete their runs.
     5. Aggregate both reports side-by-side or sequentially under `## Standards` and `## Spec` headers. Maintain their separation and do not merge their findings.
 

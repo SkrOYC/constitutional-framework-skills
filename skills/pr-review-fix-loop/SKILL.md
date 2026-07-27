@@ -15,27 +15,27 @@ Use this skill only after the PR already exists. The loop is meant to keep press
    - Identify the PR number from the user, or resolve it from the current branch with `gh pr view`.
    - Stop if no PR exists yet.
    - **Prompt for Review Depth:** Ask the user to choose the review mode for the PR review rounds: either **dual-axis parallel subagents review** (separating Standards and Spec checks) or **standard single-pass review**. Save this preference.
-2. Spawn the reviewer subagent(s) based on the chosen review mode. Default to `model: "opus"` for all reviewer subagents unless the user has explicitly specified a different model preference. Do not add your own diagnosis, file hints, or extra context beyond the skill path, the PR number, and the required mode/prompt:
+2. Spawn the reviewer subagent(s) based on the chosen review mode. {% if harness.id == "opencode" %}Default to `subagent_type: "reviewer"` for all reviewer subagents.{% else %}Default to `model: "opus"` for all reviewer subagents unless the user has explicitly specified a different model preference.{% endif %} Do not add your own diagnosis, file hints, or extra context beyond the skill path, the PR number, and the required mode/prompt:
    - **If Standard Single-Pass Review was chosen:**
-     * Use the `Agent` tool to spawn one subagent.
-     * Tell the subagent to load and execute `/reviewing-pull-requests` with this prompt structure (replacing the PR number only):
+     * {% if harness.id == "opencode" %}Use the `task` tool (`subagent_type: "reviewer"`) to spawn one subagent.{% else %}Use the `Agent` tool to spawn one subagent.{% endif %}
+     * Tell the subagent to {% if harness.id == "opencode" %}call `skill({ name: "reviewing-pull-requests" })` and then follow it with{% else %}load and execute `/reviewing-pull-requests` with{% endif %} this prompt structure (replacing the PR number only):
        ```
-       Run /reviewing-pull-requests and follow it exactly in mode: "full".
+       {% if harness.id == "opencode" %}Load the reviewing-pull-requests skill and follow it exactly in mode: "full".{% else %}Run /reviewing-pull-requests and follow it exactly in mode: "full".{% endif %}
 
        PR#<number>. Aim for comprehensive feedback of 5+ aspects or none.
        ```
      * Wait for the subagent to finish and return its report.
    - **If Dual-Axis Parallel Review was chosen:**
-     * Spawn **two parallel subagents** using the `Agent` tool.
+     * {% if harness.id == "opencode" %}Spawn **two parallel subagents** using the `task` tool (`subagent_type: "reviewer"`) — one `task` call per subagent in the same message.{% else %}Spawn **two parallel subagents** using the `Agent` tool.{% endif %}
      * Instruct Subagent 1 (Standards) with this prompt structure:
        ```
-       Run /reviewing-pull-requests and follow it exactly in mode: "standards".
+       {% if harness.id == "opencode" %}Load the reviewing-pull-requests skill and follow it exactly in mode: "standards".{% else %}Run /reviewing-pull-requests and follow it exactly in mode: "standards".{% endif %}
 
        PR#<number>. Aim for comprehensive feedback of 5+ aspects or none.
        ```
      * Instruct Subagent 2 (Spec) with this prompt structure:
        ```
-       Run /reviewing-pull-requests and follow it exactly in mode: "spec".
+       {% if harness.id == "opencode" %}Load the reviewing-pull-requests skill and follow it exactly in mode: "spec".{% else %}Run /reviewing-pull-requests and follow it exactly in mode: "spec".{% endif %}
 
        PR#<number>. Aim for comprehensive feedback of 5+ aspects or none.
        ```
