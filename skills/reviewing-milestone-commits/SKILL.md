@@ -1,6 +1,6 @@
 ---
-name: reviewing-milestone-commits
-description: "Router for milestone commit reviews. Directs the subagent to follow either standards, spec, or full review workflows under references/."
+name: {{ skill_name }}
+description: "{{ skill_description }}"
 ---
 
 # Reviewing Milestone Commits (Router)

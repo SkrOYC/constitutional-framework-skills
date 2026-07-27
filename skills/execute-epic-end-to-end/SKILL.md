@@ -1,6 +1,6 @@
 ---
-name: execute-epic-end-to-end
-description: "Execute a planned work item end to end — a constitution epic (default) or a tracked GitHub issue — by planning milestones once up front, creating a branch, implementing, validating, committing, and independently reviewing each milestone before continuing, then closing out with a constitutional reconciliation that keeps .constitution/ aligned. Defaults to the active epic under .constitution/tasks/active/; auto-switches to GitHub Issue mode when the user references a gh issue (number/URL) or no active epic exists. Both modes adapt to whether a .constitution/ is present. Use when the user wants a planned epic or a tracked GitHub issue executed systematically. Do not use for throwaway changes with no tracked epic or issue, or Epic mode when the active task files are missing (route upstream instead)."
+name: {{ skill_name }}
+description: "{{ skill_description }}"
 ---
 
 # Execute Epic End To End

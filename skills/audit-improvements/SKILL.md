@@ -1,6 +1,6 @@
 ---
-name: audit-improvements
-description: "Perform a deep, thorough, and semantically rich codebase audit across correctness, security, perf, tech debt, dependencies, DX, docs, and direction. Generates `.constitution/reports/audit-[TIMESTAMP]-[slug].md` and guides the user to `/interview for Tasks`."
+name: {{ skill_name }}
+description: "{{ skill_description }}"
 metadata:
   family: ai-project-constitutional-framework
   stage: "audit"

@@ -1,6 +1,6 @@
 ---
-name: specifying-technical-implementation
-description: "Stage 3 of the four-document constitutional framework. Transforms .constitution/architecture/ files into a concrete .constitution/tech-spec/, the source-of-truth implementation constitution for Tasks. Use when selecting or validating a production-ready stack, formalizing interface contracts and schemas, recording ADRs, defining repository structure, or revising implementation details while staying inside approved logical boundaries."
+name: {{ skill_name }}
+description: "{{ skill_description }}"
 metadata:
   family: ai-project-constitutional-framework
   stage: "3"
