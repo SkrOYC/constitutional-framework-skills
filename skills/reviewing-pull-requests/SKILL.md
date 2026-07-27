@@ -1,6 +1,6 @@
 ---
-name: reviewing-pull-requests
-description: "Router for pull request reviews. Directs the subagent to follow either standards, spec, or full review workflows under references/."
+name: {{ skill_name }}
+description: "{{ skill_description }}"
 ---
 
 # Reviewing Pull Requests (Router)

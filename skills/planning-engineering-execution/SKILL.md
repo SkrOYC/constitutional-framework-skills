@@ -1,11 +1,11 @@
 ---
-name: planning-engineering-execution
-description: "Stage 4 of the four-document constitutional framework. Converts .constitution/tech-spec/ files into an ordered .constitution/tasks/ execution constitution: atomic tickets, effort, dependencies, risk spikes, and Gherkin acceptance criteria. Use when breaking approved implementation work into an execution plan or revising the build plan for a new delta."
+name: {{ skill_name }}
+description: "{{ skill_description }}"
 metadata:
-  family: ai-project-constitutional-framework
-  stage: "4"
-  artifact: ".constitution/tasks/"
-  upstream: ".constitution/tech-spec/ | .constitution/architecture/"
+  family: {{ metadata.family }}
+  stage: "{{ metadata.stage }}"
+  artifact: "{{ metadata.artifact }}"
+  upstream: "{{ metadata.upstream }}"
 ---
 
 # Planning Engineering Execution

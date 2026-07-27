@@ -1,11 +1,11 @@
 ---
-name: designing-solution-architecture
-description: "Stage 2 of the four-document constitutional framework. Converts .constitution/prd/ files into a logical .constitution/architecture/, the source-of-truth architecture constitution for TechSpec and Tasks. Use when defining or revising system architecture, selecting a high-level pattern, decomposing logical containers, mapping critical flows, or designing resilience and boundaries without choosing concrete vendors or frameworks."
+name: {{ skill_name }}
+description: "{{ skill_description }}"
 metadata:
-  family: ai-project-constitutional-framework
-  stage: "2"
-  artifact: ".constitution/architecture/"
-  upstream: ".constitution/prd/"
+  family: {{ metadata.family }}
+  stage: "{{ metadata.stage }}"
+  artifact: "{{ metadata.artifact }}"
+  upstream: "{{ metadata.upstream }}"
 ---
 
 # Designing Solution Architecture

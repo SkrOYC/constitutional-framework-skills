@@ -1,9 +1,9 @@
 ---
-name: interview
-description: "Resolve ambiguities, unstated preferences, and potential drift before running one of the four canonical stages (PRD, Architecture, TechSpec, Tasks). Use when the user wants a thorough, step-by-step pre-stage interview. The user must specify the target stage."
+name: {{ skill_name }}
+description: "{{ skill_description }}"
 metadata:
-  family: ai-project-constitutional-framework
-  companion: true
+  family: {{ metadata.family }}
+  companion: {{ metadata.companion }}
 ---
 
 # Interview – Pre-Stage Preparation

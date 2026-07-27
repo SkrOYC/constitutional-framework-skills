@@ -1,11 +1,11 @@
 ---
-name: defining-product-requirements
-description: "Stage 1 of the four-document constitutional framework. Transforms raw project intent or an existing codebase into modular, highly focused product files under .constitution/prd/, the source-of-truth product constitution for Architecture, TechSpec, and Tasks. Use when defining product requirements, clarifying scope, identifying users, prioritizing capabilities, writing or revising product specifications, or converting messy ideas into technology-agnostic requirements."
+name: {{ skill_name }}
+description: "{{ skill_description }}"
 metadata:
-  family: ai-project-constitutional-framework
-  stage: "1"
-  artifact: ".constitution/prd/"
-  upstream: "user-intent | existing-codebase"
+  family: {{ metadata.family }}
+  stage: "{{ metadata.stage }}"
+  artifact: "{{ metadata.artifact }}"
+  upstream: "{{ metadata.upstream }}"
 ---
 
 # Defining Product Requirements

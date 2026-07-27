@@ -1,6 +1,6 @@
 ---
-name: commit-push-open-pr
-description: Commit the current tracked and untracked work on the current branch, push the branch to the remote, and open a GitHub pull request with `gh`. Use when the user wants the concrete commit-to-push-to-PR workflow handled end-to-end with explicit choices for commit message, PR title, PR body, draft status, or base branch instead of hand-wavy guessing. Does not create a new branch — operates on whatever branch is currently checked out. Requires `git` and `gh` CLI access. Do not use for partial staging, rebases, stacked PRs, branch creation, or merge/close workflows.
+name: {{ skill_name }}
+description: "{{ skill_description }}"
 ---
 
 # Commit Push Open PR
