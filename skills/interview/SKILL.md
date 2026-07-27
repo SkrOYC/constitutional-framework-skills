@@ -2,8 +2,8 @@
 name: {{ skill_name }}
 description: "{{ skill_description }}"
 metadata:
-  family: ai-project-constitutional-framework
-  companion: true
+  family: {{ metadata.family }}
+  companion: {{ metadata.companion }}
 ---
 
 # Interview – Pre-Stage Preparation

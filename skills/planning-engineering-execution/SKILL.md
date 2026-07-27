@@ -2,10 +2,10 @@
 name: {{ skill_name }}
 description: "{{ skill_description }}"
 metadata:
-  family: ai-project-constitutional-framework
-  stage: "4"
-  artifact: ".constitution/tasks/"
-  upstream: ".constitution/tech-spec/ | .constitution/architecture/"
+  family: {{ metadata.family }}
+  stage: "{{ metadata.stage }}"
+  artifact: "{{ metadata.artifact }}"
+  upstream: "{{ metadata.upstream }}"
 ---
 
 # Planning Engineering Execution

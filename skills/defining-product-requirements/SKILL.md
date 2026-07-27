@@ -2,10 +2,10 @@
 name: {{ skill_name }}
 description: "{{ skill_description }}"
 metadata:
-  family: ai-project-constitutional-framework
-  stage: "1"
-  artifact: ".constitution/prd/"
-  upstream: "user-intent | existing-codebase"
+  family: {{ metadata.family }}
+  stage: "{{ metadata.stage }}"
+  artifact: "{{ metadata.artifact }}"
+  upstream: "{{ metadata.upstream }}"
 ---
 
 # Defining Product Requirements

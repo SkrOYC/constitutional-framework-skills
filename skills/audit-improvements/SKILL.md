@@ -2,9 +2,9 @@
 name: {{ skill_name }}
 description: "{{ skill_description }}"
 metadata:
-  family: ai-project-constitutional-framework
-  stage: "audit"
-  artifact: ".constitution/reports/audit-[TIMESTAMP]-[slug].md"
+  family: {{ metadata.family }}
+  stage: "{{ metadata.stage }}"
+  artifact: "{{ metadata.artifact }}"
 ---
 
 # Audit Improvements

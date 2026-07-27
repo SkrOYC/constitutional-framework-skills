@@ -2,10 +2,10 @@
 name: {{ skill_name }}
 description: "{{ skill_description }}"
 metadata:
-  family: ai-project-constitutional-framework
-  stage: "2"
-  artifact: ".constitution/architecture/"
-  upstream: ".constitution/prd/"
+  family: {{ metadata.family }}
+  stage: "{{ metadata.stage }}"
+  artifact: "{{ metadata.artifact }}"
+  upstream: "{{ metadata.upstream }}"
 ---
 
 # Designing Solution Architecture
