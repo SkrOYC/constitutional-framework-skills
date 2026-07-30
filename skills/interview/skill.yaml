@@ -3,4 +3,6 @@ name: interview
 description: "Resolve ambiguities, unstated preferences, and potential drift before running one of the four canonical stages (PRD, Architecture, TechSpec, Tasks). Use when the user wants a thorough, step-by-step pre-stage interview. The user must specify the target stage."
 metadata:
   family: "ai-project-constitutional-framework"
-  companion: "true"
+  role: "companion"
+  artifact: "session-context"
+  upstream: "user-intent | .constitution/"

@@ -1,8 +1,3 @@
----
-name: reviewing-milestone-commits
-description: Review a committed epic milestone during execute-epic-end-to-end execution. Use when an implementation milestone has been committed and must receive an isolated correctness review before the executor continues to the next milestone. Requires git access to inspect the commit diff, surrounding code, relevant tests, and framework artifacts. Do not use for PR reviews, code generation, loose snippets, or generalized architecture feedback unrelated to the committed milestone.
----
-
 # Reviewing Milestone Commits
 
 Review a committed milestone as a concrete change to a real codebase, with the same seriousness as a PR review but a narrower target: the milestone commit.

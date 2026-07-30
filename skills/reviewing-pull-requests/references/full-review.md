@@ -1,8 +1,3 @@
----
-name: reviewing-pull-requests
-description: Reviews a GitHub pull request when the user asks for a PR review. Use when the user asks to review, check, look at, or give feedback on a GitHub pull request — including requests phrased as "check this PR," "look at PR #482," "is this ready to merge," "review the diff on my branch," "what do you think of this PR," or similar. Requires gh CLI access. Reads the PR, surrounding code, and any referenced GitHub issues, then returns structured findings in the required bug-and-flag format. Do not use for code generation, repo-wide audits, review of loose snippets or diffs not tied to a PR, or generalized architecture feedback unrelated to a PR.
----
-
 # Reviewing Pull Requests
 
 Review an actual GitHub pull request with a balanced posture that can still block when warranted.

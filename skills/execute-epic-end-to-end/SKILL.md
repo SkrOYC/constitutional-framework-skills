@@ -1,6 +1,11 @@
 ---
 name: {{ skill_name }}
 description: "{{ skill_description }}"
+metadata:
+  family: "{{ metadata.family }}"
+  role: "{{ metadata.role }}"
+  artifact: "{{ metadata.artifact }}"
+  upstream: "{{ metadata.upstream }}"
 ---
 
 # Execute Epic End To End
@@ -47,10 +52,10 @@ If the work item cannot proceed without inventing requirements, logic, or contra
 
 | Symptom | Correct Upstream Action |
 | --- | --- |
-| Epic missing, task sequence wrong, or Gherkin criteria not implementation-ready | Invoke `/planning-engineering-execution` to revise active epic under `.constitution/tasks/` |
-| Ticket requires an undefined API, database schema, migration rule, or interface contract | Revise `.constitution/tech-spec/` using `/specifying-technical-implementation` |
-| Required change would alter logical container boundaries, communication styles, or trust boundaries | Revise `.constitution/architecture/` using `/designing-solution-architecture` |
-| Requested outcome changes product scope, priority, or business intent | Revise `.constitution/prd/` using `/defining-product-requirements` |
+| Epic missing, task sequence wrong, or Gherkin criteria not implementation-ready | Invoke {% if harness.id == "opencode" %}`skill({ name: "planning-engineering-execution" })`{% else %}`/planning-engineering-execution`{% endif %} to revise active epic under `.constitution/tasks/` |
+| Ticket requires an undefined API, database schema, migration rule, or interface contract | Revise `.constitution/tech-spec/` using {% if harness.id == "opencode" %}`skill({ name: "specifying-technical-implementation" })`{% else %}`/specifying-technical-implementation`{% endif %} |
+| Required change would alter logical container boundaries, communication styles, or trust boundaries | Revise `.constitution/architecture/` using {% if harness.id == "opencode" %}`skill({ name: "designing-solution-architecture" })`{% else %}`/designing-solution-architecture`{% endif %} |
+| Requested outcome changes product scope, priority, or business intent | Revise `.constitution/prd/` using {% if harness.id == "opencode" %}`skill({ name: "defining-product-requirements" })`{% else %}`/defining-product-requirements`{% endif %} |
 
 ```markdown
 ## Blocked

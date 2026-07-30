@@ -2,9 +2,10 @@
 name: {{ skill_name }}
 description: "{{ skill_description }}"
 metadata:
-  family: {{ metadata.family }}
-  stage: "{{ metadata.stage }}"
+  family: "{{ metadata.family }}"
+  role: "{{ metadata.role }}"
   artifact: "{{ metadata.artifact }}"
+  upstream: "{{ metadata.upstream }}"
 ---
 
 # Audit Improvements
@@ -183,5 +184,5 @@ Sorted by Leverage:
 
 To prevent duplicating task planning and sequencing logic:
 1.  **Do not** attempt to write the final Epic file or tickets yourself.
-2.  Once the report is saved, print the exact file path and **instruct the user to pivot to the `/interview for Tasks` workflow**.
-3.  Explain that the `/interview for Tasks` stage (invoking the `planning-engineering-execution` skill) is the designated, constitutional mechanism to review these findings with the user, prioritize them, and decompose them into a sequenced Epic file with Gherkin tickets.
+2.  Once the report is saved, print the exact file path and **instruct the user to pivot to the {% if harness.id == "opencode" %}`interview` workflow targeting Tasks{% else %}`/interview for Tasks` workflow{% endif %}**.
+3.  Explain that the {% if harness.id == "opencode" %}`interview` stage targeting Tasks{% else %}`/interview for Tasks` stage{% endif %} (invoking the `planning-engineering-execution` skill) is the designated, constitutional mechanism to review these findings with the user, prioritize them, and decompose them into a sequenced Epic file with Gherkin tickets.

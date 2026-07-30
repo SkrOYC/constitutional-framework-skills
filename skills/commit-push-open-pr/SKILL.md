@@ -1,6 +1,11 @@
 ---
 name: {{ skill_name }}
 description: "{{ skill_description }}"
+metadata:
+  family: "{{ metadata.family }}"
+  role: "{{ metadata.role }}"
+  artifact: "{{ metadata.artifact }}"
+  upstream: "{{ metadata.upstream }}"
 ---
 
 # Commit Push Open PR

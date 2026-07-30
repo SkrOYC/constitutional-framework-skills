@@ -2,7 +2,8 @@
 name: {{ skill_name }}
 description: "{{ skill_description }}"
 metadata:
-  family: {{ metadata.family }}
+  family: "{{ metadata.family }}"
+  role: "{{ metadata.role }}"
   stage: "{{ metadata.stage }}"
   artifact: "{{ metadata.artifact }}"
   upstream: "{{ metadata.upstream }}"

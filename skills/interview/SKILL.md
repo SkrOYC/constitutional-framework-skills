@@ -2,8 +2,10 @@
 name: {{ skill_name }}
 description: "{{ skill_description }}"
 metadata:
-  family: {{ metadata.family }}
-  companion: {{ metadata.companion }}
+  family: "{{ metadata.family }}"
+  role: "{{ metadata.role }}"
+  artifact: "{{ metadata.artifact }}"
+  upstream: "{{ metadata.upstream }}"
 ---
 
 # Interview – Pre-Stage Preparation
@@ -14,14 +16,14 @@ After the interview, you must offer to chain the corresponding stage skill, whic
 
 ## 1. When This Skill is Triggered
 
-The user invokes `/interview` and **must** specify a target stage. Valid stage names:
+The user invokes {% if harness.id == "opencode" %}the `interview` skill{% else %}`/interview`{% endif %} and **must** specify a target stage. Valid stage names:
 
 - `PRD`
 - `Architecture`
 - `TechSpec`
 - `Tasks`
 
-Example: `/interview for TechSpec`
+Example: {% if harness.id == "opencode" %}"interview me for TechSpec"{% else %}`/interview for TechSpec`{% endif %}
 
 If the user does not specify a stage, ask for it and stop until provided.
 
@@ -74,7 +76,7 @@ Adjust your questions dynamically based on:
 
 ## 4. Guardrails
 
-- Do **not** generate, edit, or delete any files in the workspace during `/interview`.
+- Do **not** generate, edit, or delete any files in the workspace during {% if harness.id == "opencode" %}the interview{% else %}`/interview`{% endif %}.
 - Do **not** proceed to the interview without a valid, validated target stage.
 - Do **not** assume permission to execute the downstream generation skill; always ask and wait for explicit confirmation.
 - Do **not** ask low-impact questions when the user signals impatience or when defaults are acceptable.
