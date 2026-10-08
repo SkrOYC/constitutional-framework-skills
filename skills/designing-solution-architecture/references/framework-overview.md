@@ -1,3 +1,4 @@
+<!-- WORKAROUND: skillprism#46 — skillprism does not template this file. Keep it harness-neutral; restore the templated form when #46 is fixed. -->
 # Framework overview
 
 Read this before doing stage or execution work. It describes the whole pipeline, so you can understand any stage's inputs and obligations without loading that stage's own skill. Every copy of this file is identical by design; `check-overview-sync.sh` at the skills root fails when one drifts.

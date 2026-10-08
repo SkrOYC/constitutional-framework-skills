@@ -1,3 +1,4 @@
+<!-- WORKAROUND: skillprism#46 — skillprism does not template this file. Keep it harness-neutral; restore the templated form when #46 is fixed. -->
 # Epic plan file
 
 The contract that lets an epic run without questions. It's written in a step-0 planning session and approved once by the user: by the wave lead (`execute-wave`) for every epic in a wave, or by the epic lead itself when it runs standalone. After approval the epic lead reads it as authority and never replans. When the wave lead wrote it, amendments are the wave lead's alone; when the epic lead wrote it, the epic lead appends its own amendments, under the same rules.

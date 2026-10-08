@@ -1,3 +1,4 @@
+<!-- WORKAROUND: skillprism#46 — skillprism does not template this file. Keep it harness-neutral; restore the templated form when #46 is fixed. -->
 # Documents review
 
 Review a constitution-only pull request: one pipeline stage's output under `.constitution/`, or an interview record, register, or patch-lane change. The goal is a review that converges in one pass. Report what a reader of the next stage would trip on, not everything that could be phrased better.

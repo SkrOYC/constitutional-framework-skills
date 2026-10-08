@@ -1,3 +1,4 @@
+<!-- WORKAROUND: skillprism#46 — skillprism does not template this file. Keep it harness-neutral; restore the templated form when #46 is fixed. -->
 # Check catalog
 
 Every finding `validate` prints carries one of these ids. Severity is fixed per check: an error fails validation, a warning does not, and info is context. A project may downgrade a check to info by listing it under `exceptions` in `constitution.yaml` with a reason; the finding then prints the reason. Nothing about estimates is ever an error.

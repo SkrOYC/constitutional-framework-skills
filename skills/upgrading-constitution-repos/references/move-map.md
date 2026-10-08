@@ -1,3 +1,4 @@
+<!-- WORKAROUND: skillprism#46 — skillprism does not template this file. Keep it harness-neutral; restore the templated form when #46 is fixed. -->
 # Move map: where each legacy artifact goes
 
 The survey classifies every artifact that still sits next to its sidecar under `tech-spec/`. Decide each one with this table, write the decision into the move map in the plan, and ask the user only where the table says so.
