@@ -1,0 +1,7 @@
+artifact_path: .constitution/tech-spec/data-models/store.sql
+pinned: true
+surface: data-model
+flows: [render-note]
+boundaries: [BND-02]
+certainty: assumed
+assumption: The Page cache table is shared by the render and check epics.

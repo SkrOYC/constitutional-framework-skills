@@ -1,0 +1,6 @@
+skillprism: '1'
+name: upgrading-constitution-repos
+description: 'Upgrade a project''s .constitution/ to the current framework between waves: survey it read-only, plan the upgrade once, then run it in reviewable phases on its own branches. The phases back-fill estimates, move raw artifacts out of tech-spec/ into the code with sidecars, fix surface globs, and add live-verification recipes and pinned cross-epic contracts. Use to upgrade or modernize a repository''s constitution. Refuses while a wave is in flight. Requires Bun, git, gh, and constitution-tooling.'
+metadata:
+  family: 'ai-project-development-framework'
+  companion: 'true'

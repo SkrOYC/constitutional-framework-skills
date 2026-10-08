@@ -1,0 +1,24 @@
+bill_of_materials:
+  - name: typescript
+    role: language
+    version: 5.8.0
+    ecosystem: npm
+    certainty: settled
+    evidence: { kind: repository, ref: package-lock.json, version: 5.9.2, date: "2026-09-02" }
+  - name: "@biomejs/biome"
+    role: tooling
+    version: 2.2.4
+    ecosystem: npm
+    certainty: settled
+    evidence: { kind: repository, ref: package-lock.json, version: 2.2.4, date: "2026-09-02" }
+  - name: bun
+    role: runtime
+    version: 1.3.13
+    ecosystem: system
+    certainty: assumed
+    assumption: Pinned by the developer environment, not by a lockfile in this repository.
+compatibility_policy:
+  pinning: Exact versions in package.json.
+  lockfiles: [package-lock.json]
+  upgrade_boundaries: Major upgrades need an ADR.
+no_durable_state: The tool owns no durable state; Pages are outputs the Operator owns.

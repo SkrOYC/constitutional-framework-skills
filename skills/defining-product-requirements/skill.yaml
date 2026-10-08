@@ -1,0 +1,8 @@
+skillprism: '1'
+name: defining-product-requirements
+description: 'Stage 1 of the four-stage documentation pipeline. Turns raw intent or an existing codebase into structured product requirements under .constitution/prd/ (jobs, capabilities, constraints, glossary as YAML; vision, actors, domain model as prose) plus the archetype in constitution.yaml, which later stages read and must not contradict. Use when defining product requirements, clarifying scope, identifying users, prioritizing capabilities, or declaring archetypes.'
+metadata:
+  family: 'ai-project-development-framework'
+  stage: '1'
+  artifact: '.constitution/prd/ | .constitution/constitution.yaml archetype'
+  upstream: 'user-intent | existing-codebase'

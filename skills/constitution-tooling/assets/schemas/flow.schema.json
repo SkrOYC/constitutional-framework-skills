@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "flow.schema.json",
+  "title": "Front matter of .constitution/architecture/flows/*.md",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["job", "capabilities", "boundaries", "view", "certainty"],
+  "properties": {
+    "job": { "$ref": "common.schema.json#/$defs/jobId" },
+    "capabilities": { "type": "array", "minItems": 1, "items": { "$ref": "common.schema.json#/$defs/capabilityId" }, "uniqueItems": true },
+    "boundaries": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/boundaryId" }, "uniqueItems": true },
+    "view": { "type": "string", "enum": ["sequence", "state", "dag", "timing", "value-flow"] },
+    "certainty": { "$ref": "common.schema.json#/$defs/certainty" },
+    "evidence": { "$ref": "common.schema.json#/$defs/evidence" },
+    "assumption": { "type": "string" },
+    "decision": { "$ref": "common.schema.json#/$defs/odId" }
+  }
+}

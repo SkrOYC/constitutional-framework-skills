@@ -1,0 +1,10 @@
+terms:
+  - term: Note
+    definition: A markdown source file the Operator authors.
+    do_not_use: [document, markdown file]
+  - term: Page
+    definition: The rendered output written beside a Note.
+    do_not_use: [artifact, output file]
+  - term: Link
+    definition: A reference from a Note to another Note or resource.
+    do_not_use: [hyperlink]

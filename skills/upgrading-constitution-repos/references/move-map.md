@@ -1,0 +1,28 @@
+# Move map: where each legacy artifact goes
+
+The survey classifies every artifact that still sits next to its sidecar under `tech-spec/`. Decide each one with this table, write the decision into the move map in the plan, and ask the user only where the table says so.
+
+| Survey kind | What it means | Default move | Ask the user when |
+| :--- | :--- | :--- | :--- |
+| `identical-copy-in-code` | The code already has a byte-identical copy | Point `artifact_path` at the code copy; delete the tech-spec copy. No code commit. | More than one identical copy exists: pick the one the build or generator reads, and ask only if none of them is read |
+| `code-reads-tech-spec` | Code, scripts, CI, or generators read the file from `.constitution/` | Code commit: move the file to its layout location and repoint every reader. Then point `artifact_path` at it | The layout names no home for this artifact kind |
+| `same-name-differs` | A file with the same name exists in code with different content | Diff them (a read-only explorer subagent can summarise the difference). If the code copy is simply ahead, point `artifact_path` at it and delete the tech-spec copy. If the tech-spec copy carries planned, unbuilt shape, keep that shape as entities and fields in the sidecar's companion markdown and in the tickets that will build it, then point at the code | Always when the tech-spec copy has planned shape the code lacks: the user decides whether it's still intended |
+| `same-name-differs` on a generic name | `README.md`, `index.ts`, `common.ts` matched an unrelated file | Treat as the kind it would be without the match | Never |
+| `only-in-tech-spec`, machine-readable | A schema, OpenAPI, AsyncAPI, `.proto`, `.star` file for a surface not built yet | Code commit: add it at its layout location, unchanged. Point `artifact_path` there; certainty stays as it is until tests exercise it | The layout names no home for it |
+| `only-in-tech-spec`, prose (`.md`) | A human-written contract, such as a CLI command reference or a store layout | If it states decisions and invariants, it becomes the sidecar's companion markdown: same stem, named in `companion`, and the sidecar points at the code that implements it, or at a planned path with `certainty: assumed` | Always: companion (stays in tech-spec) or user documentation (moves to the repo's docs) |
+| `only-in-tech-spec`, derived table (`.csv` traceability, invariant lists) | A record about the spec, not an artifact the code consumes | Fold what it records into the sidecars' `flows`/`boundaries` fields or the companion markdown, then delete it | Always, with a one-line summary of what would be lost |
+
+## Things to sweep in the same constitution commit
+
+- **Verification commands and recipes.** Any `guidelines.md` command that reads a tech-spec path, including through a placeholder such as `PATH_TO_TECH_SPEC/...`, now reads the new code path.
+- **`surfaces` in `constitution.yaml`.** Add the new code paths so the glossary check follows the artifacts. Keep a `.constitution/tech-spec/...` glob only while companion markdown lives there.
+- **`tech_spec_patchable` in active epics.** An entry that names a raw artifact becomes the `.meta.yaml` sidecar, and the artifact's code path goes into the epic's `scope.paths` when its tickets change it. This is a Stage 4 patch in its own commit. Run `render` and check that no two epics in one wave now overlap.
+- **Changelogs.** A patch entry in `tech-spec/changelog.yaml` for the move, and one in `tasks/changelog.yaml` for the patchable trim.
+
+## Commit order for one group
+
+1. Code commit: artifacts added or moved into the code, readers repointed. Nothing under `.constitution/`.
+2. Constitution commit: `artifact_path` set, tech-spec copies deleted, companions named, guidelines commands and `surfaces` updated, tech-spec changelog entry. Nothing outside `.constitution/`.
+3. Constitution commit (Stage 4 patch): `tech_spec_patchable` and `scope.paths` in active epics, `render`, tasks changelog entry.
+
+Run `validate` after each commit; the commit is done when it reports no new errors. Group by directory (`contracts/http`, `contracts/async`, `data-models`), so each group is one reviewable set of three commits.

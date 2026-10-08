@@ -1,0 +1,39 @@
+id: OD
+name: Operations dashboard
+kind: product
+capabilities: [CAP-002]
+depends_on: [B]
+scope:
+  paths: [src/core/dashboard.ts]
+  tech_spec_patchable: []
+tickets:
+  - id: FIX-OD001
+    title: Render an operations summary
+    type: Feature
+    effort: 2
+    depends_on: []
+    scope: { in: [src/core/dashboard.ts] }
+    verification: { command: bun run test, expected: exit 0 }
+    description: A summary Page lists the Notes rendered in the last run.
+    acceptance:
+      mode: gherkin
+      evidence: Given a completed run, when the summary renders, then every Note appears once.
+    flows: [render-note]
+    certainty: assumed
+    status: planned
+  - id: FIX-OD002
+    title: Reuse the anchor spike
+    type: Spike
+    effort: 1
+    depends_on: []
+    scope: { in: [.constitution/spikes] }
+    verification: { command: bun run test, expected: exit 0 }
+    description: A ticket that wrongly claims a decision-owned spike.
+    acceptance:
+      mode: benchmark
+      evidence: None; this ticket exists to trip the decision-owned spike check.
+      constraints: [NFC-01]
+    flows: [render-note]
+    spike: SPK-FIX-OD003
+    certainty: assumed
+    status: planned

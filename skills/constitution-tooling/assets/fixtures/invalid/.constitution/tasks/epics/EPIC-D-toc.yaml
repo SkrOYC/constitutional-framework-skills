@@ -1,0 +1,24 @@
+id: E
+name: Table of contents
+kind: product
+capabilities: [CAP-002]
+depends_on: [B]
+scope:
+  paths: [src/core/toc.ts, src/core/links.ts]
+  tech_spec_patchable: []
+estimated_diff_lines: 500
+tickets:
+  - id: FIX-E001
+    title: Render a table of contents from headings
+    type: Feature
+    effort: 13
+    depends_on: [FIX-C001]
+    scope: { in: [src/cli/other.ts] }
+    verification: { command: ./scripts/missing.sh, expected: exit 0 }
+    description: Headings in a Note become a nested list at the top of the Page.
+    acceptance:
+      mode: live_probe
+      evidence: Given a Note with headings, when rendered, then a list appears.
+    flows: [render-note]
+    certainty: assumed
+    status: planned

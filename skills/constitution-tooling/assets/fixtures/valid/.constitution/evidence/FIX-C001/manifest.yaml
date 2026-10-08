@@ -1,0 +1,9 @@
+owner: FIX-C001
+mode: contract_test
+produced:
+  date: "2026-09-02"
+  commit: "0000000"
+  command: LC_ALL=C bun run test > run.log
+files:
+  - { path: run.log, sha256: 5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03, bytes: 6, role: log }
+pass_criteria: Every contract test passes; the log ends with the summary line.

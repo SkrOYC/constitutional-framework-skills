@@ -1,0 +1,38 @@
+decisions:
+  - id: OD-01
+    question: Which markdown renderer does the core use?
+    blocks: [FIX-B002]
+    options:
+      - { name: Smaller renderer, pros: [fast startup, no transitive deps], cons: [fewer extensions] }
+      - { name: Full renderer, pros: [tables and footnotes], cons: [startup cost against NFC-01] }
+    recommendation: Smaller renderer
+    closure: spike
+    spike: SPK-FIX-B001
+    status: closed
+    asked: { date: "2026-09-01", in: reports/2026-09-01-interview-techspec.md }
+    ruling: { ref: SPK-FIX-B001, date: "2026-09-02", summary: Smaller renderer chosen at 41 ms median., chosen: Smaller renderer }
+  - id: OD-02
+    question: Are remote Link targets checked in the first phase?
+    blocks: [CAP-003, FIX-C001]
+    options:
+      - { name: Local only, pros: [no network], cons: [misses most real rot] }
+      - { name: Local plus HTTP HEAD, pros: [catches real rot], cons: [network failure modes, slower] }
+    recommendation: Local only
+    closure: ruling
+    ruler: Operator
+    waiting_on: research/remote-link-checking-review.md
+    interim: { assumption: Local only, applied_by: [prd/capabilities.yaml#CAP-003] }
+    status: open
+    asked: { date: "2026-09-02", in: reports/2026-09-02-interview-tasks.md }
+  - id: OD-03
+    question: How does the renderer disambiguate two headings with the same anchor?
+    blocks: [FIX-D001]
+    options:
+      - { name: Numeric suffix, pros: [stable across edits], cons: [ugly anchors] }
+      - { name: Content hash, pros: [collision-free], cons: [anchor changes when the heading text changes] }
+    recommendation: Numeric suffix
+    closure: spike
+    spike: SPK-FIX-OD003
+    status: closed
+    asked: { date: "2026-09-02", in: reports/2026-09-02-interview-tasks.md }
+    ruling: { ref: SPK-FIX-OD003, date: "2026-09-02", summary: Numeric suffix chosen; 14 collisions in the sample corpus resolved., chosen: Numeric suffix }

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "glossary.schema.json",
+  "title": ".constitution/prd/glossary.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["terms"],
+  "properties": {
+    "terms": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["term", "definition", "do_not_use"],
+        "properties": {
+          "term": { "type": "string", "minLength": 1, "description": "Canonical singular domain term" },
+          "definition": { "type": "string", "minLength": 1, "description": "At most two sentences" },
+          "do_not_use": {
+            "description": "Synonyms writers must not use. Domain synonyms only; never generic English or technical vocabulary. The checker greps these on declared surfaces.",
+            "type": "array",
+            "items": { "type": "string", "minLength": 2 },
+            "uniqueItems": true
+          },
+          "since": { "$ref": "common.schema.json#/$defs/semver" }
+        }
+      }
+    }
+  }
+}

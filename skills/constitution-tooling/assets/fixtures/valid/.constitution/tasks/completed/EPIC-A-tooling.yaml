@@ -1,0 +1,36 @@
+id: A
+name: Tooling
+kind: tooling
+capabilities: []
+depends_on: []
+scope:
+  paths: [package.json, scripts, tests]
+  tech_spec_patchable: []
+estimated_diff_lines: 400
+tickets:
+  - id: FIX-A001
+    title: Test runner, lint, and typecheck wired
+    type: Chore
+    effort: 2
+    depends_on: []
+    scope: { in: [package.json, tests] }
+    verification: { command: bun run test, expected: exit 0 }
+    description: Wire the three verification commands so later tickets can quote them bare.
+    acceptance:
+      mode: contract_test
+      evidence: "`bun run test`, `bun run lint`, and `bun run typecheck` each exit 0 on the empty repository."
+    flows: []
+    certainty: settled
+    status: done
+closeout:
+  tickets_completed: [FIX-A001]
+  tickets_deferred: []
+  points_completed: 2
+  spec_patches: []
+  changelog_entries:
+    - { directory: tasks, type: added, text: Tooling epic completed }
+  candidate_terms: []
+  routed_upstream: []
+  follow_ups: []
+  settled: []
+  actuals: { diff_lines: 310, files_touched: 6, milestones: 1, review_rounds: 1, merged_commit: "0000000", measured_at: "2026-09-01" }

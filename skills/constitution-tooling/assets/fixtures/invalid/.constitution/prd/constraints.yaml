@@ -1,0 +1,14 @@
+constraints:
+  - id: NFC-01
+    class: performance
+    statement: Rendering a typical Note is fast enough to feel instantaneous.
+    scale: Wall-clock milliseconds from process start to exit for a 200-line Note
+    meter: bun run bench on the reference corpus, median of 20 runs
+    goal: 80
+    stretch: 40
+    fail: 300
+    certainty: assumed
+    assumption: Startup dominates; no measurement yet.
+deferred:
+  - class: security
+    risk: Notes are local files today; if remote sources arrive, path traversal becomes a real class.

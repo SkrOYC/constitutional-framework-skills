@@ -1,0 +1,3 @@
+# Page schema
+
+Companion notes.

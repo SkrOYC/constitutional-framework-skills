@@ -1,0 +1,164 @@
+---
+name: {{ skill_name | yaml_str }}
+description: {{ skill_description | yaml_str }}
+metadata:
+  family: {{ metadata.family | yaml_str }}
+  stage: {{ metadata.stage | yaml_str }}
+  artifact: {{ metadata.artifact | yaml_str }}
+  upstream: {{ metadata.upstream | yaml_str }}
+---
+
+# Execute wave
+
+Read `references/framework-overview.md` before you start. This skill is the wave orchestrator, the **wave lead**: it owns the plan for every epic in the wave, the lanes, the merges, and reconciliation, and nothing else. Epic leads own their epics. Workers and reviewers own their milestones. The wave lead never writes code and never edits `.constitution/`; `reconcile` and `derive` do that once. Its only artifacts are the plan files. The CLI is `bun run ~/.{{ harness.id }}/skills/constitution-tooling/scripts/cli.ts <command> --root .`.
+
+The wave lead holds the highest perspective in the tree: it sees every lane, the shared runtime, and the merge order at once. That is why planning lives here. Keep its context lean: repository inspection goes to exploration subagents that return conclusions, never file dumps, and the epic leads' transcripts never enter it.
+
+The wave runs dark. Step 2 is the only moment the user is in the loop; after it, the user isn't around until the pull requests are merged. Every question the wave could raise is answered in the plans or by their `autonomy` policy.
+
+## Inputs
+
+- `tasks/critical-path.md`, freshly rendered: the wave table, the longest chain, and the out-of-band conflicts.
+- The concurrency block in `constitution.yaml`: worktree layout, branch naming, merge strategy.
+- The active epic files for the wave, and the tech-spec records, sidecars, recipes, flows, and glossary entries they cite.
+- `reports/open-decisions.yaml`.
+- The project's own agent instructions in the repository, for everything the constitution does not carry: shared services and their lifecycle, locks, ports, per-lane setup, lane caps, mandatory manual verification. This skill is project-neutral; those rules enter the wave through the plan files and the hooks below, never through this file.
+- The wave number from the user. When none is given, take the lowest wave whose epics are all still active.
+- What the user says about models and usage: which runtimes and models they want, how much usage is left on each, how hard each epic is. You propose the rest in the plan and the user approves it with the plan.
+
+## Preflight
+
+Run `render` and `validate`. Stop with a plain report if any check fails:
+
+1. `validate` reports no errors.
+2. Every epic in earlier waves is under `tasks/completed/`.
+3. The wave's epics are pairwise scope-disjoint; `validate` enforces this, and the rendered table shows it.
+4. When the project's instructions name a resource only one lane may hold at a time, at most one epic in the wave owns paths under it.
+5. Every `pinned` contract an epic in the wave builds on is settled, present, or created by an epic in this wave that the others depend on or by an earlier one. `validate` catches a pinned contract nobody creates; check the ordering yourself from the epic graph.
+6. The default branch is clean and up to date; `gh auth status` succeeds.
+7. The concurrency block names a merge strategy that matches an available merge skill (`merge-pr-rebase-delete` or `merge-pr-squash-delete`).
+
+## Workflow
+
+### Step 1: Plan every epic
+
+{% if harness.id == "claude" %}Plan mode lets you write only the one plan file the harness names, so Step 1 and Step 2 happen in plan mode with the whole wave written into that one file as a bundle: each epic's plan starts at a line `<!-- plan: EPIC-<ID> -->`, followed by its own front matter and body. `check-plan` validates a bundle plan by plan and across plans. The per-epic plan files are written after approval (Step 3). Exploration subagents are read-only and fine to use. For each epic in the wave, in the wave's listed order, do what the epic lead would do standalone, with the whole wave in view:{% elif harness.id == "codex" %}Write the whole wave into one step-0 bundle file: each epic's plan starts at a line `<!-- plan: EPIC-<ID> -->`, followed by its own front matter and body. `check-plan` validates a bundle plan by plan and across plans. Codex does not require a special plan-mode file or mode switch. The per-epic plan files are written after approval (Step 3). Exploration subagents are read-only. For each epic in the wave, in the wave's listed order, do what the epic lead would do standalone, with the whole wave in view:{% else %}Design the wave in plan mode: call `enter_plan_mode`. If the wave plan is already approved, skip plan mode and go to Step 3. While plan mode is active the only writable file is the session `plan.md` under `~/.grok/sessions/...`. It is not a repo plan file, and `check-plan` does not run on it. A bundle file is optional, not required. You may draft every epic in the session plan, each one starting at a line `<!-- plan: EPIC-<ID> -->` followed by its own front matter and body, so `check-plan` can validate that bundle after you write it to the repo. Exploration goes to `spawn_subagent` children whose prompts say they are read-only and must not create, edit, or delete files. Do not pass a subagent type. An omitted type is general-purpose. For each epic in the wave, in the wave's listed order, do what the epic lead would do standalone, with the whole wave in view:{% endif %}
+
+1. Read the epic file and every tech-spec record, sidecar, recipe, flow, and glossary entry its tickets cite.
+2. Inspect the repository through exploration subagents to separate completed, partial, and missing work per ticket, at the default branch's current commit. Record that commit.
+3. Group the tickets into milestones sized for review: under roughly 30 files or 1,500 diff lines each, dependency-valid, smallest reviewable unit of value.
+4. Draft the epic's plan per `~/.{{ harness.id }}/skills/execute-epic-end-to-end/references/epic-plan.md`, with `kind: epic` and `planned_by: wave_lead`, {% if harness.id == "claude" %}as its plan in the bundle. It will be written to the path the project's instructions name or the default `.claude/plans/EPIC-<ID>.md`.{% elif harness.id == "codex" %}as its plan in the bundle. It will be written to the path the project's instructions name or the default `.codex/plans/EPIC-<ID>.md`.{% else %}into the session plan. It will be written, after approval, to the path the project's instructions name or the default `.grok/plans/EPIC-<ID>.md`.{% endif %} Every section present, every milestone with checkable `repository_state` assertions, every worker receiving the project's verbatim runtime rules.{% if harness.id != "codex" %} When the project's instructions name a runtime resource the lanes share and serialize, write each milestone's verification as a focused run (the test files it touches, by path, about ten minutes per hold at most, longer runs split into separate holds) and put that rule in `verbatim_project_rules`. Complete runs belong to the PR review loop, once per lane, and to the merge step. One lane holding a shared lock for a whole test pool stalls every other lane behind it.{% endif %}
+5. Choose the models and runtimes per role, the review panel, the budget threshold and fallback models, and liveness, from what the user said about usage and from each milestone's difficulty. {% if harness.id == "claude" %}By default the review panel is one Claude and one Codex reviewer, and the milestone reviewer runs on a different family from the worker. The epic lead runs on the wave lead's runtime unless the user asked for a whole subtree on another. Runtimes differ only at the leaf roles.{% elif harness.id == "codex" %}By default the review panel is two Codex models, or Codex and pi when pi is available. The milestone reviewer should differ from the worker. The epic lead runs through Codex collaboration; runtimes differ only at the leaf roles.{% else %}By default the review panel is one Grok reviewer (`spawn_subagent`, runtime `grok`) and one Codex reviewer, and the milestone reviewer runs on a different family from the worker. The epic lead runs on the wave lead's runtime unless the user asked for a whole subtree on another. Runtimes differ only at the leaf roles. Pass `model` from the approved plan. Do not pass a subagent type.{% endif %}
+6. Start each plan's `autonomy.policy` from the defaults in `epic-plan.md`.
+7. Fill the Cross-lane facts section from the other epics in the wave: anything two epics touch by reference without sharing a file, and which lane decides.
+8. Decide whether the wave needs a **pilot**: it is the project's first wave, or it uses a live-verification recipe no merged epic has run yet. If so, mark the first milestone of the first lane `pilot: true`.
+9. {% if harness.id == "codex" %}Name each lane's epic lead `epic-lead-<id>` and write `siblings` into every plan with those names, the branches the concurrency block prescribes, and the merge positions.{% else %}Label each lane's epic lead `epic-lead-<id>` and write `siblings` into every plan with those labels, the branches the concurrency block prescribes, and the merge positions. The label identifies a lead in plans and reports. It is not an address: a subagent is reachable only by the {% if harness.id == "claude" %}agent ID the harness returns when it is spawned{% else %}subagent id `spawn_subagent` returns{% endif %}, which does not exist yet at planning time (Step 4 records it).{% endif %}
+
+### Step 2: One approval for the wave
+
+{% if harness.id == "claude" %}Run `validate`, and run `check-plan` on the bundle; both must be clean before you present, so the user approves plans that already pass. Then present the wave to the user in one message: the epics in merge order, each epic's milestones in a line or two, the model and runtime matrix with the budget threshold and fallbacks, the review panel, the liveness threshold, the autonomy policy and anything in it you'd change for this wave, the lane count against any cap the project sets, the shared-resource findings from preflight item 4, the pilot decision, and the open decisions that touch the wave with the interim you'd adopt for each. Ask everything in this one exchange, including confirmation that the harness allows the nesting depth (wave lead, epic lead, then workers and reviewers). Amend the plans as the user directs, record the answers under each plan's Step-0 rulings, and exit plan mode for approval.
+
+This is the plan-mode moment for the whole wave; it happens once. From here until the report in Step 8, ask the user nothing.{% elif harness.id == "codex" %}Run `validate`, and run `check-plan` on the bundle; both must be clean before you present, so the user approves plans that already pass. Then present the wave to the user in one message: the epics in merge order, each epic's milestones in a line or two, the model and runtime matrix with the budget threshold and fallbacks, the review panel, the liveness threshold, the autonomy policy and anything in it you'd change for this wave, the lane count against the available collaboration slots and any project cap, the shared-resource findings from preflight item 4, the pilot decision, and the open decisions that touch the wave with the interim you'd adopt for each. Ask everything in this one exchange. Amend the plans as the user directs, record the answers under each plan's Step-0 rulings, and run `check-plan` again before dispatch.
+
+This is the planning moment for the whole wave; it happens once. From here until the report in Step 8, follow the approved plans.{% else %}`[subagents].max_depth` must be at least 2 so an epic lead can spawn workers and reviewers. The default allows that nesting (wave lead, then epic lead, then workers and reviewers). If a run reports depth exceeded, stop and say so. Do not ask the user to confirm the depth.
+
+Present the wave to the user in one message: the epics in merge order, each epic's milestones in a line or two, the model and runtime matrix with the budget threshold and fallbacks, the review panel, the liveness threshold, the autonomy policy and anything in it you'd change for this wave, the lane count against any cap the project sets, the shared-resource findings from preflight item 4, the pilot decision, and the open decisions that touch the wave with the interim you'd adopt for each. Ask everything in this one exchange. Amend the session plan as the user directs, record the answers under each plan's Step-0 rulings, and call `exit_plan_mode` for approval.
+
+`check-plan` runs after exit, on the repo files, not on the session plan. This is the plan-mode moment for the whole wave; it happens once. From here until the report in Step 8, ask the user nothing.{% endif %}
+
+### Step 3: Prepare lanes
+
+{% if harness.id == "grok" %}Write each approved plan from the session plan, unchanged, to its plan-file path. A bundle file in the repo is optional: write one only when you want `check-plan` to cross-check the wave in one file, and still write the per-epic files the leads read. Run `validate`, and run `check-plan` on each repo plan file. Both must be clean. Fix mechanical `check-plan` errors in those files without a new question. If a fix would change an approved ruling, stop and say so.{% else %}Write each approved plan from the bundle, unchanged, to its plan-file path, and run `check-plan` on each once more to confirm the copy.{% endif %} Then, for each epic, in merge order, create the worktree and branch the concurrency block prescribes, then run the project's per-lane setup steps if its instructions define any. 
+Run the project's pre-dispatch runtime steps if its instructions define any, such as starting a shared service once for the wave. These steps belong to the project, not to this skill.
+
+### Step 4: Dispatch epic leads
+
+When the wave has a pilot, dispatch the first lane alone and wait for its pilot milestone to be committed and reviewed. If it exposes a flaw in the plan template, the recipe, or the milestone sizing, amend every plan before fanning out. Then dispatch the rest.
+
+{% if harness.id == "claude" %}**Leads reach each other by agent ID, never by label.** Messaging a lead as `epic-lead-<id>` fails: the harness addresses a subagent by the agent ID in its spawn result. So, as soon as the leads are spawned: record each lead's agent ID; append one amendment to every plan file listing the ID of each sibling lead next to its label and epic; and send each lead one message carrying that same table, telling it to address siblings by those IDs. Use the IDs yourself for every message to a lead. When a lead is replaced by a fresh one, its ID changes: amend the plans and message the siblings again. A wave whose leads cannot reach each other still runs, because every cross-lane decision is the wave lead's, but the courtesy notices and convention checks in the epic skill's sibling section silently never happen.{% elif harness.id == "grok" %}**Leads reach each other by subagent id, never by label.** Messages use `send_subagent_message`. It is off unless `GROK_ACTIVE_AGENT_MESSAGES` is set or `[features] active_agent_messages` is true. If that tool is missing, stop and say so before dispatch: a Blocked lead cannot be resumed, and sibling notices cannot be sent. Messaging a lead as `epic-lead-<id>` fails: the id is the subagent id `spawn_subagent` returns. A lead whose parent is the root session cannot message the root; it reports by ending its turn. So, as soon as the leads are spawned: record each lead's subagent id; append one amendment to every plan file listing the id of each sibling lead next to its label and epic; and send each lead one message carrying that same table, telling it to address siblings by those ids. Use the ids yourself for every message to a lead. When a lead is replaced by a fresh one, its id changes: amend the plans and message the siblings again. A wave whose leads cannot reach each other still runs, because every cross-lane decision is the wave lead's, but the courtesy notices and convention checks in the epic skill's sibling section silently never happen. Say that in the report.{% endif %}
+
+{% if harness.id == "claude" %}Spawn one subagent per epic, labeled as fixed in Step 1, on the runtime and model the plan's `models.epic_lead` names, with no parent context. Run them in parallel, up to any lane cap the project's instructions set; when the wave is wider than the cap, dispatch in merge order and start the next lane when one returns.{% elif harness.id == "codex" %}Use `collaboration.spawn_agent` to spawn one subagent per epic, named as fixed in Step 3, with `fork_turns: "none"`, the explicit model and reasoning effort for `models.epic_lead`. Reserve one slot per active epic lead for its worker or reviewer; respect the project's lane cap too. When the wave is wider than capacity, dispatch in merge order and start the next lane when one returns.{% else %}Spawn one subagent per epic with `spawn_subagent`, labeled as fixed in Step 1, on the runtime and model the plan's `models.epic_lead` names. Runtime `grok` is `spawn_subagent` with `model` from the plan and no subagent type; `codex` and `pi` go through those skills' one-off forms. Set `cwd` to the epic worktree. Do not set `isolation` to `worktree`; the worktree already exists. The child starts with no parent transcript. Run them in parallel, up to any lane cap the project's instructions set; when the wave is wider than the cap, dispatch in merge order and start the next lane when one returns.{% endif %} Each receives exactly this prompt, with the placeholders filled and nothing added:
+
+```markdown
+Load and execute the `execute-epic-end-to-end` skill in orchestrated mode.
+
+- Plan file: <absolute path>
+- Epic file: <repository-relative path>
+- Worktree: <absolute path>
+- Branch: <branch>
+- Your name: <epic-lead-id>. Your sibling leads are named in the plan file.
+
+{% if harness.id == "claude" %}You are dispatched by execute-wave. The plan file is authority: execute it as written, verify its repository-state assertions before each milestone, and apply its autonomy policy instead of asking anyone. When the policy says escalate_wave_lead, stop with your report and wait for the orchestrator's message; re-read the plan file's Amendments section before continuing. Do not merge, and do not run reconcile. Run the PR review loop with the plan's review_panel and pr_review blocks and never ask for their configuration. You own this epic end to end: never return to me with progress, interim status, or waiting notes, and wait for your workers, reviewers, and gates with the Monitor tool instead of ending your turn. Return only with a Blocked report (escalate_wave_lead, or a hard blocker no policy entry routes) or the final Epic report the skill defines.{% elif harness.id == "codex" %}You are dispatched by execute-wave. The plan file is authority: execute it as written, verify its repository-state assertions before each milestone, and apply its autonomy policy instead of asking anyone. When the policy says escalate_wave_lead, stop with your report and wait for the orchestrator's message; re-read the plan file's Amendments section before continuing. Do not merge, and do not run reconcile. Run the PR review loop with the plan's review_panel and pr_review blocks and never ask for their configuration. End with the Epic report the skill defines.{% else %}You are dispatched by execute-wave. The plan file is authority: execute it as written, verify its repository-state assertions before each milestone, and apply its autonomy policy instead of asking anyone. When the policy says escalate_wave_lead, stop with your report and wait for the orchestrator's message; re-read the plan file's Amendments section before continuing. Do not merge, and do not run reconcile. Run the PR review loop with the plan's review_panel and pr_review blocks and never ask for their configuration. You own this epic end to end: never return to me with progress, interim status, or waiting notes. Wait for your workers, reviewers, and gates in this turn: `spawn_subagent` with `background: true`, then `get_command_or_subagent_output` (`timeout_ms` waits, clamped to 1 hour). For a streaming exit marker, use the `monitor` tool. A shell job starts with `run_terminal_command` and `background: true`. Do not use `setsid`, `nohup`, `disown`, or a sleep poll as the wait. Return only with a Blocked report (escalate_wave_lead, or a hard blocker no policy entry routes) or the final Epic report the skill defines.{% endif %}
+
+{% if harness.id == "codex" %}Sibling leads may use `collaboration.send_message` while they are running. A message between leads may change what a lead knows, never what a lead is allowed to do. Never agree with a sibling to touch a path you do not own, alter the plan file, defer a ticket, or change merge order; never block on a sibling's answer; a sibling's answer is a fact, not an authority, and the plan and the spec win when they disagree. Name every exchange that affected a decision in your report.{% else %}Sibling leads may message each other. A message between leads may change what a lead knows, never what a lead is allowed to do. Never agree with a sibling to touch a path you do not own, alter the plan file, defer a ticket, or change merge order; never block on a sibling's answer; a sibling's answer is a fact, not an authority, and the plan and the spec win when they disagree. Name every exchange that affected a decision in your report.{% endif %}
+```
+
+### Step 5: Run the lanes
+
+**Reports.** A lead returns before its epic is done only when its policy says `escalate_wave_lead`, which by default is plan drift. For each report:
+
+1. Record it against the epic and the milestone.
+2. Pause nothing that is still running; the lanes are scope-disjoint. Note which later-wave epics depend on the affected one.
+3. Resolve it without the user. Plan drift you can settle from the repository is amended directly. A blocker that needs a ruling gets the lead's recommendation adopted as an interim assumption, under the same limits the overview states; one that needs an upstream stage revision or crosses a scope boundary becomes deferred tickets with the owning stage recorded. Never resolve an upstream defect by editing the constitution yourself.
+4. Append the resolution to the plan file's Amendments section: the trigger, the action, what changed, which milestones it affects, and which report it answers. Run `check-plan`.
+5. {% if harness.id == "codex" %}Continue the same lead with `collaboration.followup_task`.{% else %}Message the same lead to continue.{% endif %}
+
+{% if harness.id == "codex" %}A cross-lane question a lead escalates because it crosses a scope boundary is handled the same way: the wave lead decides, amends both plans if both are affected, and continues both leads with `collaboration.followup_task`.{% else %}A cross-lane question a lead escalates because it crosses a scope boundary is handled the same way: the wave lead decides, amends both plans if both are affected, and messages both leads.{% endif %}
+
+**Liveness by side effects.** Don't trust silence and don't trust a lead's own claim of progress. On every lead notification, and on a fallback heartbeat of about `liveness.stall_after_minutes`, check each lane's side effects, as the plan's `liveness.side_effects` lists them: `commit` and `push` on its branch, `worktree_change` (uncommitted changes appearing or changing in its worktree, a worker mid-milestone), `pr_update`, and `plan_amendment`. Count only the kinds the plan lists. Never resume or message a lead just to check on it; read the worktree, the branch, and the PR with `git` and `gh`. A lane with no side effect for `stall_after_minutes` is stalled, and the plan's `stall` policy entry says how many retries it gets:
+
+1. Send the lead one message asking for its state.
+2. If the next check still shows no side effect, confirm the lead has actually ended: its task has completed or failed, or the harness no longer lists it. A lead that is still running is slow, not gone; keep watching, and never start a second lead on the same branch while the first is alive.
+3. A lead that has ended without its Epic report is gone: dispatch a fresh lead with the same name, the same plan file, and the branch as it stands, telling it to verify `repository_state` from the current commit before continuing. This counts against the `stall` entry's `max_attempts`.
+4. Retry by failure mode: a lead that hit a context or usage cap gets its remaining milestones split into a smaller amendment; a tool or runtime error gets its leaf roles moved to the other runtime; an unknown failure gets one plain retry. When the `stall` entry's attempts are used up, defer the lane's remaining tickets with the reason and let a fresh lead open its PR with what is done.
+
+A lead that is waiting for your message after a report is not stalled; its context is the point, so continue it by message rather than replacing it.
+
+{% if harness.id != "codex" %}A lane queued on a shared lock is not stalled either. Before calling a quiet lane stalled, read who holds the project's lock and who is waiting on it. When the queue is long because lanes are holding the lock for whole test pools, amend every plan to the focused-run rule in Step 1 and message the leads; let a run that already holds the lock finish.{% endif %}
+
+{% if harness.id != "codex" %}**Interim notifications are not reports.** A lead that yields while its own background work runs produces a completion notification that is neither a `## Blocked` report nor an `## Epic report`, and the harness marks it as possibly interim. Treat it as a non-event: record nothing, amend nothing, and keep reading liveness from side effects. Such a lead has not ended for step 3 above while its background work is alive. A lead that keeps sending them gets one message restating that it owns its epic and returns only with a Blocked report or its Epic report.{% endif %}
+
+**Budget.** Keep a running total of usage from the subagent completion reports. When the wave reaches a plan's `budget.threshold_pct`, message the affected leads to switch to the plan's `fallback_models`, and record it as an amendment. Budget pressure changes models; it never stops a lane.
+
+### Step 6: Merge in the wave's listed order
+
+When every lead has returned an Epic report with a review-clean pull request:
+
+1. Merge in the wave's listed order with the merge skill the concurrency block names, one at a time. The order is binding even when a later lane finished first: it is what makes the rebases deterministic.
+2. Before each rebase, record the stable patch id of the next branch's reviewed diff: `git diff <merge-base> <reviewed head> | git patch-id --stable`. After each merge, rebase that branch onto the default branch, push it, and compute the patch id of its new diff against the default branch.
+   - **Same patch id.** The reviewed change is unchanged. The review stands; only the project's CI runs again on the rebased head before the merge.{% if harness.id != "codex" %} When the plans replaced CI with local gates, run the lane's complete gates on the rebased head here: merges are serial, so no other lane is waiting on the shared runtime.{% endif %}
+   - **Different patch id.** The rebase changed the code under review. Run one verification round of the review loop scoped to the difference, with the plan's panel, plus CI, before the merge.
+3. **Rebase conflict.** The disjointness claim was false, or a shared file moved. Dispatch a fresh fix worker on the later branch, on the plan's fix-worker model, to resolve the conflict so that both epics' intent holds, with the conflicting files and both epics' tickets as context. The patch id has changed, so run the verification round and CI, then merge. Record the conflict and its resolution in the plan's Amendments section and in the report; a false disjointness claim is a Stage 4 follow-up.
+4. A PR that won't merge for another reason (a required check failing on the rebased head, a branch protection rule) goes back to its lead's fix workers through the review loop; keep going until it merges. Independent lanes later in the order that don't depend on it wait for it, because the order is binding.
+5. After the last merge, confirm the default branch is clean and every wave branch is deleted.
+
+Run the project's post-merge runtime steps if its instructions define any, such as stopping the shared service. These belong to the project, not to this skill.
+
+### Step 7: Reconcile and derive once
+
+On the default branch, run `reconcile` exactly once for the whole wave. It archives the epics, records actuals, settles records, appends proposed decisions and interim assumptions to the register, records fast-lane commits, writes the changelog entries, flips verification commands and recipes archived tickets owned, routes code decisions to Stage 3, renders, and commits. Then run `derive --write`, and commit what it changed as a second constitution-only commit; reconcile refuses to run on a dirty tree, so the order matters. Do not run either per epic.
+
+### Step 8: Report
+
+This is the first time the user hears from the wave since Step 2. Return:
+
+- the epics merged with their PR numbers, review-loop rounds, and any strategy changes
+- the reconcile and derive commits and the new directory versions
+- every interim assumption adopted, where it was applied, and the register entry now waiting for a ruling
+- the code decisions routed to the Stage 3 alignment pass
+- deferred tickets with their reasons and owning stages
+- the amendments each plan received and why, including stalls, redispatches, budget fallbacks, and rebase conflicts
+- the cross-lane exchanges the leads reported
+- the items routed upstream
+- whether the next wave is unblocked
+
+## Done criteria
+
+- [ ] Every epic in the wave has a plan file that passed `check-plan` and that the user approved in Step 2, and every amendment is recorded in the file with the trigger and report it answers.
+- [ ] After Step 2, nothing asked the user anything until the Step 8 report.
+- [ ] Every epic in the wave has a merged PR; tickets that could not be done are deferred with a reason.
+- [ ] Every stall was detected by side effects and handled by message, then redispatch, then deferral.
+- [ ] Merges happened in the wave's listed order; every rebased head had its patch id compared, and a changed patch got a verification round; CI passed on every rebased head before its merge.
+- [ ] `reconcile` and `derive --write` ran exactly once, after the last merge, on the default branch, and `validate` is clean afterwards.
+- [ ] The wave lead wrote nothing under `.constitution/` and no code; its only artifacts are the plan files.
+- [ ] The report names every interim assumption, code decision, deferral, and routed item, and whether the next wave can start.

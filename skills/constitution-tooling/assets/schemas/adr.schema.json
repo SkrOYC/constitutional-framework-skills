@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "adr.schema.json",
+  "title": "Front matter of .constitution/tech-spec/adrs/*.md",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "status", "date", "certainty"],
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/adrId" },
+    "status": { "type": "string", "enum": ["proposed", "accepted", "rejected", "superseded", "deprecated"] },
+    "date": { "$ref": "common.schema.json#/$defs/date" },
+    "supersedes": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/adrId" } },
+    "superseded_by": { "$ref": "common.schema.json#/$defs/adrId" },
+    "certainty": { "$ref": "common.schema.json#/$defs/certainty", "description": "Applies to the decision itself; consequences stay assumed until observed" },
+    "evidence": { "$ref": "common.schema.json#/$defs/evidence" },
+    "assumption": { "type": "string" },
+    "decision": { "$ref": "common.schema.json#/$defs/odId" }
+  }
+}

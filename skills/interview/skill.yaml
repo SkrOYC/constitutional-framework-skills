@@ -1,0 +1,6 @@
+skillprism: '1'
+name: interview
+description: 'Interview the user before a pipeline stage (PRD, Architecture, TechSpec, Tasks), or across the whole constitution (Realign), to surface ambiguities and drift between the written specs and the code. Owns the open-decisions register: every deferred question becomes an entry with options, a recommendation, and a closure path. Can close a question with a spike or commission a design review. Use before a stage, to realign, or on /interview. Requires subagent dispatch and web access.'
+metadata:
+  family: 'ai-project-development-framework'
+  companion: 'true'

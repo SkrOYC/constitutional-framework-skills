@@ -1,0 +1,180 @@
+# Framework overview
+
+Read this before doing stage or execution work. It describes the whole pipeline, so you can understand any stage's inputs and obligations without loading that stage's own skill. Every copy of this file is identical by design; `check-overview-sync.sh` at the skills root fails when one drifts.
+
+The pipeline reduces ambiguity in layers. Each stage reads the directories above it and writes exactly one directory of its own, all under `.constitution/` at the repository root. The constitution is structured: facts that something reads mechanically live in YAML files validated by JSON Schemas, prose lives in markdown with front matter where one fact must be read. The `constitution-tooling` skill ships the schemas, the layout reference, and the CLI that validates, renders, migrates, and reconciles. Its `references/layout.md` names every file, its schema, and its writer.
+
+| Stage | Skill | Reads | Writes | Decides |
+| :--- | :--- | :--- | :--- | :--- |
+| 1 | `defining-product-requirements` | User intent, the codebase | `constitution.yaml` archetype, `prd/` | What to build, for whom, and why |
+| 2 | `designing-solution-architecture` | `prd/` | `architecture/` | The logical shape of the system |
+| 3 | `specifying-technical-implementation` | `prd/`, `architecture/`, the code | `tech-spec/` | The technical decisions, and where each artifact lives in the code |
+| 4 | `planning-engineering-execution` | `prd/`, `architecture/`, `tech-spec/` | `tasks/`, `constitution.yaml` concurrency | The epic graph and its tickets |
+
+The `interview` skill runs before any of these four stages, and is optional. It writes an interview record and owns the open-decisions register, and never writes a stage directory. It can also close a question on the spot with a bounded spike, or commission a design review the user rules from. A stage that hits a question only evidence can answer sends the user back to it. Under its Realign target, the interview audits a running project against the whole constitution and schedules Evolution passes down the pipeline.
+
+Every stage ends by running `validate` and fixing errors before declaring the pass complete. Warnings are reported, not hidden. Each stage's output goes in its own constitution-only pull request, reviewed by `pr-review-fix-loop` in `documents` mode.
+
+Stage 3 runs twice. Its decisions pass, before Stage 4, chooses the stack, writes the ADRs and guidelines, and writes sidecars that point at where each contract and data-model artifact will live in the code. Its alignment pass, after a wave merges, records what the code settled and puts the decisions execution made in front of the user. Raw artifacts such as SQL, migrations, OpenAPI, and `.proto` files live in the code, never under `.constitution/`: `tech-spec/` holds decisions and pointers, not a second copy.
+
+`validate` accepts a constitution that has only the stages written so far. After a greenfield Stage 1 pass, `architecture/` is absent, and that is not an error. Coverage checks that need a later stage run once that later stage is present. A later stage without its upstream is still an error. `init --stage architecture` (and the later stage names) writes that stage's empty files when you're ready.
+
+## After planning
+
+Execution is a separate set of skills with separate write authority. They read the constitution; only reconciliation writes the shared parts of it.
+
+| Skill | Role | Reads | Writes |
+| :--- | :--- | :--- | :--- |
+| `execute-epic-end-to-end` | Epic lead: writes its own plan file in a step-0 planning session when standalone, or executes the wave lead's plan file when orchestrated; then runs without questions, dispatching a fresh worker per milestone, verifying (including live-verification recipes), committing, getting each milestone reviewed, opening the pull request, and running its review loop to clean | The epic file, the plan file when orchestrated, `critical-path.md`, `tech-spec/`, `architecture/`, `prd/`, the open-decisions register | Milestone commits; the epic's own file (status, deviations, discovered decisions, closeout); `evidence/` manifests |
+| Worker (dispatched by the lead) | Implements one milestone | The ticket, the tech-spec files it names, the flow | Code, tests, config; a spike file for a `Spike` ticket; nothing else under `.constitution/` |
+| Spec-patch worker (dispatched by the lead) | Answers one physical drift report | The drift report, the named tech-spec files | Only those `tech-spec/` files, in a commit with no code |
+| `reviewing-milestone-commits` | Independent review of one committed milestone | The commit, surrounding code, the constitution, `validate` output | Nothing |
+| `execute-wave` | Wave lead: plans every epic in the wave into a plan file outside the constitution in one step-0 planning session, dispatches one epic lead per epic, watches their liveness, applies the plans' autonomy policy to drift and blockers, merges in the wave's listed order, reconciles and derives once | `critical-path.md` waves, `constitution.yaml` concurrency, the epic files, the project's agent instructions | Plan files outside `.constitution/`; nothing in the constitution until reconciliation |
+| `reconcile` (a `constitution-tooling` command) | Applies closeout deltas and fast-lane commits after the pull requests merge, as one commit on the default branch | The closeouts, git history and its commit trailers | `tasks/completed/`, `critical-path.md`, `tasks/changelog.yaml`, `tech-spec/changelog.yaml`, verification-command flags, settled records, the register's proposed entries, a routing report that carries the code decisions to Stage 3 |
+| `derive` (a `constitution-tooling` command) | Aligns the mechanical parts of `tech-spec/` with the repository | The lockfiles, the tree | With `--write`: `stack.yaml` pin versions, `guidelines.md` layout `exists` flags, a `tech-spec/changelog.yaml` patch entry |
+| `audit-improvements` | Read-only codebase audit, including assumptions the code contradicts | The codebase, the constitution | `reports/audit-*.md` |
+
+The flow is: plan → plan the wave in step 0 → execute epics on branches, autonomously → review each milestone → open pull requests and review them to clean → merge in order → reconcile once (it commits), then `derive --write` in its own commit → Stage 3 alignment → next wave.
+
+## Autonomous execution
+
+Execution runs dark: after step 0 nobody answers questions until the pull requests are merged. Step 0 is the planning session where the orchestrator (the wave lead, or the epic lead for a single epic) writes the plan file, `check-plan` validates it, and the user approves it once. Every question execution could raise is settled there or by the plan's `autonomy` policy: models and the review panel, the usage budget and its fallback models, liveness thresholds, and what to do on a blocker, an open decision, drift, a rebase conflict, or a review loop that doesn't converge.
+
+The default for a blocker or an open decision is to adopt the lead's recommended option as an interim assumption: the question goes into the epic's `decisions` list in register shape with `interim` and the places it was applied, and work continues. `reconcile` carries it to the register as `proposed`, and the user rules afterwards. An interim never writes `prd/`, `architecture/`, or `tech-spec/`, never touches paths outside the epic's scope, and never takes an irreversible action (force-pushing a shared branch, deleting data, messaging anyone outside the run). A situation that needs any of those defers the affected tickets with the reason and continues with the rest.
+
+## How to work
+
+Act as a senior engineering partner to a solo developer.
+
+- **Optimize for the user's outcome.** Don't optimize for agreement.
+- **State risks plainly.** Surface contradictions and missing information as you find them.
+- **Trace every important decision.** Tie it to an upstream record, to evidence in the codebase, or to an assumption you write into the record.
+- **Prefer the simpler system.** Lower operational burden beats theoretical completeness.
+
+## Modes
+
+Identify the mode before you start; it changes what you read and how much you rewrite.
+
+- **Greenfield.** No prior artifacts and little or no code. Establish the foundational structure. Every record defaults to `assumed`.
+- **Brownfield.** Working code exists, with `.constitution/` files that are absent, partial, or stale. Treat the code as the truth about what exists today, cite it as repository evidence, and report every gap you find between the code and the written files.
+- **Evolution.** Both the code and the `.constitution/` files are current, and the user wants a specific change. Leave unchanged structures alone and work only the delta, including anything the latest reconciliation report routed to your stage.
+
+## Precedence
+
+Authority flows downward:
+
+1. User intent, repository reality, and existing artifacts inform `prd/`.
+2. `prd/` binds `architecture/`.
+3. `architecture/` binds `tech-spec/`.
+4. `tech-spec/` binds `tasks/`.
+
+In Brownfield mode the code often reveals that an upstream directory is stale. Report the mismatch. Don't rewrite the upstream contract from inside a downstream directory.
+
+Preserve stable identifiers downstream. Rename them only when the user approves a migration.
+
+## Stay in your layer
+
+Don't repair an upstream defect inside a downstream directory. Stage 2 must not change product scope. Stage 3 must not invent a missing logical protocol. Stage 4 must not invent endpoints, schemas, or data flows.
+
+When you find such a defect, explain it, name the stage that owns it, and stop.
+
+## Write authority
+
+Every role may write only what the table says. A write outside it is a defect, whatever its content.
+
+| Path | Stage pass | Interview | Epic lead | Worker | Spec-patch worker | Reconcile |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `constitution.yaml` | Stage 1 (archetype), Stage 4 (concurrency) | No | No | No | No | No |
+| `prd/` | Stage 1 only | No | No | No | No | No |
+| `architecture/` | Stage 2 only | No | No | No | No | No |
+| `tech-spec/` (except changelog) | Stage 3 only | No | No | No | Only the files named in its drift report, and only files the epic declared | Verification-command flags for archived owners; `derive --write` updates pin versions and layout flags |
+| `tech-spec/changelog.yaml` | Stage 3 | No | No | No | No | Yes |
+| `tasks/critical-path.md` | Generated by `render` | No | No | No | No | Yes |
+| `tasks/changelog.yaml` | Stage 4 | No | No | No | No | Yes |
+| `tasks/epics/EPIC-*.yaml` | Stage 4 | No | Its own epic file only | No | No | Moves to `completed/`, writes actuals |
+| `spikes/` | No | A spike that closes a register entry | No | The spike file of a `Spike` ticket | No | No |
+| `evidence/` | No | No | The manifest and files of a milestone's acceptance evidence | No | No | No |
+| `research/` | Whoever the file's owner names, for other files | A design review | No | No | No | No |
+| `reports/open-decisions.yaml` | No | Yes | No | No | No | Appends proposed entries |
+| `reports/` others | Audit, constitution review | The interview record | No | No | No | The reconciliation report |
+
+**The two-commit rule.** A commit that changes code never changes `prd/`, `architecture/`, or `tech-spec/`. A commit that changes those never changes code. The epic's own file, a spike file, and evidence files are bookkeeping and may ride in a code commit. The reviewer treats any other mix as a `P1`, because it defeats the review: the code would be judged against a spec rewritten in the same commit.
+
+**Drift is reported, not applied.** Contract and data-model artifacts live in the code, so changing one inside the epic's owned paths is ordinary milestone work, not drift; the reviewer checks it against the sidecar, the compatibility ADR, and any pinned shape. A worker that cannot follow a `tech-spec/` record returns a drift report. The epic lead classifies it: physical drift (a guideline, a stack pin, an ADR detail, or a sidecar field, in a file the epic declared it may patch) becomes a spec-patch milestone by a fresh worker, reviewed on its own; logical drift (a boundary, a communication style, a trust boundary, scope, priority, or a pinned contract) becomes a blocker the plan's `autonomy` policy resolves.
+
+**Code decisions are recorded, not hidden.** A dependency, pattern, convention, or contract shape execution introduces without a Stage 3 record goes into the closeout's `code_decisions`. Reconcile routes them to Stage 3, whose alignment pass puts each one in front of the user.
+
+**Reconciliation is code.** `reconcile` applies what the closeouts say and decides nothing. Candidate glossary terms, proposed decisions, and anything else needing judgment go to the routing report for the owning stage's next Evolution pass.
+
+## Certainty
+
+Every binding record carries `certainty`: a capability, a job, a constraint meter, a boundary, a flow, a stack pin, a contract or data-model sidecar (which settles when tests exercise the artifact it points at in the code), an ADR, a ticket. Narrative files carry nothing. The values:
+
+- **`settled`** needs `evidence` the tool can check: `repository` (a path, checked against the tree), `external` (a pinned document, allowed only on claims about the world such as a stack pin or an ADR, never on a claim about this system), `spike` (a spike id), `ruling` (an interview record or user message), or `measurement` (an `evidence/` directory).
+- **`assumed`** needs an `assumption` stated next to the record. Greenfield defaults to assumed, and that is honest, not weak.
+- **`open`** names a `decision` in the register.
+
+Settling is a fact, never a judgment: an epic's closeout lists the records its tests exercised, and `reconcile` flips them with that evidence. A spike report does the same for what it answered. The stage that writes next cites a decision-owned spike as `spike` evidence directly, because no closeout carries it. Evidence that disappears decays the record back to assumed, and the validator says so. Stage 4 sequences and estimates against certainty, the reviewer asks whether a milestone that touched an assumed contract settled it, the Realign interview opens with the assumed list, and the audit checks assumptions against the code.
+
+## Keep the vocabulary fixed
+
+`prd/glossary.yaml` defines the canonical **domain** vocabulary: the concepts that appear in the domain model, the capabilities, or on a user-facing surface. Technical vocabulary such as pool, worker, cache, migration, or handler belongs to Stage 3 and needs no glossary entry, and a banned list must never contain generic English or technical words.
+
+Two checks follow from that, and only two:
+
+- **Banned synonym.** A synonym the glossary says not to use, appearing on a surface `constitution.yaml` declares (contracts, schemas, migrations, UI copy, public API names), is a validation error and a `P1` in review. Off-surface occurrences are general feedback.
+- **New domain concept.** A concept that would belong in the domain model but has no glossary entry is a judgment call. In a stage pass, name it and ask the user for a Stage 1 patch. In execution, the epic lead lists it under candidate terms in the closeout, and reconcile routes it to Stage 1.
+
+## Open decisions
+
+`reports/open-decisions.yaml` is the single live register, owned by the interview. An entry is a well-formed decision, never a topic: one question, what it blocks, at least two options with pros and cons, a recommendation, and a closure path. `spike` closure names the spike: the interview runs it during the session when it fits three points, and otherwise Stage 4 plans it ahead of everything the entry blocks. `ruling` closure names who rules and what they wait for, which can be a design review under `research/`. An `interim` assumption lets downstream work proceed and records where it was applied, so a ruling can revisit those places. Closure needs a ruling reference.
+
+Execution proposes entries through the epic file's `decisions` list; later milestones in that epic read them there, and reconcile appends them to the register as `proposed`. Nobody answers an open entry silently: a stage pass that needs the answer asks the user, since the user is present for stage passes. Execution after step 0 doesn't ask; it applies the plan's `autonomy` policy, by default adopting the recommendation as a recorded interim assumption that the user rules on after the run. A stage pass never runs a spike and never writes the register. When a question needs one, state it in register shape: the question, the options with pros and cons, and your recommendation. Then ask the user to rule now or to run `/interview` for your stage.
+
+## Directories with a defined reader
+
+- `evidence/<owner>/` holds acceptance evidence the project produced, with a manifest of digests. Read by the reviewer and by constraint meters.
+- `research/` holds non-spike deliverables such as benchmarks, design reviews, and intake documents, one markdown file each with an owner.
+- `reports/` holds five kinds and nothing else: interview records (a log the next stage pass reads for its rulings and pinned sources), the open-decisions register (read by every stage and by execution), audit reports (read by `/interview for Tasks` and Stage 4), constitution reviews (a review of a stage output for layer violations and contradictions, read by the owning stage), and reconciliation reports (read by the next Evolution pass of the stage they name).
+- Not in the constitution: generated inventories, client deliverables, HTML renderings, and anything a program writes on every run. The validator fails on them.
+
+## Skip the archives
+
+`tasks/completed/` holds archived epics with their actuals. Don't read them during discovery; reconcile and Stage 4 read the actuals for calibration. Open an archived file only when the user names its exact path.
+
+## Versioning
+
+Version each directory independently with semantic versioning, recorded in that directory's `changelog.yaml`. The newest entry's version is the directory's version; nothing else carries one. A directory's first version is `v0.0.1`.
+
+- **Major** for a rewrite of the directory's governing structure.
+- **Minor** for new scope, new epics, or materially expanded capabilities.
+- **Patch** for corrections, clarifications, and bounded refinements.
+
+A stage pass bumps its own directory and records the upstream versions it was written against in the entry's `upstream` field. Reconcile bumps `tasks/` and, when spec patches landed, `tech-spec/`, once per wave. Execution never bumps anything. There are no no-op review entries.
+
+## Proportionality
+
+Every section in a stage's output contract is mandatory to address, not mandatory to fill. When a section doesn't apply, say so in one line, in place. An invented database, a fake SLO, or an empty ADR to satisfy ceremony is a defect; a stated "not applicable because X" is not. Stage 3's `no_durable_state` field is the model.
+
+A change that alters no product scope and no logical boundary may take the **patch lane**: one constitution commit in the owning directory with its changelog entry, reviewed as a document-only milestone, with no interview and no replan. Anything that moves scope or a boundary takes the full Evolution pass of the owning stage.
+
+## Epics, tickets, and waves
+
+Epics are the dependency nodes. Each declares what it depends on, the paths it owns, and the tech-spec files it may propose patches to. Tickets depend only on tickets in the same epic; a cross-epic need is an epic dependency. Waves are not written; `render` derives them as the layers of the epic graph, split wherever two epics in a layer overlap in scope. A wave of one is a serial segment. Split an epic when the parts are scope-disjoint and the split widens a wave or shortens the longest chain; the rendered file prints both numbers.
+
+An issue becomes an out-of-band epic through a bounded Stage 4 pass: tickets, estimates, acceptance modes, and certainty like any epic, outside the critical path, scope-checked against the running wave. The exception is the **fast lane**: a fix that stays in code, touches no published surface a sidecar points at, no pinned contract, and no boundary, and sits inside one epic's owned paths or paths no active epic owns, skips the epic and goes worker → milestone review → pull request → review loop. Its commits carry `Constitution-Lane: fast` trailers, plus `Settles: <path relative to .constitution/>[#<record id>]` and `Evidence: <test path>` when they settle a record, and `reconcile` records them. The trailers have to reach the default branch: merge a fast-lane PR with a rebase merge, or pass the squash commit a body that ends with the trailer block. The milestone reviewer re-checks the lane claim, and a misclassified fix is a `P1`. There is no execution path that skips review.
+
+Two rules are hard: the merged diff of an epic stays near 10,000 to 15,000 lines, and concurrent epics are scope-disjoint. Everything about estimates is informational: points measure relative effort and uncertainty, never time; reconcile records actuals beside every estimate; Stage 4 reads the observed ratio from the validator's `INFO-CAL` line before estimating, which counts only epics whose estimate was planned independently (`estimate_source`), never estimates filled in from actuals; and the validator prints the share of tickets at the ceiling without ever failing on it.
+
+## Spikes and research
+
+A spike produces research, never committed code and never an edit to the active specs. Its only output is one markdown file at `spikes/SPK-<ACRONYM>-<EPIC><NNN>.md`, budgeted in points. A spike is owned by a `Spike` ticket, or by the open decision it closes. A decision-owned spike puts `OD` and the entry's number where the epic segment goes, so `OD-07` gives `SPK-FIX-OD007`, and no epic takes `OD` as its id. The interview runs a decision-owned spike itself when it fits three points; anything larger is a Stage 4 ticket. A recommended close to Stage 3 is a scaffold spike: create the empty layout from guidelines, compile it, and report every contradiction, because that is the cheapest way to turn unknown knowns into settled facts.
+
+Research deliverables that are not spikes live in `research/`. A design review is one: the interview commissions it when a recommendation has no method, prior art, or source behind it, and the user rules from it. Its findings are external-grade, so they can settle a claim about the world and never a claim about this system.
+
+## Design terms
+
+Two terms appear as gates in the Stage 2 checklist and in audit reports. Both come from John Ousterhout's *A Philosophy of Software Design*.
+
+- **Depth Standard.** A boundary is deep when a small interface hides a large amount of internal complexity. A boundary whose interface is about as complex as what it hides is shallow, and shallow boundaries add cost without absorbing any.
+- **Deletion Test.** Imagine deleting the boundary and moving its work into its neighbors. If real complexity disperses into them, the boundary was earning its place. If only pass-through code disappears, it was a box with a name.

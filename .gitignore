@@ -1,0 +1,10 @@
+# skillprism compile output (per-harness, never committed)
+dist/
+
+# Project-scope live installs (created by `skillprism add`)
+.claude/
+.codex/
+.grok/
+.agents/
+.factory/
+.pi/

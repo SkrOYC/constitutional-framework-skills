@@ -1,0 +1,41 @@
+id: C
+name: Link checking
+kind: product
+capabilities: [CAP-002, CAP-003]
+depends_on: [B]
+scope:
+  paths: [src/core/links.ts, src/cli/check.ts, tests, package.json, scripts, docs]
+  tech_spec_patchable: [tech-spec/contracts/cli-fix.meta.yaml, tech-spec/contracts/check-report.meta.yaml]
+estimated_diff_lines: 900
+tickets:
+  - id: FIX-C001
+    title: Contract tests for every command
+    type: Feature
+    effort: 3
+    depends_on: []
+    scope: { in: [tests, docs/check-report.schema.json] }
+    verification: { command: bun run test, expected: exit 0 }
+    description: Exit codes and streams for render and check match the CLI contract.
+    acceptance:
+      mode: contract_test
+      supplementary: [live_probe]
+      evidence: One test per line of the CLI contract asserting exit code and stream content; the cli-check recipe prints the missing Link.
+      recipe: cli-check
+    flows: [render-note, check-links]
+    certainty: assumed
+    status: planned
+  - id: FIX-C002
+    title: Bench command against NFC-01
+    type: Chore
+    effort: 2
+    depends_on: [FIX-C001]
+    scope: { in: [package.json, scripts] }
+    verification: { command: bun run test, expected: exit 0 }
+    description: Add the bench verification command guidelines.md names as not existing yet.
+    acceptance:
+      mode: benchmark
+      evidence: bun run bench reports the median under the NFC-01 goal.
+      constraints: [NFC-01]
+    flows: [render-note]
+    certainty: assumed
+    status: planned

@@ -1,0 +1,3 @@
+skillprism: '1'
+name: commit-push-open-pr
+description: 'Commit the current tracked and untracked work on the checked-out branch, push it to the remote, and open a GitHub pull request with `gh`, with explicit choices for commit message, PR title, PR body, draft status, and base branch. Use for the full commit-to-push-to-PR workflow. Does not create a branch. Requires `git` and `gh`. Do not use for partial staging, rebases, stacked PRs, branch creation, or merge/close work.'

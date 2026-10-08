@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "open-decisions.schema.json",
+  "title": ".constitution/reports/open-decisions.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["decisions"],
+  "properties": {
+    "decisions": { "type": "array", "items": { "$ref": "#/$defs/decision" } }
+  },
+  "$defs": {
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "question", "blocks", "options", "recommendation", "closure", "status", "asked"],
+      "properties": {
+        "id": { "$ref": "common.schema.json#/$defs/odId" },
+        "question": { "type": "string", "minLength": 1, "description": "One concrete question; never a topic" },
+        "blocks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Ticket ids, record ids, or file paths that cannot proceed until this closes"
+        },
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "pros", "cons"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "pros": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+              "cons": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+            }
+          }
+        },
+        "recommendation": { "type": "string", "minLength": 1, "description": "The name of one option" },
+        "closure": { "type": "string", "enum": ["spike", "ruling"] },
+        "spike": { "$ref": "common.schema.json#/$defs/spikeId", "description": "Required when closure is spike" },
+        "ruler": { "type": "string", "description": "Who rules, when closure is ruling" },
+        "waiting_on": { "type": "string", "description": "Input a ruling waits for: an external party, or a design review under research/" },
+        "interim": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assumption", "applied_by"],
+          "properties": {
+            "assumption": { "type": "string", "minLength": 1 },
+            "applied_by": { "type": "array", "items": { "type": "string" }, "description": "Records or files that applied the interim assumption; revisited at closure" }
+          }
+        },
+        "status": { "type": "string", "enum": ["proposed", "open", "closed"] },
+        "asked": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["date", "in"],
+          "properties": {
+            "date": { "$ref": "common.schema.json#/$defs/date" },
+            "in": { "type": "string", "minLength": 1, "description": "Interview record path, or epic id when proposed by execution" }
+          }
+        },
+        "proposed_by": { "type": "string", "description": "Epic id and commit when execution proposed the entry" },
+        "ruling": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ref", "date", "summary"],
+          "properties": {
+            "ref": { "type": "string", "minLength": 1, "description": "Interview record, changelog version, spike id, or epic commit" },
+            "date": { "$ref": "common.schema.json#/$defs/date" },
+            "summary": { "type": "string", "minLength": 1 },
+            "chosen": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

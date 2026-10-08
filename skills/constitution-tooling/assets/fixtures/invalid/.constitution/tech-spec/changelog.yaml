@@ -1,0 +1,6 @@
+entries:
+  - version: v0.0.1
+    date: "2026-09-01"
+    added: [Stack, guidelines, CLI contract, ADR-0001]
+    upstream: { prd: v0.0.1, architecture: v0.0.1 }
+    by: stage

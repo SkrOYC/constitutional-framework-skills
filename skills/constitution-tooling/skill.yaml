@@ -1,0 +1,7 @@
+skillprism: '1'
+name: constitution-tooling
+description: 'Machine checks and generators for the structured .constitution/ (YAML data files with JSON Schemas). A Bun CLI with validate (schemas, cross-file invariants, repository checks), init, render, migrate, reconcile, derive, and check-plan. Use when a stage skill, epic lead, reviewer, or reconciliation must check or regenerate constitution files, when starting a new constitution, or when converting a markdown one. Requires Bun; no package installation.'
+metadata:
+  family: 'ai-project-development-framework'
+  stage: 'tooling'
+  artifact: 'validation findings | generated critical-path.md | migrated or reconciled .constitution/'

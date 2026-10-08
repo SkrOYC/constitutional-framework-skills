@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "jobs.schema.json",
+  "title": ".constitution/prd/jobs.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["jobs"],
+  "properties": {
+    "jobs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "actor", "statement", "priority", "certainty"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/jobId" },
+          "legacy_id": { "type": "string", "description": "Identifier used before migration, kept for traceability" },
+          "actor": { "type": "string", "minLength": 1 },
+          "statement": { "type": "string", "minLength": 1, "description": "Outcome-oriented job the actor hires the product for" },
+          "priority": { "$ref": "common.schema.json#/$defs/priority" },
+          "certainty": { "$ref": "common.schema.json#/$defs/certainty" },
+          "evidence": { "$ref": "common.schema.json#/$defs/evidence" },
+          "assumption": { "type": "string" },
+          "decision": { "$ref": "common.schema.json#/$defs/odId" }
+        }
+      }
+    }
+  }
+}

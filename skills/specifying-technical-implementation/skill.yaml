@@ -1,0 +1,8 @@
+skillprism: '1'
+name: specifying-technical-implementation
+description: 'Stage 3 of the four-stage documentation pipeline. Turns .constitution/architecture/ into the technical decisions under .constitution/tech-spec/ (stack pins, verified guidelines, layout, live-verification recipes, ADRs, and sidecars pointing at code artifacts), binding Stage 4 planning. Runs upfront and, after a wave merges, as an alignment pass recording settled facts. Use when selecting a stack, writing ADRs, defining repository structure and verification, or aligning tech-spec with code.'
+metadata:
+  family: 'ai-project-development-framework'
+  stage: '3'
+  artifact: '.constitution/tech-spec/'
+  upstream: '.constitution/architecture/ | .constitution/prd/'

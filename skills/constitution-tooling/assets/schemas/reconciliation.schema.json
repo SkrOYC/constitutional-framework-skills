@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "reconciliation.schema.json",
+  "title": ".constitution/reports/<date>-reconciliation.yaml (or <date>-reconciliation-<N>.yaml for the Nth run that day), written by reconcile only when something was routed",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["date", "commit", "epics", "routed", "proposed_decisions", "candidate_terms"],
+  "properties": {
+    "date": { "$ref": "common.schema.json#/$defs/date" },
+    "commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
+    "epics": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/epicId" } },
+    "routed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["stage", "item", "from"],
+        "properties": {
+          "stage": { "$ref": "common.schema.json#/$defs/stage" },
+          "item": { "type": "string", "minLength": 1 },
+          "from": { "type": "string", "pattern": "^([A-Z]{1,2}|fast-lane)$", "description": "Epic id, or fast-lane for items a fast-lane commit raised" }
+        }
+      }
+    },
+    "refused_settles": {
+      "description": "Closeout settled entries and fast-lane Settles trailers reconcile refused to apply because the target is not a certainty-bearing record; nothing was written for them",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["file", "epic", "settles", "reason"],
+        "properties": {
+          "file": { "type": "string", "minLength": 1, "description": "The epic file whose closeout carried the entry, or the fast-lane commit" },
+          "epic": { "type": "string", "pattern": "^(EPIC-[A-Z]{1,2}|fast-lane)$" },
+          "settles": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "proposed_decisions": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/odId" } },
+    "candidate_terms": { "type": "array", "items": { "type": "string" } },
+    "fast_lane": {
+      "description": "Fast-lane commits scanned since the previous watermark, and what reconcile did with each",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["commit", "subject", "status", "settled"],
+        "properties": {
+          "commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
+          "subject": { "type": "string", "minLength": 1 },
+          "status": { "type": "string", "enum": ["applied", "routed"] },
+          "settled": { "type": "array", "items": { "type": "string" } },
+          "reason": { "type": "string", "description": "Why a routed commit was not applied" },
+          "overlap": { "type": "string", "pattern": "^EPIC-[A-Z]{1,2}$", "description": "The active epic whose owned paths an applied commit touched; a routed item tells that epic's lead" }
+        }
+      }
+    },
+    "stale_owners": { "type": "array", "items": { "type": "string" }, "description": "Owner references to archived tickets found during cross-check" }
+  }
+}

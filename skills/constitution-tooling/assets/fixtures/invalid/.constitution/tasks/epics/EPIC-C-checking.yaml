@@ -1,0 +1,52 @@
+id: C
+name: Link checking
+kind: product
+capabilities: [CAP-002, CAP-003]
+depends_on: [B]
+scope:
+  paths: [src/core/links.ts, src/cli/check.ts, tests, package.json, scripts]
+  tech_spec_patchable: [tech-spec/contracts/cli-fix.md]
+estimated_diff_lines: 900
+tickets:
+  - id: FIX-C001
+    title: Contract tests for every command
+    type: Feature
+    effort: 3
+    depends_on: []
+    scope: { in: [tests] }
+    verification: { command: bun run test, expected: exit 0 }
+    description: Exit codes and streams for render and check match the CLI contract.
+    acceptance:
+      mode: contract_test
+      evidence: One test per line of cli-fix.md asserting exit code and stream content.
+    flows: [render-note, check-links]
+    certainty: assumed
+    status: planned
+  - id: FIX-C002
+    title: Bench command against NFC-01
+    type: Chore
+    effort: 2
+    depends_on: [FIX-C001]
+    scope: { in: [package.json, scripts] }
+    verification: { command: bun run test, expected: exit 0 }
+    description: Add the bench verification command guidelines.md names as not existing yet.
+    acceptance:
+      mode: benchmark
+      evidence: bun run bench reports the median under the NFC-01 goal.
+      constraints: [NFC-01]
+    flows: [render-note]
+    certainty: assumed
+    status: planned
+closeout:
+  tickets_completed: []
+  tickets_deferred: []
+  points_completed: 0
+  spec_patches:
+    - { path: tech-spec/contracts/cli-missing.md, summary: Exit codes for check, commit: abc1234 }
+  changelog_entries: []
+  candidate_terms: []
+  routed_upstream: []
+  follow_ups: []
+  settled:
+    - record: prd/capabilities.yaml#CAP-999
+      evidence: { kind: repository, ref: tests/render.test.ts, version: "0000000", date: "2026-09-03" }

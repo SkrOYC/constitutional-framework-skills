@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "constitution.schema.json",
+  "title": ".constitution/constitution.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "acronym", "archetype", "surfaces"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "acronym": { "$ref": "common.schema.json#/$defs/acronym" },
+    "archetype": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary", "confidence", "rationale"],
+      "properties": {
+        "primary": { "$ref": "common.schema.json#/$defs/archetypeName" },
+        "secondary": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/archetypeName" }, "uniqueItems": true },
+        "confidence": { "type": "string", "enum": ["high", "medium", "low"] },
+        "rationale": { "type": "string", "minLength": 1 },
+        "other_justification": { "type": "string" }
+      }
+    },
+    "surfaces": {
+      "description": "Domain-facing surfaces where banned synonyms are a P1: contracts, schemas, migrations, UI copy, public API. Globs relative to the repository root.",
+      "$ref": "common.schema.json#/$defs/pathList"
+    },
+    "diff_exclusions": {
+      "description": "Globs excluded from diff-line counts: lockfiles, snapshots, generated mirrors.",
+      "$ref": "common.schema.json#/$defs/pathList"
+    },
+    "default_branch": { "type": "string", "minLength": 1 },
+    "concurrency": {
+      "description": "Mechanics execute-wave and the epic lead read instead of improvising",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "worktree": { "type": "string", "minLength": 1 },
+        "branch": { "type": "string", "minLength": 1 },
+        "merge": { "type": "string", "enum": ["rebase", "squash", "merge"] }
+      }
+    },
+    "exceptions": {
+      "description": "Named, user-approved exceptions to framework rules, each with the rule id and reason.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rule", "reason"],
+        "properties": { "rule": { "type": "string" }, "reason": { "type": "string" } }
+      }
+    }
+  }
+}

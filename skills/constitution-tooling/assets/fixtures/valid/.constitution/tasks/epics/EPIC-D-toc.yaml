@@ -1,0 +1,27 @@
+id: D
+name: Table of contents
+kind: product
+capabilities: [CAP-002]
+depends_on: [B]
+scope:
+  paths: [src/core/toc.ts]
+  tech_spec_patchable: []
+estimated_diff_lines: 500
+tickets:
+  - id: FIX-D001
+    title: Render a table of contents from headings
+    type: Feature
+    effort: 3
+    depends_on: []
+    scope: { in: [src/core/toc.ts] }
+    verification: { command: bun run test, expected: exit 0 }
+    description: Headings in a Note become a nested list at the top of the Page.
+    acceptance:
+      mode: gherkin
+      evidence: |
+        Given a Note with three heading levels
+        When the Operator runs fix render
+        Then the Page starts with a nested list mirroring the headings
+    flows: [render-note]
+    certainty: assumed
+    status: planned

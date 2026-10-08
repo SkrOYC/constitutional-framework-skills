@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "guidelines.schema.json",
+  "title": "Front matter of .constitution/tech-spec/guidelines.md",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verification_commands", "layout", "commit_convention"],
+  "properties": {
+    "verification_commands": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "command", "exists"],
+        "properties": {
+          "name": { "type": "string", "enum": ["test", "lint", "format", "typecheck", "build", "simulate", "probe", "bench", "docs", "other"] },
+          "label": { "type": "string" },
+          "command": { "type": "string", "minLength": 1, "description": "Bare command with the environment already active; the tooling epic is the only place a bootstrap prefix appears" },
+          "exists": { "type": "boolean" },
+          "owner": { "$ref": "common.schema.json#/$defs/ticketId", "description": "Ticket that will create the command when exists is false" }
+        }
+      }
+    },
+    "layout": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "purpose"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "purpose": { "type": "string", "minLength": 1 },
+          "exists": { "type": "boolean" }
+        }
+      }
+    },
+    "live_verification": {
+      "description": "Recipes that launch the system, check it is up, drive it through a real surface, and capture evidence. Tickets whose acceptance mode includes live_probe name one by acceptance.recipe.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "launch", "doctor", "drive", "drive_kind", "evidence", "exists"],
+        "properties": {
+          "name": { "$ref": "common.schema.json#/$defs/slug", "description": "Unique recipe name tickets cite" },
+          "surface": { "$ref": "common.schema.json#/$defs/surfaceKind" },
+          "launch": { "type": "string", "minLength": 1, "description": "Command that starts the system under test" },
+          "doctor": { "type": "string", "minLength": 1, "description": "Command that exits 0 once the system is ready to drive" },
+          "drive": { "type": "string", "minLength": 1, "description": "The command, tool invocation, or manual steps that exercise the surface" },
+          "drive_kind": { "type": "string", "enum": ["command", "tool", "manual"], "description": "Only a command drive is resolved against the repository" },
+          "evidence": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "ref"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["screenshot", "log_line", "http_response", "file"] },
+              "ref": { "type": "string", "minLength": 1, "description": "What to capture: a file path, a log line pattern, a URL, or a screenshot target" }
+            }
+          },
+          "cleanup": { "type": "string", "minLength": 1, "description": "Command that stops the system and removes what the drive wrote" },
+          "exists": { "type": "boolean", "description": "Whether every command in the recipe resolves today" },
+          "owner": { "$ref": "common.schema.json#/$defs/ticketId", "description": "Ticket that will make the recipe runnable when exists is false" }
+        }
+      }
+    },
+    "commit_convention": { "type": "string", "minLength": 1 },
+    "safety_standard": { "type": "string" }
+  }
+}

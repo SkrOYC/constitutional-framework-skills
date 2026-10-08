@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "evidence-manifest.schema.json",
+  "title": ".constitution/evidence/<TICKET or SPIKE>/manifest.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["owner", "mode", "produced", "files"],
+  "properties": {
+    "owner": { "type": "string", "minLength": 1, "description": "Ticket id, spike id, or constraint id whose acceptance or meter this evidence supports" },
+    "mode": { "$ref": "common.schema.json#/$defs/acceptanceMode" },
+    "produced": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["date", "commit", "command"],
+      "properties": {
+        "date": { "$ref": "common.schema.json#/$defs/date" },
+        "commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
+        "command": { "type": "string", "minLength": 1, "description": "Pinned, host-neutral command that produced the files" },
+        "host": { "type": "string", "description": "Recorded fact, not a pass criterion" }
+      }
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "bytes"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "bytes": { "type": "integer", "minimum": 0 },
+          "role": { "type": "string", "description": "baseline, log, screenshot, measurement, transcript" }
+        }
+      }
+    },
+    "pass_criteria": { "type": "string", "description": "What a later run must satisfy, distinct from the recorded values" }
+  }
+}

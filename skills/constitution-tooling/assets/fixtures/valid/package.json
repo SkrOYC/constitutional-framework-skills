@@ -1,0 +1,14 @@
+{
+  "name": "fixture-cli",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "lint": "biome check .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "5.9.2",
+    "@biomejs/biome": "2.2.4"
+  }
+}

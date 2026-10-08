@@ -1,0 +1,7 @@
+artifact: cli-fix.md
+surface: cli
+flows: [render-note, check-links]
+boundaries: [BND-01, BND-99]
+certainty: assumed
+assumption: Exit codes are specified but only render is exercised by tests.
+settles_when: FIX-C001 contract tests pass for every command.

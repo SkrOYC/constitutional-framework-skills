@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "constraints.schema.json",
+  "title": ".constitution/prd/constraints.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["constraints", "deferred"],
+  "properties": {
+    "constraints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "class", "statement", "scale", "meter", "goal", "fail", "certainty"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/constraintId" },
+          "legacy_id": { "type": "string", "description": "Identifier used before migration, kept for traceability" },
+          "class": { "type": "string", "enum": ["performance", "reliability", "security", "privacy", "operability", "compatibility", "cost", "archetype"] },
+          "statement": { "type": "string", "minLength": 1 },
+          "scale": { "type": "string", "minLength": 1 },
+          "meter": { "type": "string", "minLength": 1 },
+          "goal": { "type": ["string", "number"] },
+          "stretch": { "type": ["string", "number"] },
+          "fail": { "type": ["string", "number"] },
+          "certainty": { "$ref": "common.schema.json#/$defs/certainty" },
+          "evidence": { "$ref": "common.schema.json#/$defs/evidence" },
+          "assumption": { "type": "string" },
+          "decision": { "$ref": "common.schema.json#/$defs/odId" }
+        }
+      }
+    },
+    "deferred": {
+      "description": "Constraint classes deliberately not quantified yet, each with the risk of deferring named",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["class", "risk"],
+        "properties": { "class": { "type": "string", "minLength": 1 }, "risk": { "type": "string", "minLength": 1 } }
+      }
+    }
+  }
+}

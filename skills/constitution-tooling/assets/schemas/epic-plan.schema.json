@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "epic-plan.schema.json",
+  "title": "Front matter of an epic plan file (execute-epic-end-to-end/references/epic-plan.md), which lives outside .constitution/. Every key is present; one that does not apply says so rather than being omitted. Milestone bodies are not checked.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "epic", "epic_file", "planned_by", "wave", "merge_position", "lanes_in_wave", "worktree", "branch", "base_branch", "planned_at_commit", "siblings", "models", "review_panel", "pr_review", "autonomy", "budget", "liveness", "verbatim_project_rules", "open_decisions"],
+  "properties": {
+    "kind": { "type": "string", "enum": ["epic", "fast_lane", "no_constitution"], "description": "epic executes an epic file; fast_lane executes a code-only fix with no epic file; no_constitution executes an issue in a repository with no .constitution/, so the constitution cross-checks are skipped" },
+    "epic": { "type": "string", "pattern": "^(EPIC-[A-Z]{1,2}|FAST-[a-z0-9]+(-[a-z0-9]+)*|ISSUE-[0-9]+)$", "description": "EPIC-<ID> for kind epic; FAST-<slug> or ISSUE-<number> for fast_lane and no_constitution. check-plan enforces the pairing with kind" },
+    "epic_file": { "type": "string", "minLength": 1, "description": "For kind epic, the repository-relative path of the epic file, whose id must match epic; for fast_lane and no_constitution, the literal none" },
+    "planned_by": { "type": "string", "enum": ["wave_lead", "self"], "description": "wave_lead under execute-wave; self for a standalone epic lead's step-0 plan" },
+    "wave": { "type": "integer", "minimum": 0, "description": "0 when standalone" },
+    "merge_position": { "type": "integer", "minimum": 1, "description": "Position in the wave's listed merge order" },
+    "lanes_in_wave": { "type": "integer", "minimum": 1 },
+    "worktree": { "type": "string", "minLength": 1 },
+    "branch": { "type": "string", "minLength": 1 },
+    "base_branch": { "type": "string", "minLength": 1 },
+    "planned_at_commit": { "type": "string", "minLength": 1, "description": "Default-branch commit the repository-state assertions were checked against" },
+    "siblings": {
+      "description": "Every other lane in the wave; empty when standalone or a wave of one",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["epic", "lead", "branch", "merge_position"],
+        "properties": {
+          "epic": { "type": "string", "pattern": "^EPIC-[A-Z]{1,2}$" },
+          "lead": { "type": "string", "minLength": 1, "description": "The name the orchestrator gave that subagent" },
+          "branch": { "type": "string", "minLength": 1 },
+          "merge_position": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "models": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["epic_lead", "worker", "spec_patch_worker", "milestone_reviewer", "fix_worker"],
+      "properties": {
+        "epic_lead": { "$ref": "#/$defs/runtimeModel" },
+        "worker": { "$ref": "#/$defs/runtimeModel" },
+        "spec_patch_worker": { "$ref": "#/$defs/runtimeModel" },
+        "milestone_reviewer": { "$ref": "#/$defs/runtimeModel" },
+        "fix_worker": { "$ref": "#/$defs/runtimeModel" }
+      }
+    },
+    "review_panel": {
+      "description": "Reviewers that run in parallel on the pull request; the default panel is per harness (Claude and Codex, two Codex models, or Grok and Codex)",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["runtime", "model", "mode"],
+        "properties": {
+          "runtime": { "$ref": "#/$defs/runtime" },
+          "model": { "type": "string", "minLength": 1 },
+          "mode": { "type": "string", "enum": ["full", "standards", "spec", "documents"] }
+        }
+      }
+    },
+    "pr_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fix_worker", "review_escalate_at", "stop"],
+      "properties": {
+        "fix_worker": { "$ref": "#/$defs/runtimeModel" },
+        "review_escalate_at": { "type": "integer", "minimum": 1, "description": "Round after which the loop changes strategy instead of repeating" },
+        "stop": { "type": "string", "minLength": 1, "description": "The loop's stop rule, restated so the lead never asks" }
+      }
+    },
+    "autonomy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy"],
+      "properties": {
+        "policy": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["trigger", "action"],
+            "properties": {
+              "trigger": { "type": "string", "enum": ["blocker", "open_decision", "plan_drift", "spec_drift", "test_failure", "review_nonconvergence", "rebase_conflict", "budget_threshold", "stall"] },
+              "action": { "type": "string", "enum": ["adopt_recommendation", "defer_tickets", "retry", "amend_plan", "escalate_wave_lead", "stop_lane", "resolve_and_rereview", "escalate_strategy", "switch_to_fallback"], "description": "switch_to_fallback moves the roles listed in budget.fallback_models to those models and continues" },
+              "max_attempts": { "type": "integer", "minimum": 1 }
+            }
+          }
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["usage_ceiling_note", "threshold_pct", "fallback_models"],
+      "properties": {
+        "usage_ceiling_note": { "type": "string", "minLength": 1 },
+        "threshold_pct": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "fallback_models": {
+          "description": "Role name to the model that role switches to at the threshold",
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/runtimeModel" }
+        }
+      }
+    },
+    "liveness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stall_after_minutes", "side_effects"],
+      "properties": {
+        "stall_after_minutes": { "type": "integer", "minimum": 1 },
+        "side_effects": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "enum": ["commit", "push", "pr_update", "plan_amendment", "worktree_change"] } }
+      }
+    },
+    "verbatim_project_rules": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "open_decisions": {
+      "description": "Register entries that touch this epic, with the interim assumption if any",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "effect", "interim"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/odId" },
+          "effect": { "type": "string", "minLength": 1 },
+          "interim": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "runtime": { "type": "string", "enum": ["claude", "codex", "grok", "pi", "pig"] },
+    "runtimeModel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runtime", "model"],
+      "properties": {
+        "runtime": { "$ref": "#/$defs/runtime" },
+        "model": { "type": "string", "minLength": 1, "description": "That runtime's model id; discover ids through the runtime's skill, never guess one" }
+      }
+    }
+  }
+}

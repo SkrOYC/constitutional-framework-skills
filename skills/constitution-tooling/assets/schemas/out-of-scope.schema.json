@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "out-of-scope.schema.json",
+  "title": "Front matter of .constitution/prd/out-of-scope/*.md",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["decision", "date"],
+  "properties": {
+    "decision": { "type": "string", "enum": ["rejected", "deferred"] },
+    "date": { "$ref": "common.schema.json#/$defs/date" },
+    "ruling": { "type": "string", "description": "Interview record, OD id, or user message that made the decision" },
+    "revisit_when": { "type": "string" }
+  }
+}

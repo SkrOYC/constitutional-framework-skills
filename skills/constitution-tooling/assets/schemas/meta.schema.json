@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "meta.schema.json",
+  "title": "Sidecar NAME.meta.yaml under tech-spec/contracts or tech-spec/data-models, describing a contract or data-model artifact that lives in the code",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["surface", "certainty"],
+  "properties": {
+    "artifact_path": { "type": "string", "minLength": 1, "description": "Repository-relative path of the artifact in the code, never under .constitution/. Exactly one of artifact_path and artifact is set (TS-007)." },
+    "artifact": { "type": "string", "minLength": 1, "description": "Legacy: file name of a raw artifact in the same directory as this sidecar. Move the artifact into the code and set artifact_path instead (TS-008)." },
+    "pinned": { "type": "boolean", "description": "The artifact crosses epic boundaries inside a wave; its entity and field level is fixed before the wave runs" },
+    "owner": { "$ref": "common.schema.json#/$defs/ticketId", "description": "Optional ticket that creates the artifact while it does not exist yet; an open ticket whose scope.in covers artifact_path counts as the creator too" },
+    "surface": { "$ref": "common.schema.json#/$defs/surfaceKind" },
+    "flows": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/slug" }, "uniqueItems": true },
+    "boundaries": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/boundaryId" }, "uniqueItems": true },
+    "companion": { "type": "string", "description": "Markdown companion documenting purpose, invariants, indexes, migration notes" },
+    "validate_with": { "type": "string", "description": "Command that validates or compiles the artifact, when tooling exists" },
+    "certainty": { "$ref": "common.schema.json#/$defs/certainty" },
+    "evidence": { "$ref": "common.schema.json#/$defs/evidence" },
+    "assumption": { "type": "string" },
+    "decision": { "$ref": "common.schema.json#/$defs/odId" },
+    "settles_when": { "type": "string" }
+  }
+}

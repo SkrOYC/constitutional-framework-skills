@@ -1,0 +1,23 @@
+boundaries:
+  - id: BND-01
+    name: Command surface
+    kind: module
+    type: CLI entry
+    responsibility: Parse arguments and map them to core operations.
+    inputs: [argv]
+    outputs: [exit code, stdout, stderr]
+    depends_on: [BND-02]
+    certainty: settled
+    evidence: { kind: repository, ref: src/cli, version: "0000000", date: "2026-09-02" }
+  - id: BND-02
+    name: Core
+    kind: module
+    type: library surface
+    responsibility: Render a Note into a Page and check Links.
+    inputs: [Note text]
+    outputs: [Page text, Link report]
+    depends_on: []
+    certainty: settled
+    evidence: { kind: repository, ref: src/core, version: "0000000", date: "2026-09-02" }
+edges:
+  - { from: BND-01, to: BND-02, protocol: in-process }

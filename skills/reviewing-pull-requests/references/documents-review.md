@@ -1,0 +1,32 @@
+# Documents review
+
+Review a constitution-only pull request: one pipeline stage's output under `.constitution/`, or an interview record, register, or patch-lane change. The goal is a review that converges in one pass. Report what a reader of the next stage would trip on, not everything that could be phrased better.
+
+## Step 1: Identify the PR and the stage
+
+1. Resolve the PR with `gh pr view <number> --json title,body,baseRefName,headRefName,files` and read `gh pr diff <number>`.
+2. Confirm every changed path is under `.constitution/`. If code changed too, stop and say the PR needs `mode: "full"` instead; a mixed PR breaks the two-commit rule.
+3. Name the stage whose directory the PR writes (`prd/`, `architecture/`, `tech-spec/`, `tasks/`, or `reports/` for an interview). A PR that writes two stage directories is itself a finding: file a `P1` asking for one PR per stage.
+
+## Step 2: Run the machine checks first
+
+Run `validate` on the PR head without touching the caller's checkout: `git fetch origin pull/<number>/head:review-<number>`, `git worktree add /tmp/review-<number> review-<number>`, then run `validate` via the `constitution-tooling` CLI named in SKILL.md (`validate --root /tmp/review-<number>`), and remove the worktree and the branch when you're done. If you can't create a worktree (a read-only sandbox), say so and review without it. Every error it reports is a `P1` with its check id; don't re-derive what the validator already says, and don't file findings the validator proves false. For a `tech-spec/` PR, also run `derive --root /tmp/review-<number>` and report its drift as `P2`.
+
+## Step 3: Walk the stage's checklist
+
+Open the stage skill's `SKILL.md` and walk its **Validation checklist** item by item against the PR: `defining-product-requirements`, `designing-solution-architecture`, `specifying-technical-implementation`, or `planning-engineering-execution`. Each item that fails is a finding, citing the item and the file. This checklist is the review; don't invent criteria beyond it and the framework overview.
+
+Then check what the checklist and the validator can't see:
+
+- **Layer.** The stage decides only what it owns and doesn't repair an upstream directory. A scope change inside `architecture/` or a boundary change inside `tech-spec/` is a `P1`.
+- **Contradictions.** Two records in the PR, or a record and its upstream, say incompatible things.
+- **Downstream staleness.** A directory the change makes stale is either updated in a later stage's PR or flagged in the changelog entry.
+- **Raw artifacts.** In a `tech-spec/` PR, a raw contract or data-model artifact under `.constitution/` is a `P1`; it belongs in the code at the sidecar's `artifact_path`.
+
+## Step 4: Classify, and name the check that should exist
+
+Use the smallest honest label, in the output format of `full-review.md`. Wording, tone, and structure preferences are `General feedback` at most. A cross-reference, count, id, or version mismatch that a program could have caught is still reported at its severity, and the comment ends with one line naming the validator check that would catch it mechanically (for example "a check that every `ADR-NNNN` mentioned in prose resolves"), so the loop can file it as a tooling follow-up instead of catching it by hand next time.
+
+## Scoped verification rounds
+
+When the prompt names a `since` commit, review only the diff from that commit to the head plus the records it touches, and confirm each listed prior finding is resolved. Report unresolved prior findings at their original severity and new findings as usual.

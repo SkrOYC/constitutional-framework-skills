@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "boundaries.schema.json",
+  "title": ".constitution/architecture/boundaries.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["boundaries", "edges"],
+  "properties": {
+    "boundaries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "kind", "type", "responsibility", "inputs", "outputs", "depends_on", "certainty"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/boundaryId" },
+          "legacy_id": { "type": "string", "description": "Identifier used before migration, kept for traceability" },
+          "name": { "type": "string", "minLength": 1 },
+          "kind": { "type": "string", "enum": ["container", "module", "process", "pipeline-stage", "hardware-partition", "other"] },
+          "type": { "type": "string", "minLength": 1, "description": "Role label fit to the system: API, worker, library surface, firmware domain, control plane, and so on" },
+          "responsibility": { "type": "string", "minLength": 1, "description": "The single primary purpose" },
+          "inputs": { "type": "array", "items": { "type": "string" } },
+          "outputs": { "type": "array", "items": { "type": "string" } },
+          "depends_on": { "type": "array", "items": { "type": "string" }, "uniqueItems": true, "description": "Boundary ids or external entity names" },
+          "trust_boundary": { "type": "boolean" },
+          "certainty": { "$ref": "common.schema.json#/$defs/certainty" },
+          "evidence": { "$ref": "common.schema.json#/$defs/evidence" },
+          "assumption": { "type": "string" },
+          "decision": { "$ref": "common.schema.json#/$defs/odId" }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from", "to", "protocol"],
+        "properties": {
+          "from": { "type": "string", "minLength": 1 },
+          "to": { "type": "string", "minLength": 1 },
+          "protocol": { "type": "string", "enum": ["request-response", "event", "shared-storage", "file-handoff", "in-process", "ipc", "bus", "other"] },
+          "note": { "type": "string" }
+        }
+      }
+    }
+  }
+}

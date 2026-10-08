@@ -1,0 +1,58 @@
+id: B
+name: Foundation
+kind: foundation
+capabilities: [CAP-001]
+depends_on: [A]
+scope:
+  paths: [src/cli, src/core]
+  tech_spec_patchable: [tech-spec/contracts/cli-fix.md]
+estimated_diff_lines: 1200
+tickets:
+  - id: FIX-B001
+    title: Decide the rendering library
+    type: Spike
+    effort: 2
+    depends_on: []
+    scope: { in: [.constitution/spikes] }
+    verification: { command: bun run test, expected: exit 0 }
+    description: Compare two markdown renderers against NFC-01 on the reference corpus.
+    acceptance:
+      mode: benchmark
+      evidence: Median startup-to-exit under 80 ms for both candidates, recorded in the spike report.
+      constraints: [NFC-01]
+    flows: [render-note]
+    spike: SPK-FIX-B001
+    closes_decision: OD-01
+    certainty: assumed
+    status: done
+  - id: FIX-B002
+    title: One end-to-end render command
+    type: Feature
+    effort: 3
+    depends_on: [FIX-B001]
+    scope: { in: [src/cli/parse.ts, src/core/render.ts] }
+    verification: { command: bun run test, expected: exit 0 }
+    description: The render command writes a Page for a well-formed Note.
+    acceptance:
+      mode: gherkin
+      evidence: |
+        Given a well-formed Note
+        When the Operator runs fix render
+        Then a Page is written beside it and the exit code is 0
+    flows: [render-note]
+    certainty: assumed
+    status: done
+closeout:
+  tickets_completed: [FIX-B001, FIX-B002]
+  tickets_deferred: []
+  points_completed: 5
+  spec_patches: []
+  changelog_entries:
+    - { directory: tasks, type: added, text: Epic B completed with the render path }
+  candidate_terms: []
+  routed_upstream: []
+  follow_ups: []
+  settled:
+    - record: prd/capabilities.yaml#CAP-001
+      evidence: { kind: repository, ref: tests/render.test.ts, version: "0000000", date: "2026-09-02" }
+  actuals: { diff_lines: 1140, files_touched: 9, milestones: 2, review_rounds: 3, merged_commit: "0000000", measured_at: "2026-09-02", per_ticket: [{ id: FIX-B001, diff_lines: 60, review_rounds: 1 }, { id: FIX-B002, diff_lines: 1080, review_rounds: 2 }] }

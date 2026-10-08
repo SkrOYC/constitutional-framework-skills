@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stack.schema.json",
+  "title": ".constitution/tech-spec/stack.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["bill_of_materials", "compatibility_policy"],
+  "properties": {
+    "bill_of_materials": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "role", "version", "ecosystem", "certainty"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "role": { "type": "string", "enum": ["language", "runtime", "framework", "persistence", "infrastructure", "tooling", "testing", "library"] },
+          "version": { "type": "string", "minLength": 1, "description": "Exact pin as it appears in the lockfile or toolchain file" },
+          "ecosystem": { "type": "string", "enum": ["cargo", "bun", "npm", "pub", "nix", "pip", "go", "system", "other"] },
+          "justification": { "type": "string" },
+          "radar": { "type": "string", "enum": ["adopt", "trial", "assess", "hold"] },
+          "certainty": { "$ref": "common.schema.json#/$defs/certainty" },
+          "evidence": { "$ref": "common.schema.json#/$defs/evidence" },
+          "assumption": { "type": "string" },
+          "decision": { "$ref": "common.schema.json#/$defs/odId" }
+        }
+      }
+    },
+    "compatibility_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pinning", "lockfiles", "upgrade_boundaries"],
+      "properties": {
+        "pinning": { "type": "string", "minLength": 1 },
+        "lockfiles": { "$ref": "common.schema.json#/$defs/pathList" },
+        "upgrade_boundaries": { "type": "string", "minLength": 1 }
+      }
+    },
+    "no_durable_state": { "type": "string", "description": "Present only when the system owns nothing durable; says so and why, instead of inventing a database" }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "changelog.schema.json",
+  "title": ".constitution/<directory>/changelog.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["entries"],
+  "properties": {
+    "entries": {
+      "description": "Newest first. The first entry's version is the directory's current version. A new directory starts at v0.0.1.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["version", "date"],
+        "properties": {
+          "version": { "$ref": "common.schema.json#/$defs/semver" },
+          "date": { "$ref": "common.schema.json#/$defs/date" },
+          "added": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "changed": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "deprecated": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "removed": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "fixed": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "security": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "upstream": {
+            "description": "Upstream directory versions this entry was written against",
+            "type": "object",
+            "additionalProperties": { "$ref": "common.schema.json#/$defs/semver" }
+          },
+          "fast_lane_through": { "type": "string", "pattern": "^[0-9a-f]{7,40}$", "description": "tasks/changelog.yaml only: the commit reconcile scanned fast-lane trailers through; the next run starts after it" },
+          "by": { "type": "string", "enum": ["stage", "patch-lane", "reconcile", "migrate", "init", "derive"] },
+          "override": { "type": "string", "description": "Reason when a validation warning was overridden for this pass" }
+        }
+      }
+    }
+  }
+}

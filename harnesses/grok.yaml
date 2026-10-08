@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://tuvren.github.io/skillprism/schema/v1/harness.json
+# Grok CLI (xAI) harness definition.
+#
+# `grok` is not a skillprism built-in, so this file supplies its id, capability
+# flags, and directories. Facts taken from the Grok user guide shipped at
+# ~/.grok/docs/user-guide/08-skills.md (locations, frontmatter fields, /name
+# invocation) and 16-subagents.md (spawn_subagent).
+id: grok
+name: Grok
+capabilities:
+  supports_subagent: true
+  requires_sidecar: false
+  requires_manifest: false
+  name_max_length: 64
+  # Grok documents no description cap; keep the Agent Skills spec budget.
+  description_max_length: 1536
+paths:
+  project_scope_path: ".grok/skills"
+  user_scope_path: ".grok/skills"
+  skill_filename: SKILL.md
+# Grok invokes skills by slash name, like Claude Code.
+skill_ref_pattern: "/{name}"

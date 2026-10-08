@@ -1,0 +1,3 @@
+skillprism: '1'
+name: pr-review-fix-loop
+description: 'Run an autonomous post-PR review loop that converges. Round one is a panel of isolated reviewers on different model families (e.g. Claude and Codex subagents) running reviewing-pull-requests in parallel; the runner triages each finding into Act on, Consider, Noted, or Dismissed, has a fix worker address the Act-on findings, then runs scoped verification rounds until one finds no new Act-on finding. Use after a PR exists. Requires subagent dispatch, codex-subagent or pi-subagent, git, and gh.'

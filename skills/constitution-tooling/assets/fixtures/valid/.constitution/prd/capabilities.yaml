@@ -1,0 +1,25 @@
+capabilities:
+  - id: CAP-001
+    group: Rendering
+    priority: P0
+    statement: When the Operator runs the render command on a Note, the system shall write a Page next to it.
+    rationale: The core job.
+    jobs: [JOB-01]
+    certainty: settled
+    evidence: { kind: repository, ref: src/core/render.ts, version: "0000000", date: "2026-09-02" }
+  - id: CAP-002
+    group: Rendering
+    priority: P0
+    statement: If the Note cannot be parsed, the system shall report the line and exit non-zero.
+    rationale: Operators need a stable failure signal for scripts.
+    jobs: [JOB-01]
+    certainty: assumed
+    assumption: A line number is enough context; column reporting deferred.
+  - id: CAP-003
+    group: Checking
+    priority: P1
+    statement: When the Operator runs the check command, the system shall list every Link whose target is missing.
+    rationale: Publishing broken links is the most common complaint.
+    jobs: [JOB-02]
+    certainty: assumed
+    assumption: Only local link targets are checked in the first phase.

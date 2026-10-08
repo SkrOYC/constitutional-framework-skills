@@ -1,0 +1,11 @@
+entries:
+  - version: v0.0.2
+    date: "2026-09-02"
+    changed: [Epic B archived by reconciliation]
+    upstream: { prd: v0.1.0, architecture: v0.0.2, tech-spec: v0.0.2 }
+    by: reconcile
+  - version: v0.0.1
+    date: "2026-09-01"
+    added: [Epics A, B, C]
+    upstream: { prd: v0.0.1, architecture: v0.0.1, tech-spec: v0.0.1 }
+    by: stage

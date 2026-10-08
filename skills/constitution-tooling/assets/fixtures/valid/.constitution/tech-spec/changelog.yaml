@@ -1,0 +1,11 @@
+entries:
+  - version: v0.0.2
+    date: "2026-09-02"
+    changed: [CLI contract gained the check command]
+    upstream: { prd: v0.1.0, architecture: v0.0.2 }
+    by: stage
+  - version: v0.0.1
+    date: "2026-09-01"
+    added: [Stack, guidelines, CLI contract, ADR-0001]
+    upstream: { prd: v0.0.1, architecture: v0.0.1 }
+    by: stage

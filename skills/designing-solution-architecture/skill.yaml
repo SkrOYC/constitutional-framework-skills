@@ -1,0 +1,8 @@
+skillprism: '1'
+name: designing-solution-architecture
+description: 'Stage 2 of the four-stage documentation pipeline. Converts .constitution/prd/ into the logical .constitution/architecture/ (boundaries as YAML, one flow per P0 job, strategy, resilience, and risks as prose) that binds TechSpec and Tasks. Use when defining or revising system architecture, selecting a high-level pattern, decomposing logical boundaries, mapping critical flows, analyzing structural trade-offs and debt, or designing resilience without choosing vendors or frameworks.'
+metadata:
+  family: 'ai-project-development-framework'
+  stage: '2'
+  artifact: '.constitution/architecture/'
+  upstream: '.constitution/prd/'

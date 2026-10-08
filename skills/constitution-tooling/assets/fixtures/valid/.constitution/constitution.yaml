@@ -1,0 +1,18 @@
+schema_version: 1
+acronym: FIX
+archetype:
+  primary: CLI/Tooling
+  secondary: []
+  confidence: high
+  rationale: The shipped surface is one command-line tool with no service component.
+surfaces:
+  - src/cli/**
+  - docs/**
+diff_exclusions:
+  - package-lock.json
+  - "**/*.snap"
+default_branch: main
+concurrency:
+  worktree: ../fixture-cli-epic-<ID>
+  branch: feat/epic-<id>-<slug>
+  merge: rebase

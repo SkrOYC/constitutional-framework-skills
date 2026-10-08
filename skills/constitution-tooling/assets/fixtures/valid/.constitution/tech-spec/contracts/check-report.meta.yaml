@@ -1,0 +1,8 @@
+artifact_path: docs/check-report.schema.json
+owner: FIX-C001
+surface: json
+flows: [check-links]
+boundaries: [BND-02]
+certainty: assumed
+assumption: The check command prints one missing Link per line today; a machine-readable report shape is planned but not written.
+settles_when: FIX-C001 writes the schema and a contract test validates the check output against it.

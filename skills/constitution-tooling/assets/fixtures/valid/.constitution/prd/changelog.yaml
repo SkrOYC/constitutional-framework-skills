@@ -1,0 +1,9 @@
+entries:
+  - version: v0.1.0
+    date: "2026-09-02"
+    added: [Checking group with CAP-003]
+    by: stage
+  - version: v0.0.1
+    date: "2026-09-01"
+    added: [Initial vision, jobs, capabilities, constraints, glossary]
+    by: stage

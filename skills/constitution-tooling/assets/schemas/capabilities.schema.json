@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "capabilities.schema.json",
+  "title": ".constitution/prd/capabilities.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["capabilities"],
+  "properties": {
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "group", "priority", "statement", "rationale", "jobs", "certainty"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/capabilityId" },
+          "legacy_id": { "type": "string", "description": "Identifier used before migration, kept for traceability" },
+          "group": { "type": "string", "minLength": 1, "description": "Product-level grouping; not a task epic" },
+          "priority": { "$ref": "common.schema.json#/$defs/priority" },
+          "statement": { "type": "string", "minLength": 1, "description": "Technology-agnostic, atomic, EARS-shaped when normative" },
+          "rationale": { "type": "string", "minLength": 1 },
+          "jobs": { "type": "array", "minItems": 1, "items": { "$ref": "common.schema.json#/$defs/jobId" }, "uniqueItems": true },
+          "certainty": { "$ref": "common.schema.json#/$defs/certainty" },
+          "evidence": { "$ref": "common.schema.json#/$defs/evidence" },
+          "assumption": { "type": "string" },
+          "decision": { "$ref": "common.schema.json#/$defs/odId" }
+        }
+      }
+    }
+  }
+}
