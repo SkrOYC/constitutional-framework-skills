@@ -78,4 +78,4 @@ dist/<harness>/         # build output (gitignored)
 
 - The three manual copies this replaces had drifted. The unified source uses the newest canonical content (from the `~/.claude/skills` repository) for every harness, so Codex now gets checks and wording it was missing.
 - `constitution-tooling`'s `epic-plan.schema.json` accepts every runtime (`claude`, `codex`, `grok`, `pi`, `pig`) so a plan written under one harness validates under the others.
-- The known upstream skillprism limitation that motivates the neutral-reference rule is that only `SKILL.md` (or `SKILL.md.j2`) is rendered; `*.j2` on other files is copied unchanged.
+- The known upstream skillprism limitation that motivates the neutral-reference rule is that only `SKILL.md` (or `SKILL.md.j2`) is rendered; `*.j2` on other files is copied unchanged. Filed as [tuvren/skillprism#46](https://github.com/Tuvren/skillprism/issues/46).

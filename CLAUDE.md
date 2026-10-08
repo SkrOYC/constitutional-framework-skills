@@ -12,7 +12,7 @@ Unless the user explicitly asks, **never** run `skillprism add --target user`, e
 
 - Pin `SKILLPRISM_VERSION=0.4.0` on every invocation, even when also pinning `bunx skillprism@0.4.0`. Without it the launcher fetches release metadata from GitHub each run and 403s after a few calls.
 - Built-in harnesses are `claude`, `codex`, `opencode`, `factory`, `pi`. **Grok is not built-in**; it is defined in `harnesses/grok.yaml`. A file under `harnesses/` with a built-in id would *replace* that built-in, so don't do that by accident.
-- **Only `SKILL.md` (or `SKILL.md.j2`) is templated.** `references/`, `assets/`, and `scripts/` are copied verbatim — even files named `*.j2`. Anything harness-specific in them must be rewritten neutral.
+- **Only `SKILL.md` (or `SKILL.md.j2`) is templated.** `references/`, `assets/`, and `scripts/` are copied verbatim — even files named `*.j2`. Anything harness-specific in them must be rewritten neutral. This is filed upstream as [tuvren/skillprism#46](https://github.com/Tuvren/skillprism/issues/46).
 - `validate` checks the **source** `skill.yaml` `description`, not the rendered frontmatter. A `{% if harness.id == "codex" %}` branch cannot supply a shorter Codex description. That is why there is exactly one ≤500-character description.
 - **Codex caps descriptions at 500 characters** (Claude Code 1536, Grok none documented). All descriptions must be ≤500.
 - `skillprism.yaml` must have no top-level `name`. Every `skill.yaml` starts with `skillprism: '1'`. `metadata:` is string-to-string — quote every value.
