@@ -1,8 +1,0 @@
-skillprism: '1'
-name: reviewing-milestone-commits
-description: "Review a committed epic milestone during execute-epic-end-to-end execution. Use when an implementation milestone has been committed and must receive an isolated correctness review before the executor continues to the next milestone. Routes to a standards, spec, or full review workflow under references/ based on the mode passed in the prompt, defaulting to full. Requires git access to inspect the commit diff, surrounding code, relevant tests, and framework artifacts. Do not use for PR reviews, code generation, loose snippets, or generalized architecture feedback unrelated to the committed milestone."
-metadata:
-  family: "ai-project-constitutional-framework"
-  role: "review"
-  artifact: "review-report"
-  upstream: "milestone-commit"
