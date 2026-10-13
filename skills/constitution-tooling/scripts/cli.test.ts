@@ -1262,7 +1262,7 @@ describe("Stage 1 review checks", () => {
   }
   const setSurfaces = (dir: string, globs: string[]) => {
     const p = `${dir}/.constitution/constitution.yaml`;
-    writeFileSync(p, readFileSync(p, "utf8").replace(/^surfaces: .*$/m, `surfaces: ${JSON.stringify(globs)}`));
+    writeFileSync(p, readFileSync(p, "utf8").replace(/^surfaces:(?:[ \t]+[^\n]*)?(?:\n[ \t]+-[^\n]*)*$/m, `surfaces: ${JSON.stringify(globs)}`));
   };
 
   test("STR-002 accepts each interview target in any case and names the targets for an unknown one", async () => {

@@ -1,6 +1,6 @@
 skillprism: '1'
 name: planning-engineering-execution
-description: 'Stage 4 of the four-stage documentation pipeline. Converts .constitution/tech-spec/ into the epic graph under .constitution/tasks/: one YAML file per epic with dependencies, owned paths, patchable tech-spec files, and tickets with effort, mode-tagged acceptance evidence, and certainty; critical-path.md is rendered from it. Use when writing or revising a task plan, sequencing approved work into atomic tickets, writing testable acceptance criteria, or planning an out-of-band epic from an issue.'
+description: 'Stage 4 of the pipeline. Converts .constitution/tech-spec/ into the epic graph under .constitution/tasks/: one YAML file per epic with dependencies, owned paths, patchable tech-spec files, and tickets carrying effort, mode-tagged acceptance evidence, and certainty; critical-path.md is rendered from it. Use to write a task plan, sequence work into atomic tickets, write testable acceptance criteria, or plan an out-of-band epic from an issue.'
 metadata:
   family: 'ai-project-development-framework'
   stage: '4'

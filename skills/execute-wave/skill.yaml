@@ -1,6 +1,6 @@
 skillprism: '1'
 name: execute-wave
-description: 'Orchestrate one wave of the epic graph as the wave lead: plan every epic in one approved step-0 session, then dispatch an epic lead subagent per epic running execute-epic-end-to-end orchestrated, watch lane liveness, resolve blockers through the plans'' autonomy policy, merge review-clean PRs in order with a patch-id check after each rebase, then reconcile and derive. Use to execute the next wave from critical-path.md. Requires subagent dispatch and messaging, git, gh, and Bun. Not for one epic.'
+description: 'Orchestrate one wave of the epic graph as the wave lead: plan every epic in one approved step-0 session, dispatch an epic lead per epic (execute-epic-end-to-end orchestrated), resolve blockers through the plans'' autonomy policy, merge review-clean PRs in order after a patch-id check, then reconcile and derive. Use for the next wave in critical-path.md. Requires subagent dispatch, git, gh, and Bun. Not for a single epic.'
 metadata:
   family: 'ai-project-development-framework'
   stage: 'execution'

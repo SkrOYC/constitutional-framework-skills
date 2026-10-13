@@ -1,6 +1,6 @@
 skillprism: '1'
 name: reviewing-milestone-commits
-description: 'Review a committed epic milestone during execute-epic-end-to-end execution, including spec-patch and spike milestones. Use when an implementation milestone has been committed and must receive an isolated correctness review before the epic lead continues. Requires git access to inspect the commit diff, surrounding code, relevant tests, and framework artifacts. Do not use for PR reviews, code generation, loose snippets, or generalized architecture feedback.'
+description: 'Review a committed epic milestone during execute-epic-end-to-end, including spec-patch and spike milestones. Use when a milestone commit needs an isolated correctness review before the epic lead continues. Requires git access to the commit diff, surrounding code, tests, and framework artifacts. Not for PR reviews, code generation, loose snippets, or generalized architecture feedback.'
 metadata:
   family: 'ai-project-development-framework'
   stage: 'execution'

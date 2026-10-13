@@ -1,6 +1,6 @@
 skillprism: '1'
 name: execute-epic-end-to-end
-description: 'Execute one epic end to end as the epic lead, standalone or under execute-wave, asking nothing after step 0. Plan once, then dispatch worker and reviewer subagents per milestone, verify and commit, close out the epic file, open the pull request, and run the review loop to review-clean; standalone, also merge and reconcile. A referenced GitHub issue becomes a fast-lane fix or a Stage 4 out-of-band epic. Use for a planned epic or tracked issue; not for throwaway changes.'
+description: 'Execute one epic end to end as the epic lead, standalone or under execute-wave, asking nothing after step 0: plan once, dispatch a worker and reviewer per milestone, verify, commit, close out the epic, open the PR, and run the review loop to review-clean; standalone, also merge and reconcile. Use for a planned epic or a tracked GitHub issue, not throwaway changes.'
 metadata:
   family: 'ai-project-development-framework'
   stage: 'execution'

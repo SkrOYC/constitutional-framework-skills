@@ -11,9 +11,9 @@ The former canonical copies live in `~/.claude/skills` (a git repo), mirrored by
 ## Status: candidate source of truth
 
 - ✅ `validate` passes for all 14 skills × 3 harnesses; `build` renders 14 × 3.
-- ✅ **References are templated now.** v0.5.0 renders any `*.j2` file anywhere in a skill directory, stripping the suffix. The harness-sensitive references (`framework-overview.md`, `epic-plan.md`, `documents-review.md`, `move-map.md`, `checks.md`) are `.md.j2` templates and render byte-identical to the live `~/.<harness>/skills` copies.
-- ✅ `bun test skills/constitution-tooling/scripts/` passes 72 with 1 **pre-existing** failure (`GLS-003 warns on a surface glob that matches no file, and waits for an absent stage`). Do not treat it as this repo's regression.
-- ❌ **Not yet installed or smoke-tested live.** No `skillprism add` has run, so there is no proof the three harnesses actually load the rendered skills (Codex's 500-character description cap and Grok's custom-harness directory are the risky spots).
+- ✅ **References are templated now.** v0.5.0 renders any `*.j2` file anywhere in a skill directory, stripping the suffix. The harness-sensitive references (`framework-overview.md`, `epic-plan.md`, `documents-review.md`, `move-map.md`, `checks.md`) are `.md.j2` templates.
+- ✅ `bun test skills/constitution-tooling/scripts/` passes.
+- ❌ **Not yet installed at user scope or loaded by a live harness.** A project-scope `add` installs all 14 skills to `.claude/`, `.agents/` (Codex project scope), and `.grok/` with every rendered description under the cap, but no live harness has loaded them; Codex's description handling and Grok's custom-harness directory remain the risky spots.
 - ❌ **The write loop is not retired.** Until edits land here and the live directories are installs of this repo, `~/.claude/skills` and this repo will drift.
 - ⚠️ **The intentional canonicalization needs one review pass.** The unified source uses the newest canonical content (from the `~/.claude/skills` repo), so Codex/Grok gain checks and wording they were missing (Codex `constitution-tooling` gains `format` and newer checks; `commit-push-open-pr` gains autonomous-run handling).
 
@@ -45,8 +45,8 @@ dist/<harness>/         # build output (gitignored)
 
 ## Rules
 
-- **One description for every harness, ≤500 characters.** Codex caps at 500 (Claude Code 1536, Grok none documented). `validate` checks the *source* `skill.yaml` description, not the rendered frontmatter, so a per-harness description branch cannot work.
-- **Harness conditionals in `SKILL.md` live only in the six skills that genuinely differ**: `execute-epic-end-to-end`, `execute-wave`, `interview`, `pr-review-fix-loop`, `specifying-technical-implementation`, `upgrading-constitution-repos`. The convention is `{% if harness.id == "claude" %}...{% elif harness.id == "codex" %}...{% else %}...{% endif %}` (Grok is `else`). The other eight render identically for every harness.
+- **One short description for every harness, comfortably under Codex's 500-byte cap.** Codex rejects a description over 500 (Claude Code allows more, Grok none documented) and caps its initial skills list, so keep descriptions short and clear rather than rich; check the length yourself, because `validate` does not. `validate` reads the *source* `skill.yaml` description, not the rendered frontmatter, so a per-harness description branch cannot work.
+- **Harness conditionals in `SKILL.md` live only in the six skills that genuinely differ**: `execute-epic-end-to-end`, `execute-wave`, `interview`, `pr-review-fix-loop`, `specifying-technical-implementation`, `upgrading-constitution-repos`. The convention is `{% if harness.id == "claude" %}...{% elif harness.id == "codex" %}...{% else %}...{% endif %}` (Grok is `else`). A skill without such a branch is harness-neutral in `SKILL.md`; keep it that way unless a real difference exists.
 - **Tooling paths** use `~/.{{ harness.id }}/skills/...`, which resolves to `~/.claude`, `~/.codex`, or `~/.grok` because the harness ids match the directory names.
 - **References can be harness-specific via `.j2`.** A reference that names a path, tool, or model per harness is a `.md.j2` template, not a neutral `.md`. Name a file `foo.md.j2`; `build` writes `foo.md`.
 - **`references/framework-overview.md.j2` is duplicated into seven skills and must stay byte-identical.** Edit one, copy to the others, verify with `cmp`.
@@ -73,7 +73,7 @@ The one intentional neutralization left is a code comment in `constitution-tooli
 
 - `upgrading-constitution-repos/scripts/survey.ts` derives the `constitution-tooling` CLI from `import.meta.dir` (its own install location) and scans `.claude`, `.codex`, and `.grok` plan dirs. This is correct regardless of templating and should stay.
 - `constitution-tooling/assets/schemas/epic-plan.schema.json` accepts every runtime (`claude`, `codex`, `grok`, `pi`, `pig`). Correctness fix; keep.
-- The ≤500-character description cap and the `~/.{{ harness.id }}` tooling-path convention are permanent.
+- Codex's 500-byte description cap and the `~/.{{ harness.id }}` tooling-path convention are permanent.
 
 ## Before calling a change done
 
@@ -88,14 +88,14 @@ Then confirm:
 - No unrendered Jinja in `dist/`: `grep -rn '{{' dist` is empty.
 - No `.j2` files in `dist/`: every template was rendered and renamed.
 - `dist/claude`, `dist/codex`, and `dist/grok` each contain 14 skills.
-- The intentionally-diverged skills differ per harness in the expected regions and the eight identical skills are byte-identical across harnesses.
+- Skills differ per harness only in the expected regions: `~/.{{ harness.id }}` tooling paths, harness-conditional `SKILL.md` or reference text, and frontmatter quoting. A skill with none of those stays byte-identical across harnesses.
 - The seven rendered `references/framework-overview.md` copies are identical within a harness.
-- `bun test skills/constitution-tooling/scripts/` is 72 pass / 1 known `GLS-003` failure.
+- `bun test skills/constitution-tooling/scripts/` passes.
 - Delete `dist/` when done — it is gitignored but should not be left around.
 
 ## Adding a skill or a templated reference
 
-`bunx skillprism@0.5.0 init skill <name>`, or write `skills/<name>/skill.yaml` and `SKILL.md`. Keep the description ≤500 characters and use `{{ skill_name | yaml_str }}` and `{{ skill_description | yaml_str }}` in the frontmatter. For a reference that varies per harness, author `references/foo.md.j2` and use `harness.id`, the same skill variables, and the `yaml_str`/`tojson` filters.
+`bunx skillprism@0.5.0 init skill <name>`, or write `skills/<name>/skill.yaml` and `SKILL.md`. Keep the description short and comfortably under Codex's 500-byte cap, and use `{{ skill_name | yaml_str }}` and `{{ skill_description | yaml_str }}` in the frontmatter. For a reference that varies per harness, author `references/foo.md.j2` and use `harness.id`, the same skill variables, and the `yaml_str`/`tojson` filters.
 
 ## Do not touch user-level skills
 

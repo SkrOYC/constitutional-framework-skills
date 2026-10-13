@@ -70,13 +70,13 @@ dist/<harness>/         # build output (gitignored)
 ## How harness differences are handled
 
 - **Tooling paths** use `~/.{{ harness.id }}/skills/...`, which resolves to `~/.claude`, `~/.codex`, or `~/.grok` because the harness ids match the directory names.
-- **`SKILL.md` conditionals**: subagent dispatch, model names, plan mode, review-panel defaults, and messaging are branched with `{% if harness.id == "claude" %} / {% elif harness.id == "codex" %} / {% else %}` (Grok). Only `execute-epic-end-to-end`, `execute-wave`, `interview`, `pr-review-fix-loop`, `specifying-technical-implementation`, and `upgrading-constitution-repos` diverge; the other eight render the same body for every harness.
+- **`SKILL.md` conditionals**: subagent dispatch, model names, plan mode, review-panel defaults, and messaging are branched with `{% if harness.id == "claude" %} / {% elif harness.id == "codex" %} / {% else %}` (Grok). Only `execute-epic-end-to-end`, `execute-wave`, `interview`, `pr-review-fix-loop`, `specifying-technical-implementation`, and `upgrading-constitution-repos` diverge. A skill without such a branch is harness-neutral in `SKILL.md`, though tooling paths and shared references can still make its rendered output differ per harness.
 - **Templated references**: any file named `*.j2` anywhere in a skill directory renders once per harness with the suffix stripped ([skillprism#46](https://github.com/Tuvren/skillprism/issues/46), fixed in v0.5.0). The harness-sensitive references are `.md.j2` templates and use the same `harness.*` context as `SKILL.md`. Everything else is copied verbatim, so non-templated references, assets, and scripts must stay harness-neutral.
-- **Descriptions are one ≤500-character string for all harnesses.** Codex caps descriptions at 500 characters (Claude Code 1536, Grok no documented cap), so the single portable description fits the lowest limit.
+- **Descriptions are one short string for all harnesses.** Codex rejects a description over 500 bytes (Claude Code allows more, Grok none documented) and caps its initial skills list, so each description stays comfortably under 500 and prioritizes clarity over richness.
 - **Location-independent scripts.** `upgrading-constitution-repos/scripts/survey.ts` derives the `constitution-tooling` CLI from `import.meta.dir` and scans all three plan directories, so it works from any harness install.
 
 ## Notes
 
-- The three manual copies this replaces had drifted. The unified source uses the newest canonical content (from the `~/.claude/skills` repository) for every harness, so Codex now gets checks and wording it was missing.
+- The hand-synced copies this replaces had drifted; the unified source uses the newest canonical content (from the `~/.claude/skills` repository) for every harness, so Codex and Grok pick up checks and wording their copies lacked.
 - `constitution-tooling`'s `epic-plan.schema.json` accepts every runtime (`claude`, `codex`, `grok`, `pi`, `pig`) so a plan written under one harness validates under the others.
 - v0.5.0 is a breaking change for projects that shipped `*.j2` files expecting them to be copied unchanged: those files are now templates.
