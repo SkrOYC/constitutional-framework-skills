@@ -15,10 +15,6 @@ This skill routes the subagent to the correct reference workflow based on the `m
 ## Directive for the Subagent:
 Find the `mode` parameter in your prompt context, open the corresponding workflow file under the `references/` subdirectory by its relative path, and execute only that workflow's checks. Do not mix checks from different modes.
 
-## Tooling
-
-The `constitution-tooling` CLI for this harness is `bun run ~/.{{ harness.id }}/skills/constitution-tooling/scripts/cli.ts`. `references/documents-review.md` uses it to validate a PR head.
-
 ## Verification rounds
 
 When the prompt names a `since` commit and lists prior findings, this is a verification round of a review loop. In any mode: review only the diff from `since` to the PR head, plus the code or records that diff touches and depends on; confirm each listed prior finding is resolved, and report any that isn't at its original severity; report new findings in the diff as usual. Don't re-review unchanged code, and don't re-file a prior finding the loop dismissed with a reason unless the new diff changes the grounds for dismissing it.
