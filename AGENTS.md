@@ -6,18 +6,12 @@ Working notes for this repository. Read this before editing.
 
 A **skillprism v0.5.0** project. `skills/<name>/{skill.yaml,SKILL.md}` is the source of truth; `skillprism build` compiles each skill per harness into `dist/`, and `skillprism add` installs it where an agent reads it. It targets `claude` (Claude Code), `codex` (Codex CLI), and `grok` (Grok CLI). The 14 skills are the constitutional framework.
 
-The former canonical copies live in `~/.claude/skills` (a git repo), mirrored by hand into `~/.codex/skills` and `~/.grok/skills`. Read them as reference. This repo is intended to replace that hand-sync.
-
-## Status: candidate source of truth
+## Status
 
 - ✅ `validate` passes for all 14 skills × 3 harnesses; `build` renders 14 × 3.
 - ✅ **References are templated now.** v0.5.0 renders any `*.j2` file anywhere in a skill directory, stripping the suffix. The harness-sensitive references (`framework-overview.md`, `epic-plan.md`, `documents-review.md`, `move-map.md`, `checks.md`) are `.md.j2` templates.
 - ✅ `bun test skills/constitution-tooling/scripts/` passes.
-- ❌ **Not yet installed at user scope or loaded by a live harness.** A project-scope `add` installs all 14 skills to `.claude/`, `.agents/` (Codex project scope), and `.grok/` with every rendered description under the cap, but no live harness has loaded them; Codex's description handling and Grok's custom-harness directory remain the risky spots.
-- ❌ **The write loop is not retired.** Until edits land here and the live directories are installs of this repo, `~/.claude/skills` and this repo will drift.
-- ⚠️ **The intentional canonicalization needs one review pass.** The unified source uses the newest canonical content (from the `~/.claude/skills` repo), so Codex/Grok gain checks and wording they were missing (Codex `constitution-tooling` gains `format` and newer checks; `commit-push-open-pr` gains autonomous-run handling).
-
-Graduation path: (1) review the intentional diffs, (2) `skillprism add . --target user` for the three harnesses, (3) smoke-test one skill per harness, (4) make this repo the place edits land and stop hand-copying.
+- ⚠️ **The intentional canonicalization needs one review pass.** The unified source adopts the newest content for each harness, so Codex and Grok gain checks and wording they were missing (Codex `constitution-tooling` gains `format` and newer checks; `commit-push-open-pr` gains autonomous-run handling).
 
 ## Harnesses
 
