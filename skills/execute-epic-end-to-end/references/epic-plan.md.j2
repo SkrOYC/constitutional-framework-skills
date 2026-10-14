@@ -29,7 +29,7 @@ base_branch: rebuild/crve-platform
 planned_at_commit: 0b37d5f            # default-branch commit the repository_state assertions were checked against
 siblings:                              # every other lane in the wave; empty list when standalone or the wave is one
   - epic: EPIC-AK
-    lead: epic-lead-ak                 # {% if harness.id == "claude" %}a label for plans and reports, not an address; leads message each other by the agent ID the wave lead records in Amendments after dispatch{% elif harness.id == "codex" %}the name the orchestrator gave that subagent{% else %}a label for plans and reports, not an address; leads message each other by the subagent id the wave lead records in Amendments after dispatch{% endif %}
+    lead: epic-lead-ak                 # {% if harness.id == "claude" %}that lead's background session name, which is also its SendMessage address{% elif harness.id == "codex" %}the name the orchestrator gave that subagent{% else %}a label for plans and reports, not an address; leads message each other by the subagent id the wave lead records in Amendments after dispatch{% endif %}
     branch: epic/AK-notification-delivery
     merge_position: 2
 models:                                # {% if harness.id == "claude" %}runtime is claude | codex | pi; model is that runtime's id{% elif harness.id == "codex" %}Codex collaboration is the lead runtime; pi is an optional leaf runtime{% else %}runtime is grok | codex | pi; model is that runtime's id{% endif %}
