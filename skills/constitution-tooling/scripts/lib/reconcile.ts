@@ -1,6 +1,7 @@
 // Applies closeout deltas after the pull requests merged. Deterministic: it records facts and routes judgment.
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { globToRegExp, overlaps } from "./glob.ts";
 import { commandResolves } from "./repo.ts";
 import { RECORD_LIST_KEYS, certaintyRecord, loadModel, recordPath, recordProblem, type Model } from "./model.ts";
@@ -10,6 +11,16 @@ import { loadFrontMatter, loadYamlFile, prependChangelogEntry, toBlockYaml } fro
 export type FastLaneOutcome = { commit: string; subject: string; status: "applied" | "routed"; settled: string[]; reason?: string; overlap?: string };
 export type RefusedSettle = { file: string; epic: string; settles: string; reason: string };
 export type ReconcileResult = { archived: string[]; applied: string[]; settled: string[]; refusedSettles: RefusedSettle[]; proposed: string[]; routed: { stage: string; item: string; from: string }[]; versions: Record<string, string>; staleOwners: string[]; fastLane: FastLaneOutcome[]; commit: string | null; report: string | null };
+
+interface DecisionRecord {
+  id: string;
+  question: string;
+  status: "proposed" | "open" | "closed";
+  ruler?: string;
+  ruling?: { ref: string; date: string; summary: string; chosen?: string };
+  asked?: { date: string; in: string };
+  proposed_by?: string;
+}
 
 function git(root: string, args: string[]): string {
   const r = Bun.spawnSync(["git", ...args], { cwd: root, stdout: "pipe", stderr: "pipe" });
@@ -174,8 +185,8 @@ export function reconcile(root: string, opts: { date?: string; commit?: boolean;
     throw new Error("no active epic carries a closeout and no fast-lane commit landed since the last reconcile; nothing to reconcile");
   }
 
-  const register: any = m.openDecisions?.data ?? { decisions: [] };
-  const usedIds = new Set(register.decisions.map((d: any) => d.id));
+  const register: { decisions: DecisionRecord[] } = m.openDecisions?.data ?? { decisions: [] };
+  const usedIds = new Set(register.decisions.map((d) => d.id));
   const nextId = () => { let n = 1; while (usedIds.has(`OD-${String(n).padStart(2, "0")}`)) n++; const id = `OD-${String(n).padStart(2, "0")}`; usedIds.add(id); return id; };
   const tasksEntry: any = { version: "", date, changed: [], added: [], by: "reconcile" };
   const techEntry: any = { version: "", date, by: "reconcile" };
@@ -195,12 +206,29 @@ export function reconcile(root: string, opts: { date?: string; commit?: boolean;
       result.routed.push({ stage: "tech-spec", item: `could not settle ${s.record}: ${why}`, from: id });
       result.refusedSettles.push({ file: e.path, epic: `EPIC-${id}`, settles: String(s.record), reason: why });
     }
-    // 3. proposed decisions
-    for (const dec of d.decisions ?? []) {
-      const entry = { ...dec, status: "proposed", proposed_by: `EPIC-${id} @ ${head}`, asked: dec.asked ?? { date, in: `EPIC-${id}` } };
-      if (usedIds.has(entry.id)) { const fresh = nextId(); result.routed.push({ stage: "tasks", item: `proposed decision ${entry.id} renumbered to ${fresh}`, from: id }); entry.id = fresh; } else usedIds.add(entry.id);
+    // 3. proposed decisions and rulings already approved during execution
+    const decisions: DecisionRecord[] = d.decisions ?? [];
+    for (const dec of decisions) {
+      const existing = register.decisions.find((entry) => entry.id === dec.id);
+      if (existing && dec.ruling && existing.question === dec.question) {
+        if (existing.status === "closed") {
+          // Several epics can carry the same Step-0 ruling. A conflicting ruling needs judgment, not a new id.
+          if (!isDeepStrictEqual(existing.ruling, dec.ruling) || (dec.ruler && existing.ruler !== dec.ruler)) {
+            result.routed.push({ stage: "tasks", item: `conflicting ruling for decision ${dec.id}; register kept unchanged; EPIC-${id} carried ${JSON.stringify({ ruling: dec.ruling, ...(dec.ruler ? { ruler: dec.ruler } : {}) })}`, from: id });
+          }
+          continue;
+        }
+        existing.status = "closed";
+        existing.ruling = dec.ruling;
+        if (dec.ruler) existing.ruler = dec.ruler;
+        result.routed.push({ stage: "tasks", item: `decision ${dec.id} closed in place with the ruling EPIC-${id} carried`, from: id });
+        continue;
+      }
+      const entry: DecisionRecord = { ...dec, status: dec.ruling ? "closed" : "proposed", proposed_by: `EPIC-${id} @ ${head}`, asked: dec.asked ?? { date, in: `EPIC-${id}` } };
+      if (usedIds.has(entry.id)) { const fresh = nextId(); result.routed.push({ stage: "tasks", item: `decision ${entry.id} renumbered to ${fresh}`, from: id }); entry.id = fresh; } else usedIds.add(entry.id);
       register.decisions.push(entry);
-      result.proposed.push(entry.id);
+      if (entry.status === "closed") result.routed.push({ stage: "tasks", item: `decision ${entry.id} added closed with the ruling EPIC-${id} carried`, from: id });
+      else result.proposed.push(entry.id);
     }
     delete d.decisions;
     // 4. changelog entries and routing

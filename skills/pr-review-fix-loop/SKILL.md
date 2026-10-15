@@ -24,7 +24,7 @@ The caller passes the configuration; an execution skill passes the plan file's `
 {% endif %}
 | `review_escalate_at` | The round at which the loop changes strategy if it hasn't converged | 4 |
 
-{% if harness.id == "claude" %}Always pass the model explicitly on every dispatch. A Claude panelist runs through the Agent tool. A Codex or pi panelist runs through the `codex-subagent` or `pi-subagent` skill's one-off form with the read-only sandbox and network access turned on explicitly (`network: true` for Codex), because the review needs `gh`, told to read `~/.{{ harness.id }}/skills/reviewing-pull-requests/SKILL.md` and follow it, since it can't invoke a Claude skill by name. Discover model ids through that skill's `models` command; never guess one.{% elif harness.id == "codex" %}Dispatch Codex panelists through `collaboration.spawn_agent` with `fork_turns: "none"`, an explicit available model, and reasoning effort. Dispatch pi panelists through `pi-subagent` with read-only access and network for `gh`. Every panelist reads `~/.{{ harness.id }}/skills/reviewing-pull-requests/SKILL.md` and follows the requested mode. Use only models actually available in the current harness.{% else %}Always pass the model explicitly on every dispatch. A Grok panelist is a `spawn_subagent`. Do not pass a subagent type. The prompt says the reviewer must not create, edit, or delete files, and must not spawn further subagents. A Codex or pi panelist runs through the `codex-subagent` or `pi-subagent` skill's one-off form with the read-only sandbox and network access turned on explicitly (`network: true` for Codex), because the review needs `gh`, told to read `~/.{{ harness.id }}/skills/reviewing-pull-requests/SKILL.md` and follow it, since it can't invoke a Grok skill by name. Discover model ids through that skill's `models` command; never guess one. The Grok panelist's model is the one the caller named.{% endif %}
+{% if harness.id == "claude" %}Always pass the model explicitly on every dispatch. A Claude panelist runs through the Agent tool. A Codex or pi panelist runs through the `codex-subagent` or `pi-subagent` skill's one-off form with read-only access, using the offline snapshot below when its effective permissions do not allow `gh` network access, told to read `~/.{{ harness.id }}/skills/reviewing-pull-requests/SKILL.md` and follow it, since it can't invoke a Claude skill by name. Discover model ids through that skill's `models` command; never guess one.{% elif harness.id == "codex" %}Dispatch Codex panelists through `collaboration.spawn_agent` with `fork_turns: "none"`, an explicit available model, and reasoning effort. Dispatch pi panelists through `pi-subagent` with read-only access and the offline snapshot below when `gh` network access is unavailable. Every panelist reads `~/.{{ harness.id }}/skills/reviewing-pull-requests/SKILL.md` and follows the requested mode. Use only models actually available in the current harness.{% else %}Always pass the model explicitly on every dispatch. A Grok panelist is a `spawn_subagent`. Do not pass a subagent type. The prompt says the reviewer must not create, edit, or delete files, and must not spawn further subagents. A Codex or pi panelist runs through the `codex-subagent` or `pi-subagent` skill's one-off form with read-only access, using the offline snapshot below when its effective permissions do not allow `gh` network access, told to read `~/.{{ harness.id }}/skills/reviewing-pull-requests/SKILL.md` and follow it, since it can't invoke a Grok skill by name. Discover model ids through that skill's `models` command; never guess one. The Grok panelist's model is the one the caller named.{% endif %}
 
 ## Loop contract
 
@@ -34,21 +34,35 @@ Identify the PR number from the caller, or resolve it from the current branch wi
 
 ### 2. Round one: the panel
 
-Spawn every panelist in parallel, with no parent context. Give each only the skill, the PR number, the mode, and this prompt:
+Before dispatch, establish whether each runtime can fetch the PR with its effective permissions. A filesystem read-only policy does not universally imply no network. The `codex-subagent` wrapper's `network` option configures `workspace-write`; turning it on does not grant network to that wrapper's read-only sandbox. Keep the review read-only and supply a snapshot when network is unavailable.
+
+For an offline panelist, collect a fresh snapshot under `<worktree>/.{{ harness.id }}/scratch/pr-<number>/<head-SHA>/`. Ensure the scratch path is ignored and stays inside the worktree. Follow the producer contract below before dispatching; tell the reviewer its absolute `snapshot` path, expected `head` SHA, and checkout path.
+
+Spawn every panelist in parallel, with no parent context. Give each only the skill, the PR number, the mode, the expected head and checkout, the snapshot path when needed, and this prompt:
 
 <reviewer_prompt>
 
 ```
 {% if harness.id == "codex" %}Read ~/.{{ harness.id }}/skills/reviewing-pull-requests/SKILL.md and follow it exactly in mode: "<mode>".{% else %}Run /reviewing-pull-requests and follow it exactly in mode: "<mode>".{% endif %}
 
-PR#<number>. Report every issue you find, including low-severity ones and uncertain ones filed as Investigate, each with a severity label. Do not pad to a count and do not filter for importance; the loop filters afterwards.
+PR#<number>. Expected head: <head-SHA>. Checkout: <absolute worktree path>. When supplied, read snapshot: <absolute snapshot directory> under the reviewing-pull-requests offline contract. Return the reviewed head SHA, whether required coverage is complete, and findings or an explicit statement that there are none; name verification limits. Report every issue you find, including low-severity ones and uncertain ones filed as Investigate, each with a severity label. Do not pad to a count and do not filter for importance; the loop filters afterwards.
 
 {% if harness.id == "claude" %}Do NOT launch any subagents (no Agent tool use) — do all reading and work directly yourself.{% elif harness.id == "codex" %}Do not spawn or delegate to subagents; do all reading and work directly yourself.{% else %}Do NOT launch any subagents (no spawn_subagent, and no codex or pi workers) — do all reading and work directly yourself.{% endif %}
 ```
 
 </reviewer_prompt>
 
-{% if harness.id == "codex" %}Wait for every panelist before doing anything else. Record the PR head SHA the panel reviewed.{% else %}For a Codex or pi panelist, replace the first line with "Read ~/.{{ harness.id }}/skills/reviewing-pull-requests/SKILL.md and follow it exactly in mode: "<mode>"." Wait for every panelist before doing anything else. Record the PR head SHA the panel reviewed.{% endif %}
+{% if harness.id != "codex" %}For a Codex or pi panelist, replace the first line with `Read ~/.{{ harness.id }}/skills/reviewing-pull-requests/SKILL.md and follow it exactly in mode: "<mode>".`
+
+{% endif %}Wait for every panelist before triage. A completed review names the expected head, confirms coverage, and returns findings or explicitly states there are none. An empty response, access failure, mismatched revision, or incomplete review is re-dispatched once after repairing its inputs or runtime. If that attempt also fails, report the review blocker to the caller; do not declare the PR review-clean. This rule applies to every runtime, round, and documents-mode panel. Confirm the PR's head and base SHAs still match the reviewed inputs before accepting the round; if either changed, refresh the inputs and review the changed candidate.
+
+#### Offline snapshot producer contract
+
+Collect `pr.json` with `gh pr view <number> --json number,title,body,author,baseRefName,headRefName,baseRefOid,headRefOid,files,commits,comments,reviews`, then `pr.diff` with `gh pr diff <number>`. Capture `commits.txt` with `git log --format=fuller <merge-base>..<head-SHA>`, where the merge base is computed from the captured base and head SHAs. Fetch missing objects before dispatch; never ask an offline reviewer to fetch them.
+
+Read the PR's explicit issue references and collect their number, URL, title, body, state, and comments with `gh issue view <issue> --json number,url,title,body,state,comments`; write the records as an array in `issues.json`, or `[]` when none is referenced. Collect `checks.json` with `gh pr view <number> --json statusCheckRollup` when available. An optional checks fetch failure goes in `unavailable.txt`; a required PR or issue fetch failure blocks dispatch. In a verification round, write the exact prior reviewed SHA to `since.txt` and capture `since.diff` with `git diff <since-SHA> <head-SHA>`.
+
+Require the checkout's `git rev-parse HEAD` to match `headRefOid` and its tracked files to be clean. Re-read `headRefOid` and `baseRefOid` from GitHub after collection. If either changed, discard the candidate snapshot and capture again; if it changes again during that retry, report an unstable-candidate blocker. Publish a complete snapshot only after these checks, and keep it unchanged while its panelists run. The consumer contract is `~/.{{ harness.id }}/skills/reviewing-pull-requests/references/offline-snapshot.md`.
 
 ### 3. Triage: you are the lead, not an aggregator
 
@@ -78,7 +92,7 @@ A caller that runs its own commit discipline (an epic lead verifying and committ
 
 ### 5. Verification rounds
 
-Run a verification round against the new head. Its reviewers get the same prompt plus the `since` SHA (the head the previous round reviewed) and the previous round's Act-on and Dismissed lists; `reviewing-pull-requests` then reviews only the changed diff and what it touches, and confirms each prior Act-on finding is resolved.
+Run a verification round against the new head. Refresh all offline snapshot inputs, including the PR metadata, issue context, CI status when available, and `since.diff`, before dispatch. Its reviewers get the same prompt plus the `since` SHA (the head the previous round reviewed) and the previous round's Act-on and Dismissed lists; `reviewing-pull-requests` then reviews only the changed diff and what it touches, and confirms each prior Act-on finding is resolved.
 
 - Use at least one panelist on a different model family from the fix worker, so the fix is judged by a model that didn't write it. One verification reviewer is enough for a small fix; use the full panel when the fix changed behavior materially or touched many files.
 - Triage its findings as in §3. New Act-on findings go back to §4, and the round after that is another verification round.

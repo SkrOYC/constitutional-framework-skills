@@ -39,7 +39,7 @@
       "items": { "$ref": "#/$defs/ticket" }
     },
     "decisions": {
-      "description": "Decisions discovered during execution, recorded by the epic lead; reconciliation copies them to the register as proposed",
+      "description": "Decisions recorded by the epic lead; reconciliation proposes unresolved entries and applies already approved rulings, closing a matching register entry in place",
       "type": "array",
       "items": { "$ref": "open-decisions.schema.json#/$defs/decision" }
     },
