@@ -1206,6 +1206,32 @@ describe("evidence manifests", () => {
     }
   });
 
+  const epicC = (m: any) => m.epics.find((e: any) => e.active && e.data.id === "C");
+  const closeout = (followUps: string[]) => ({ tickets_completed: [], tickets_deferred: [], points_completed: 0, spec_patches: [], changelog_entries: [], candidate_terms: [], routed_upstream: [], follow_ups: followUps, code_decisions: [], settled: [] });
+
+  test("owed evidence on a done ticket needs a closeout follow-up naming the ticket", async () => {
+    let found = await checksWith((m) => { epicC(m).data.tickets[0].status = "done"; m.evidence[0].manifest.data.result = "owed"; epicC(m).data.closeout = closeout([]); });
+    expect(found.some((x) => x.id === "TSK-018" && x.message.includes("no closeout follow_ups entry names FIX-C001"))).toBe(true);
+    found = await checksWith((m) => { epicC(m).data.tickets[0].status = "done"; m.evidence[0].manifest.data.result = "owed"; epicC(m).data.closeout = closeout(["FIX-C001: the cli-check probe is owed; doctor failed twice"]); });
+    expect(found.some((x) => x.id === "TSK-018")).toBe(false);
+  });
+
+  test("TSK-018 also reads a manifest in the ticket's directory whose owner is mistyped", async () => {
+    const found = await checksWith((m) => { epicC(m).data.tickets[0].status = "done"; Object.assign(m.evidence[0].manifest.data, { owner: "FIX-C0001", result: "fail" }); });
+    expect(found.some((x) => x.id === "TSK-018" && x.message.includes("records result fail"))).toBe(true);
+  });
+
+  test("after the closeout, a done live_probe ticket without live_probe evidence is TSK-019", async () => {
+    let found = await checksWith((m) => { epicC(m).data.tickets[0].status = "done"; epicC(m).data.closeout = closeout([]); });
+    expect(found.some((x) => x.id === "TSK-019" && x.severity === "error" && x.message.includes("owns no live_probe evidence manifest"))).toBe(true);
+    found = await checksWith((m) => { epicC(m).data.tickets[0].status = "done"; m.evidence[0].manifest.data.mode = "live_probe"; epicC(m).data.closeout = closeout([]); });
+    expect(found.some((x) => x.id === "TSK-019" && x.severity === "warning" && x.message.includes("records no result"))).toBe(true);
+    found = await checksWith((m) => { epicC(m).data.tickets[0].status = "done"; Object.assign(m.evidence[0].manifest.data, { mode: "live_probe", result: "pass" }); epicC(m).data.closeout = closeout([]); });
+    expect(found.some((x) => x.id === "TSK-019")).toBe(false);
+    found = await checksWith((m) => { epicC(m).data.tickets[0].status = "done"; });
+    expect(found.some((x) => x.id === "TSK-019")).toBe(false);
+  });
+
   test("a listed digest or byte count that differs is still STR-005", async () => {
     let found = await checksWith((m) => { file(m).sha256 = "0".repeat(64); });
     expect(found.some((x) => x.id === "STR-005" && x.message.includes("sha256 differs"))).toBe(true);

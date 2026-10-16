@@ -121,7 +121,7 @@ The epic file is also execution bookkeeping: the lead writes statuses, deviation
 | `stat_threshold` | Metric, dataset or split, threshold, and command |
 | `invariant` | Invariant statement, checker or proof or fuzz command, corpus notes |
 | `hitl_sil` | Hardware or software-in-the-loop procedure and pass/fail log criteria |
-| `visual_regression` | Baseline reference from a run before the change, never the run that produces the evidence, diff threshold, and command |
+| `visual_regression` | Baseline reference produced independently of the run under test, never by that run: a pre-change capture for regions the ticket must not change, a reviewed reference for regions it changes on purpose. Plus diff threshold and command |
 | `contract_test` | Exact assertions against the public surface or schema artifact |
 | `runbook_probe` | Apply, plan, probe commands and the expected end state |
 | `live_probe` | The recipe named in `recipe`, the scenario it drives from the recipe's seed state, and the evidence that proves it: the screen state, log line, response, or file the user or client would see |
