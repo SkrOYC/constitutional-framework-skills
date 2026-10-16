@@ -74,6 +74,7 @@ Open the PR. The body lists the move map as executed, every ruling it applied, a
 This phase is a stage pass, so it is interactive: run the `specifying-technical-implementation` skill in Evolution mode, decisions pass, on branch `docs/constitution-live-verification`, with the recipe and pinned candidates from the plan as the delta.
 
 - Each recipe that runs today is `exists: true`. A recipe the project can't run yet is `exists: false` and needs an owning ticket, which Stage 4 adds as a patch (for example a ticket in the next tooling or foundation epic). Run `planning-engineering-execution` for that patch in its own commit and PR, reviewed in documents mode.
+- Declare recipes only. Don't add `live_probe` to existing tickets: a ticket gains a probe when Stage 4 next plans it, and only when its tests can't exercise the surface faithfully.
 - Mark the confirmed shared shapes `pinned: true`, with their entities and fields in the companion markdown.
 - Stage 3 ends with its own PR, reviewed in `documents` mode.
 

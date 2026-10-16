@@ -1166,6 +1166,30 @@ describe("live verification recipes", () => {
   });
 });
 
+describe("evidence manifests", () => {
+  const file = (m: any) => m.evidence[0].manifest.data.files[0];
+  const evidenceFindings = (found: any[]) => found.filter((x) => x.id === "STR-005" || (x.id === "SCH-001" && x.file.includes("evidence/")));
+
+  test("digests are optional on a log, and a result is accepted", async () => {
+    const found = await checksWith((m) => { delete file(m).sha256; delete file(m).bytes; m.evidence[0].manifest.data.result = "not_met"; });
+    expect(evidenceFindings(found)).toEqual([]);
+  });
+
+  test("a baseline or measurement file without a sha256 is STR-005", async () => {
+    for (const role of ["baseline", "measurement"]) {
+      const found = await checksWith((m) => { delete file(m).sha256; file(m).role = role; });
+      expect(found.some((x) => x.id === "STR-005" && x.message.includes(`a ${role} file needs a sha256`))).toBe(true);
+    }
+  });
+
+  test("a listed digest or byte count that differs is still STR-005", async () => {
+    let found = await checksWith((m) => { file(m).sha256 = "0".repeat(64); });
+    expect(found.some((x) => x.id === "STR-005" && x.message.includes("sha256 differs"))).toBe(true);
+    found = await checksWith((m) => { file(m).bytes = 999; });
+    expect(found.some((x) => x.id === "STR-005" && x.message.includes("manifest says 999"))).toBe(true);
+  });
+});
+
 describe("sidecars that point into the code", () => {
   const planned = (m: any) => m.metas.find((x: any) => x.path.endsWith("check-report.meta.yaml"));
 

@@ -196,6 +196,7 @@ Severity discipline:
 - do not file speculative concerns as bugs
 - do not expand scope to untouched code unless the change materially depends on it
 - `P2` means a real correctness, quality, or user-visible gap — not "could be cleaner." Import ordering, assertion coverage breadth for already-passing tests, whitespace edge cases, and "slightly friendlier UX" improvements are `General feedback`, not `P2`.
+- Evidence bookkeeping under `.constitution/evidence/` is `General feedback`: manifest wording, a verified-at commit older than the head, a SHA a rebase rewrote. The verified-at commit is historical, not a pin to keep current. Evidence that claims a pass that didn't happen, contradicts the code's behavior, or backs a `done` ticket whose `result` is `not_met` is a `P1`.
 - `Investigate` means you have a grounded concern that needs confirmation — not a design tradeoff already explained by a nearby comment. If the code already has an inline comment explaining the intent of a choice, the concern is resolved; do not re-file it as a flag.
 
 ### Step 10 — Return the review in the required format

@@ -14,21 +14,22 @@
       "required": ["date", "commit", "command"],
       "properties": {
         "date": { "$ref": "common.schema.json#/$defs/date" },
-        "commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
-        "command": { "type": "string", "minLength": 1, "description": "Pinned, host-neutral command that produced the files" },
+        "commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$", "description": "The head the evidence was verified at. A historical fact, not a pin to keep current: later commits and rebases do not make it stale" },
+        "command": { "type": "string", "minLength": 1, "description": "Host-neutral command that produced the files" },
         "host": { "type": "string", "description": "Recorded fact, not a pass criterion" }
       }
     },
+    "result": { "enum": ["pass", "fail", "not_met", "owed"], "description": "Outcome at the verified head; not_met and owed record an honest gap instead of a pass" },
     "files": {
       "type": "array",
       "minItems": 1,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["path", "sha256", "bytes"],
+        "required": ["path"],
         "properties": {
           "path": { "type": "string", "minLength": 1 },
-          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$", "description": "Required for baseline and measurement files, which a later run compares against; optional otherwise" },
           "bytes": { "type": "integer", "minimum": 0 },
           "role": { "type": "string", "description": "baseline, log, screenshot, measurement, transcript" }
         }

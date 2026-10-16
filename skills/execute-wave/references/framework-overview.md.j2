@@ -93,7 +93,7 @@ Every role may write only what the table says. A write outside it is a defect, w
 | `tasks/changelog.yaml` | Stage 4 | No | No | No | No | Yes |
 | `tasks/epics/EPIC-*.yaml` | Stage 4 | No | Its own epic file only | No | No | Moves to `completed/`, writes actuals |
 | `spikes/` | No | A spike that closes a register entry | No | The spike file of a `Spike` ticket | No | No |
-| `evidence/` | No | No | The manifest and files of a milestone's acceptance evidence | No | No | No |
+| `evidence/` | No | No | The manifest and files of a ticket's acceptance evidence | No | No | No |
 | `research/` | Whoever the file's owner names, for other files | A design review | No | No | No | No |
 | `reports/open-decisions.yaml` | No | Yes | No | No | No | Appends proposed entries and applies already approved rulings |
 | `reports/` others | Audit, constitution review | The interview record | No | No | No | The reconciliation report |
@@ -133,7 +133,7 @@ Execution proposes entries through the epic file's `decisions` list; later miles
 
 ## Directories with a defined reader
 
-- `evidence/<owner>/` holds acceptance evidence the project produced, with a manifest of digests. Read by the reviewer and by constraint meters.
+- `evidence/<owner>/` holds acceptance evidence the project produced: proof of behavior the tests can't show, captured once, with a short manifest of what ran, the head it was verified at, the result, and the files that show it. Read by the reviewer and by constraint meters.
 - `research/` holds non-spike deliverables such as benchmarks, design reviews, and intake documents, one markdown file each with an owner.
 - `reports/` holds five kinds and nothing else: interview records (a log the next stage pass reads for its rulings and pinned sources), the open-decisions register (read by every stage and by execution), audit reports (read by `/interview for Tasks` and Stage 4), constitution reviews (a review of a stage output for layer violations and contradictions, read by the owning stage), and reconciliation reports (read by the next Evolution pass of the stage they name).
 - Not in the constitution: generated inventories, client deliverables, HTML renderings, and anything a program writes on every run. The validator fails on them.

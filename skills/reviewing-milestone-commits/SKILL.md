@@ -84,7 +84,7 @@ Classify the changed files before choosing what to check: application code, test
 - **Other `.constitution/`-only milestone** (a reconciliation commit, or a stage skill's output): this is a document review against the framework rules: each directory decides only what its stage owns and never repairs an upstream directory; naming uses the glossary's canonical terms; versions, counts, ticket IDs, and cross-references agree across files; Mermaid diagrams and links resolve; and any downstream directory the change makes stale is either updated or explicitly flagged. Skip the code categories in Step 7 and skip code verification. Verification here means confirming that referenced paths exist and diagrams parse.
 - **Other docs-only milestone** (README, guides, comments): check accuracy against the code, stale commands, and dead links or paths. Skip the code categories in Step 7 and skip code verification.
 - **Fast-lane milestone.** The prompt carries a lane claim instead of ticket ids, and the commits carry `Constitution-Lane: fast` trailers. Check the claim before anything else: the change stays in code, touches no artifact a sidecar points at with a published surface kind, no `pinned` contract, no boundary, and sits inside one active epic's owned paths or paths no active epic owns. A change that reaches past the lane is a `P1`. Check that any `Settles:` trailer names a real record and that its `Evidence:` path is a test that exercises it. Then review it as a code milestone.
-- **Code milestone.** Run the full workflow. Edits to the epic's own file (ticket status, deviations, decisions, closeout) are reviewed for accuracy against the diff, not as spec changes. An `evidence/<ticket>/manifest.yaml` must list every file with a digest `validate` accepts.
+- **Code milestone.** Run the full workflow. Edits to the epic's own file (ticket status, deviations, decisions, closeout) are reviewed for accuracy against the diff, not as spec changes. An `evidence/<ticket>/manifest.yaml` must pass `validate`.
 - **Mixed milestone.** Only code plus the epic's own file or a spike file is a legitimate mix. Any other mix is the `P1` above.
 
 Findings for documents use the same classification and format as code findings, with `path:line-range` pointing into the document.
@@ -146,7 +146,7 @@ Behavior-bearing milestone commits should usually trigger at least one executed 
 | `hitl_sil` | The procedure and pass/fail criteria are committed; the log meets them, or the hardware step is explicitly deferred to the user rather than silently skipped |
 | `visual_regression` | The baseline is committed, the threshold matches the evidence, and the diff run is under it |
 | `runbook_probe` | The apply, plan, and probe commands match the evidence, and the recorded end state matches the expected one |
-| `live_probe` | The recipe named in `recipe` is the one `guidelines.md` declares, the evidence under `evidence/<ticket>/` has a manifest, and it shows the state the ticket's scenario expects, not just a process that started |
+| `live_probe` | The tests the mode requires pass, and the recipe named in `recipe` is the one `guidelines.md` declares. The evidence is captured once, at the review-clean head, so its absence at a milestone is not a finding; when it is present, it shows the state the ticket's scenario expects, not just a process that started |
 
 A ticket whose proof is missing, or whose proof was produced by loosening the threshold, corpus, split, or baseline, fails acceptance and is a `P1`.
 
@@ -216,6 +216,7 @@ Severity discipline:
 - do not expand scope to untouched code unless the milestone materially depends on it
 - `P2` means a real correctness, quality, user-visible, or future-maintenance gap, not "could be cleaner"
 - `Investigate` means a grounded concern that needs confirmation, not a design tradeoff already explained by code or artifacts
+- evidence bookkeeping is `General feedback`: manifest wording, a verified-at commit older than HEAD, a SHA a rebase rewrote, or evidence not captured yet. Evidence that claims a pass that didn't happen, contradicts the code's behavior, or backs a `done` ticket whose `result` is `not_met` is a `P1`
 
 ### Step 9 - Return The Review
 

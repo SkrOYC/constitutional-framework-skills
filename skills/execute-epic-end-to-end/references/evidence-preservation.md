@@ -1,6 +1,6 @@
 # Evidence Preservation Checklist
 
-Apply this whenever a milestone cites external sources or preserves their bytes as fixtures. Each item is a defect class that independent reviewers reliably find later; catching it before commit is cheaper.
+Apply this whenever a milestone cites external sources or preserves their bytes as fixtures. It does not apply to run evidence under `evidence/<ticket>/`, which is captured once and never frozen or re-pinned. Each item is a defect class that independent reviewers reliably find later; catching it before commit is cheaper.
 
 ## Citation form
 

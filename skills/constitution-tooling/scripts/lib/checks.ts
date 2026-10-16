@@ -70,10 +70,11 @@ const structureCheck: Check = (m) => {
     for (const file of ev.manifest.data?.files ?? []) {
       const p = join(m.root, ev.dir, file.path);
       if (!existsSync(p)) { out.push(f("STR-005", "error", ev.manifest.path, `listed file ${file.path} is missing`)); continue; }
+      // Digests are optional, except on files a later diff or meter compares against.
+      if ((file.role === "baseline" || file.role === "measurement") && file.sha256 === undefined) out.push(f("STR-005", "error", ev.manifest.path, `${file.path}: a ${file.role} file needs a sha256, because a later run compares against it`));
       const bytes = statSync(p).size;
-      const sha = createHash("sha256").update(readFileSync(p)).digest("hex");
-      if (bytes !== file.bytes) out.push(f("STR-005", "error", ev.manifest.path, `${file.path}: ${bytes} bytes on disk, manifest says ${file.bytes}`));
-      if (sha !== file.sha256) out.push(f("STR-005", "error", ev.manifest.path, `${file.path}: sha256 differs from manifest`));
+      if (file.bytes !== undefined && bytes !== file.bytes) out.push(f("STR-005", "error", ev.manifest.path, `${file.path}: ${bytes} bytes on disk, manifest says ${file.bytes}`));
+      if (file.sha256 !== undefined && createHash("sha256").update(readFileSync(p)).digest("hex") !== file.sha256) out.push(f("STR-005", "error", ev.manifest.path, `${file.path}: sha256 differs from manifest`));
     }
   }
   for (const r of m.research) {

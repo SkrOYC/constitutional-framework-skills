@@ -18,7 +18,7 @@ Every finding `validate` prints carries one of these ids. Severity is fixed per 
 | STR-002 | error | A file in `reports/` is not one of the defined kinds: interview record (`<date>-interview-<target>.md`, where the target is `prd`, `architecture`, `techspec`, `tech-spec`, `tasks`, or `realign` in any case, so `interview-PRD.md` and `interview-TechSpec.md` are records; a record with another target gets a message naming these), `open-decisions.yaml`, audit report, constitution review, reconciliation report (`<date>-reconciliation.yaml`, or `<date>-reconciliation-<N>.yaml` for a later run the same day) |
 | STR-003 | error | A spike file is not named `SPK-<ACRONYM>-<EPIC><NNN>.md`. The `OD` segment is reserved for decision-owned spikes and carries the register entry's number |
 | STR-004 | error | An epic file name does not match `EPIC-<ID>-<slug>.yaml` or its id field |
-| STR-005 | error | An evidence directory has no manifest, or a listed file is missing or its bytes or sha256 differ |
+| STR-005 | error | An evidence directory has no manifest; a listed file is missing; a listed bytes or sha256 differs from the file; or a `baseline` or `measurement` file has no sha256. Digests are optional on other files, and `produced.commit` is the head the evidence was verified at, never checked for staleness |
 | STR-006 | error / warning | A research file is not markdown (error) or has no front matter owner (warning). `research/README.md` is exempt from both |
 | STR-007 | error | An active epic uses the reserved id `OD`, which names spikes owned by a register entry |
 

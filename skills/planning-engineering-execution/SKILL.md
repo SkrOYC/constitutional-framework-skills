@@ -121,12 +121,12 @@ The epic file is also execution bookkeeping: the lead writes statuses, deviation
 | `stat_threshold` | Metric, dataset or split, threshold, and command |
 | `invariant` | Invariant statement, checker or proof or fuzz command, corpus notes |
 | `hitl_sil` | Hardware or software-in-the-loop procedure and pass/fail log criteria |
-| `visual_regression` | Baseline reference, diff threshold, and command |
+| `visual_regression` | Baseline reference from a run before the change, never the run that produces the evidence, diff threshold, and command |
 | `contract_test` | Exact assertions against the public surface or schema artifact |
 | `runbook_probe` | Apply, plan, probe commands and the expected end state |
-| `live_probe` | The recipe named in `recipe`, the scenario it drives, and the evidence that proves it: the screen state, log line, response, or file the user or client would see |
+| `live_probe` | The recipe named in `recipe`, the scenario it drives from the recipe's seed state, and the evidence that proves it: the screen state, log line, response, or file the user or client would see |
 
-Tests alone don't prove a shipped surface works. Every ticket that changes behavior a user or client can observe on a surface with a declared recipe carries `live_probe`, as the primary mode or as a supplementary one next to the test-based mode; execution runs dark, so nobody else will look. Gherkin is a poor fit for continuous-time properties; prefer benchmark, visual_regression, stat_threshold, or invariant there. Default primary mode by archetype: Web/Cloud and Mobile gherkin with contract_test on public contracts; CLI/Tooling gherkin or contract_test with benchmark when perf-constrained; Library/SDK contract_test; System/Native gherkin for discrete behavior and benchmark or visual_regression for loops and frames; ML/Data stat_threshold; Embedded/IoT hitl_sil or timing benchmark; Web3 invariant on-chain and gherkin off-chain; Game/Sim benchmark or visual_regression with gherkin for discrete flows; IaC/Platform runbook_probe.
+Tests alone don't prove every shipped surface works, and execution runs dark, so nobody else will look; but a probe that repeats what the tests already show is cost without proof. A ticket carries `live_probe`, as the primary mode or as a supplementary one next to the test-based mode, when its behavior depends on something its automated tests can't exercise faithfully: a served or built artifact, a device or runtime, a real external system, or interactive UI state. A ticket whose tests already drive the surface the user or client touches skips it: HTTP handler tests against the real router, CLI invocation tests, library contract tests. Tickets of one epic on the same surface share one probe scenario. The scenario must reach the state it names from the recipe's seed state on a fresh stack; a probe that can only pass on a prepared environment proves nothing. Gherkin is a poor fit for continuous-time properties; prefer benchmark, visual_regression, stat_threshold, or invariant there. Default primary mode by archetype: Web/Cloud and Mobile gherkin with contract_test on public contracts; CLI/Tooling gherkin or contract_test with benchmark when perf-constrained; Library/SDK contract_test; System/Native gherkin for discrete behavior and benchmark or visual_regression for loops and frames; ML/Data stat_threshold; Embedded/IoT hitl_sil or timing benchmark; Web3 invariant on-chain and gherkin off-chain; Game/Sim benchmark or visual_regression with gherkin for discrete flows; IaC/Platform runbook_probe.
 
 ### `constitution.yaml`, concurrency block
 
@@ -166,7 +166,7 @@ Open one pull request for this stage's constitution commit, separate from any ot
 - [ ] The tooling epic contains no product behavior and the foundation epic precedes every product epic.
 - [ ] Every `pinned` contract is created and settled in the foundation epic, and every planned artifact's `artifact_path` is in the scope of the ticket that creates it.
 - [ ] No `tech_spec_patchable` entry names a raw artifact.
-- [ ] Every ticket that changes behavior on a surface with a live-verification recipe carries `live_probe` with its `recipe`.
+- [ ] Every ticket whose behavior its tests can't exercise faithfully on a surface with a live-verification recipe carries `live_probe` with its `recipe`, and no ticket carries a probe that repeats its tests.
 - [ ] Estimates cite the `INFO-CAL` ratio, or say there isn't one yet.
 - [ ] Concurrent epics are scope-disjoint; the rendered waves and longest chain were checked after any split.
 - [ ] Assumed tickets are sequenced after the tickets that settle what they depend on, and estimated accordingly.
