@@ -120,7 +120,7 @@ For a PR that changes only `.constitution/`, the loop is bounded by design, beca
 
 ### 8. Finish
 
-After the loop stops, remaining `P2`s may land as one final batch without another round only if each is small, verified by the same checks the loop used, and pushed with CI green; everything else is reported as a known deferred item. Don't reopen the loop for that batch.
+After the loop stops, remaining `P2`s may land as one final batch without another round only if each is small, verified by the same checks the loop used, pushed with CI green, and doesn't change behavior a live probe asserts; everything else is reported as a known deferred item. Don't reopen the loop for that batch.
 
 Report: rounds run, the panel and the models used, strategy changes and when, Act-on findings fixed, Consider and Noted items left, Dismissed findings with their reasons, tooling follow-ups, and the final head SHA.
 
