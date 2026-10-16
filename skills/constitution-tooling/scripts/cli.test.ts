@@ -1225,11 +1225,24 @@ describe("evidence manifests", () => {
     let found = await checksWith((m) => { epicC(m).data.tickets[0].status = "done"; epicC(m).data.closeout = closeout([]); });
     expect(found.some((x) => x.id === "TSK-019" && x.severity === "error" && x.message.includes("owns no live_probe evidence manifest"))).toBe(true);
     found = await checksWith((m) => { epicC(m).data.tickets[0].status = "done"; m.evidence[0].manifest.data.mode = "live_probe"; epicC(m).data.closeout = closeout([]); });
-    expect(found.some((x) => x.id === "TSK-019" && x.severity === "warning" && x.message.includes("records no result"))).toBe(true);
+    expect(found.some((x) => x.id === "TSK-019" && x.severity === "error" && x.message.includes("records no result"))).toBe(true);
     found = await checksWith((m) => { epicC(m).data.tickets[0].status = "done"; Object.assign(m.evidence[0].manifest.data, { mode: "live_probe", result: "pass" }); epicC(m).data.closeout = closeout([]); });
     expect(found.some((x) => x.id === "TSK-019")).toBe(false);
     found = await checksWith((m) => { epicC(m).data.tickets[0].status = "done"; });
     expect(found.some((x) => x.id === "TSK-019")).toBe(false);
+  });
+
+  test("a shared probe manifest proves every ticket its covers lists", async () => {
+    const shared = (m: any, result: string) => {
+      epicC(m).data.tickets[0].status = "done";
+      Object.assign(m.evidence[0].manifest.data, { owner: "FIX-X999", mode: "live_probe", result, covers: ["FIX-C001"] });
+      m.evidence[0].dir = ".constitution/evidence/FIX-X999";
+      epicC(m).data.closeout = closeout([]);
+    };
+    let found = await checksWith((m) => shared(m, "pass"));
+    expect(found.some((x) => x.id === "TSK-019")).toBe(false);
+    found = await checksWith((m) => shared(m, "fail"));
+    expect(found.some((x) => x.id === "TSK-018" && x.message.includes("FIX-C001 is done"))).toBe(true);
   });
 
   test("a listed digest or byte count that differs is still STR-005", async () => {

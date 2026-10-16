@@ -455,19 +455,20 @@ const tasksCheck: Check = (m) => {
       else if (!probes && recipe) out.push(f("TSK-014", "error", e.path, `${t.id} names recipe ${recipe} but live_probe is not among its acceptance modes`, `${p}/acceptance`));
       else if (recipe && !recipes.has(recipe)) out.push(f("TSK-014", "error", e.path, `${t.id} runs recipe ${recipe}, which guidelines live_verification does not declare`, `${p}/acceptance/recipe`));
       if (t.status === "done") {
-        // A ticket owns a manifest that names it, and the manifests in evidence/<ticket>/ and evidence/<ticket>-live/.
-        const owned = m.evidence.filter((ev) => ev.manifest && (ev.manifest.data?.owner === t.id || [t.id, `${t.id}-live`].includes(basename(ev.dir))));
+        // A ticket owns a manifest that names it as owner or in covers, and the manifests in
+        // evidence/<ticket>/ and evidence/<ticket>-live/.
+        const owned = m.evidence.filter((ev) => ev.manifest && (ev.manifest.data?.owner === t.id || (ev.manifest.data?.covers ?? []).includes(t.id) || [t.id, `${t.id}-live`].includes(basename(ev.dir))));
         const sev: Severity = e.active ? "error" : "warning";
         for (const ev of owned) {
           const r = ev.manifest!.data;
           if (["fail", "not_met"].includes(r?.result)) out.push(f("TSK-018", sev, e.path, `${t.id} is done, but its evidence at ${ev.dir} records result ${r.result}; defer the ticket or produce passing evidence`, `${p}/status`));
-          else if (r?.result === "owed" && e.data.closeout && !(e.data.closeout.follow_ups ?? []).some((s: string) => s.includes(t.id))) out.push(f("TSK-018", sev, e.path, `${t.id} is done with owed evidence at ${ev.dir}, but no closeout follow_ups entry names ${t.id} and the owed check`, `${p}/status`));
+          else if (r?.result === "owed" && e.data.closeout && !(e.data.closeout.follow_ups ?? []).some((s: string) => s.includes(t.id))) out.push(f("TSK-018", sev, e.path, `${t.id} is done with owed evidence at ${ev.dir}, but no closeout follow_ups entry names ${t.id}; add one naming the owed check`, `${p}/status`));
         }
         // Once the closeout is written, a done live_probe ticket must carry its probe's evidence.
         if (probes && e.active && e.data.closeout) {
           const live = owned.filter((ev) => ev.manifest!.data?.mode === "live_probe");
           if (!live.length) out.push(f("TSK-019", "error", e.path, `${t.id} is done and accepted by live_probe, but owns no live_probe evidence manifest; run its recipe or defer the ticket`, `${p}/status`));
-          else if (live.every((ev) => ev.manifest!.data?.result === undefined)) out.push(f("TSK-019", "warning", e.path, `${t.id}'s live_probe evidence records no result`, `${p}/status`));
+          else if (live.every((ev) => ev.manifest!.data?.result === undefined)) out.push(f("TSK-019", "error", e.path, `${t.id} is done, but its live_probe evidence records no result`, `${p}/status`));
         }
       }
       const text = JSON.stringify([t.title, t.description, t.acceptance?.evidence, t.stop_conditions]);

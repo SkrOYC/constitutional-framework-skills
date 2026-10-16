@@ -19,6 +19,7 @@
         "host": { "type": "string", "description": "Recorded fact, not a pass criterion" }
       }
     },
+    "covers": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true, "description": "Other tickets this evidence also proves, when one probe session drove several; TSK-018 and TSK-019 treat each as an owner" },
     "result": { "enum": ["pass", "fail", "not_met", "owed"], "description": "Outcome at the verified head; not_met and owed record an honest gap instead of a pass" },
     "files": {
       "type": "array",
