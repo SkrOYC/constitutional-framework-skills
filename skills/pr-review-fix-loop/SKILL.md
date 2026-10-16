@@ -70,7 +70,7 @@ Read every finding, deduplicate the ones that describe the same defect in differ
 
 - **Act on.** A `P0` or `P1` that holds up locally, or a `P2` that is a real correctness or user-facing defect, including anything that would make a documented command, instruction, or handoff fail when followed literally. These get fixed this round.
 - **Consider.** Legitimate, but the fix costs more than it's worth now. Fixed only if cheap; otherwise reported as a follow-up.
-- **Noted.** Valid and not actionable: context-dependent, premature, or low impact at this stage. Evidence bookkeeping always lands here, whatever severity the reviewer gave it: manifest wording, a stale verified-at commit, a SHA a rebase rewrote. Evidence that claims a pass that didn't happen is a defect, and goes to Act on.
+- **Noted.** Valid and not actionable: context-dependent, premature, or low impact at this stage. Evidence bookkeeping lands here, whatever severity the reviewer gave it: manifest wording, a stale verified-at commit, a SHA a rebase rewrote. Evidence that claims a pass that didn't happen, contradicts the code's behavior, backs a `done` ticket whose `result` is `fail` or `not_met`, or fails `validate` is a defect, and goes to Act on.
 - **Dismissed.** Wrong, a nitpick, or missing context that the code or a nearby comment already supplies. The reason says which.
 
 Post one PR comment per round with the triage table: finding, panelists, bucket, reason. Dismissals with reasons on the record are what stop the next round from re-filing them.

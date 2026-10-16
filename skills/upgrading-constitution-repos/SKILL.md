@@ -88,7 +88,7 @@ Re-run the survey and report to the user:
 - contracts pinned
 - every ruling applied
 - anything skipped, with the reason
-- what the user needs to do next: merge the PRs in phase order, then the next wave's step 0 can use `live_probe` and pinned contracts
+- what the user needs to do next: merge the PRs in phase order, then Stage 4 can cite the recipes when it next plans tickets whose tests can't exercise a surface, and the next wave's step 0 can rely on the pinned contracts
 
 Don't merge unless the user says to; when they do, merge in phase order with the merge skill the concurrency block names.
 

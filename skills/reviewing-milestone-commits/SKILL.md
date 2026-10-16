@@ -146,7 +146,7 @@ Behavior-bearing milestone commits should usually trigger at least one executed 
 | `hitl_sil` | The procedure and pass/fail criteria are committed; the log meets them, or the hardware step is explicitly deferred to the user rather than silently skipped |
 | `visual_regression` | The baseline is committed, the threshold matches the evidence, and the diff run is under it |
 | `runbook_probe` | The apply, plan, and probe commands match the evidence, and the recorded end state matches the expected one |
-| `live_probe` | The tests the mode requires pass, and the recipe named in `recipe` is the one `guidelines.md` declares. The evidence is captured once, at the review-clean head, so its absence at a milestone is not a finding; when it is present, it shows the state the ticket's scenario expects, not just a process that started |
+| `live_probe` | The tests the mode requires pass, and the recipe named in `recipe` is the one `guidelines.md` declares. The evidence is captured once, after the last milestone, so its absence at a milestone is not a finding; when it is present, it shows the state the ticket's scenario expects, not just a process that started |
 
 A ticket whose proof is missing, or whose proof was produced by loosening the threshold, corpus, split, or baseline, fails acceptance and is a `P1`.
 
@@ -216,7 +216,7 @@ Severity discipline:
 - do not expand scope to untouched code unless the milestone materially depends on it
 - `P2` means a real correctness, quality, user-visible, or future-maintenance gap, not "could be cleaner"
 - `Investigate` means a grounded concern that needs confirmation, not a design tradeoff already explained by code or artifacts
-- evidence bookkeeping is `General feedback`: manifest wording, a verified-at commit older than HEAD, a SHA a rebase rewrote, or evidence not captured yet. Evidence that claims a pass that didn't happen, contradicts the code's behavior, or backs a `done` ticket whose `result` is `not_met` is a `P1`
+- evidence bookkeeping is `General feedback`: manifest wording, a verified-at commit older than HEAD, a SHA a rebase rewrote, or evidence not captured yet. Evidence that claims a pass that didn't happen, contradicts the code's behavior, backs a `done` ticket whose `result` is `fail` or `not_met`, or fails `validate` is a `P1`
 
 ### Step 9 - Return The Review
 

@@ -29,9 +29,9 @@
         "required": ["path"],
         "properties": {
           "path": { "type": "string", "minLength": 1 },
-          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$", "description": "Required for baseline and measurement files, which a later run compares against; optional otherwise" },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$", "description": "Required by STR-005 on every file of a benchmark, stat_threshold, or visual_regression manifest and on a file whose role starts with baseline or measurement, because a later run compares against it; optional otherwise" },
           "bytes": { "type": "integer", "minimum": 0 },
-          "role": { "type": "string", "description": "baseline, log, screenshot, measurement, transcript" }
+          "role": { "type": "string", "description": "Free text; conventional values are baseline, log, screenshot, measurement, transcript, summary. A role starting with baseline or measurement requires sha256" }
         }
       }
     },

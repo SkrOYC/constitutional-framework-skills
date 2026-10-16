@@ -1175,10 +1175,34 @@ describe("evidence manifests", () => {
     expect(evidenceFindings(found)).toEqual([]);
   });
 
-  test("a baseline or measurement file without a sha256 is STR-005", async () => {
-    for (const role of ["baseline", "measurement"]) {
+  test("a baseline or measurement file without a sha256 is STR-005, whatever its case or suffix", async () => {
+    for (const role of ["baseline", "measurement", "Baseline", "measurements"]) {
       const found = await checksWith((m) => { delete file(m).sha256; file(m).role = role; });
       expect(found.some((x) => x.id === "STR-005" && x.message.includes(`a ${role} file needs a sha256`))).toBe(true);
+    }
+  });
+
+  test("every file of a measured mode needs a sha256, even with bytes and no role", async () => {
+    for (const mode of ["benchmark", "stat_threshold", "visual_regression"]) {
+      const found = await checksWith((m) => { m.evidence[0].manifest.data.mode = mode; delete file(m).sha256; delete file(m).role; });
+      expect(found.some((x) => x.id === "STR-005" && x.message.includes(`a ${mode} file needs a sha256`))).toBe(true);
+    }
+  });
+
+  test("an unknown result is rejected by the schema", async () => {
+    const found = await checksWith((m) => { m.evidence[0].manifest.data.result = "passed"; });
+    expect(found.some((x) => x.id === "SCH-001" && x.file.includes("evidence/") && x.pointer === "/result")).toBe(true);
+  });
+
+  test("a done ticket whose evidence records fail or not_met is TSK-018", async () => {
+    const ticket = (m: any) => m.epics.find((e: any) => e.active && e.data.id === "C").data.tickets[0];
+    for (const result of ["fail", "not_met"]) {
+      const found = await checksWith((m) => { ticket(m).status = "done"; m.evidence[0].manifest.data.result = result; });
+      expect(found.some((x) => x.id === "TSK-018" && x.severity === "error" && x.message.includes(`records result ${result}`))).toBe(true);
+    }
+    for (const result of ["pass", "owed"]) {
+      const found = await checksWith((m) => { ticket(m).status = "done"; m.evidence[0].manifest.data.result = result; });
+      expect(found.some((x) => x.id === "TSK-018")).toBe(false);
     }
   });
 

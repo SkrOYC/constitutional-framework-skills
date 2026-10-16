@@ -67,11 +67,14 @@ const structureCheck: Check = (m) => {
   for (const e of m.epics) if (e.active && e.data?.id === "OD") out.push(f("STR-007", "error", e.path, "epic id OD is reserved for spikes owned by a register entry"));
   for (const ev of m.evidence) {
     if (!ev.manifest) { out.push(f("STR-005", "error", ev.dir, "evidence directory has no manifest.yaml")); continue; }
+    // Digests are optional, except where a later diff or meter compares against the file: every
+    // file of a measured mode, and any file whose role starts with baseline or measurement.
+    const measured = ["benchmark", "stat_threshold", "visual_regression"].includes(ev.manifest.data?.mode);
     for (const file of ev.manifest.data?.files ?? []) {
       const p = join(m.root, ev.dir, file.path);
       if (!existsSync(p)) { out.push(f("STR-005", "error", ev.manifest.path, `listed file ${file.path} is missing`)); continue; }
-      // Digests are optional, except on files a later diff or meter compares against.
-      if ((file.role === "baseline" || file.role === "measurement") && file.sha256 === undefined) out.push(f("STR-005", "error", ev.manifest.path, `${file.path}: a ${file.role} file needs a sha256, because a later run compares against it`));
+      const compared = /^(baseline|measurement)/i.test(String(file.role ?? ""));
+      if ((measured || compared) && file.sha256 === undefined) out.push(f("STR-005", "error", ev.manifest.path, `${file.path}: ${measured ? `a ${ev.manifest.data.mode} file` : `a ${file.role} file`} needs a sha256, because a later run compares against it`));
       const bytes = statSync(p).size;
       if (file.bytes !== undefined && bytes !== file.bytes) out.push(f("STR-005", "error", ev.manifest.path, `${file.path}: ${bytes} bytes on disk, manifest says ${file.bytes}`));
       if (file.sha256 !== undefined && createHash("sha256").update(readFileSync(p)).digest("hex") !== file.sha256) out.push(f("STR-005", "error", ev.manifest.path, `${file.path}: sha256 differs from manifest`));
@@ -451,6 +454,10 @@ const tasksCheck: Check = (m) => {
       if (probes && !recipe) out.push(f("TSK-014", "error", e.path, `${t.id} is accepted by live_probe but names no recipe`, `${p}/acceptance`));
       else if (!probes && recipe) out.push(f("TSK-014", "error", e.path, `${t.id} names recipe ${recipe} but live_probe is not among its acceptance modes`, `${p}/acceptance`));
       else if (recipe && !recipes.has(recipe)) out.push(f("TSK-014", "error", e.path, `${t.id} runs recipe ${recipe}, which guidelines live_verification does not declare`, `${p}/acceptance/recipe`));
+      if (t.status === "done") for (const ev of m.evidence) {
+        const r = ev.manifest?.data;
+        if (r?.owner === t.id && ["fail", "not_met"].includes(r.result)) out.push(f("TSK-018", e.active ? "error" : "warning", e.path, `${t.id} is done, but its evidence at ${ev.dir} records result ${r.result}; defer the ticket or produce passing evidence`, `${p}/status`));
+      }
       const text = JSON.stringify([t.title, t.description, t.acceptance?.evidence, t.stop_conditions]);
       const tm = TIME_RE.exec(text); if (tm) out.push(f("TSK-010", "error", e.path, `${t.id} carries a time unit ("${tm[0]}"); estimates are points, never time`, p));
       if (e.active && t.status !== "done" && t.status !== "deferred") { totalTickets++; if (t.effort === 8) total8++; }

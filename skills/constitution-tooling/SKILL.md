@@ -66,7 +66,7 @@ A project may downgrade a check to info by listing it under `exceptions` in `con
 - Every verification command a ticket quotes exists in guidelines, and every command guidelines marks as existing resolves. The same holds for live-verification recipes: a `live_probe` ticket names a declared recipe, and an existing recipe's commands resolve.
 - A sidecar points at its contract or schema in the code through `artifact_path`; the artifact exists, or, while it is still assumed or open, an active ticket that is not done creates it: the sidecar's optional `owner` names the ticket, or the ticket's `scope.in` covers `artifact_path`. A pinned artifact exists, is settled, or has such a creator, so a wave never runs against one nobody will land.
 - Banned synonyms are a grep on the surfaces `constitution.yaml` declares, and only there.
-- `reports/` holds five kinds of file and nothing else. Acceptance evidence lives in `evidence/` with a digest manifest, research in `research/`, generated inventories outside the constitution.
+- `reports/` holds five kinds of file and nothing else. Acceptance evidence lives in `evidence/` with a manifest, research in `research/`, generated inventories outside the constitution.
 - Reconciliation records facts and routes judgment. It never edits `prd/`, `architecture/`, or a tech-spec file other than the changelog, the `exists` flags on verification commands and live-verification recipes, and the certainty of records a closeout settled.
 
 ## Tests
