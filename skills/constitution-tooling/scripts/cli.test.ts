@@ -1216,6 +1216,16 @@ describe("evidence manifests", () => {
     expect(found.some((x) => x.id === "TSK-018")).toBe(false);
   });
 
+  test("a follow-up or covers in the wrong shape is a schema error, not a crash", async () => {
+    const found = await checksWith((m) => {
+      epicC(m).data.tickets[0].status = "done";
+      Object.assign(m.evidence[0].manifest.data, { result: "owed", covers: "FIX-C002" });
+      epicC(m).data.closeout = { ...closeout([]), follow_ups: [{ "FIX-C001": "probe owed; doctor failed twice" }] };
+    });
+    expect(found.some((x) => x.id === "SCH-001" && x.pointer?.startsWith("/closeout/follow_ups"))).toBe(true);
+    expect(found.some((x) => x.id === "SCH-001" && x.pointer === "/covers")).toBe(true);
+  });
+
   test("TSK-018 also reads a manifest in the ticket's directory whose owner is mistyped", async () => {
     const found = await checksWith((m) => { epicC(m).data.tickets[0].status = "done"; Object.assign(m.evidence[0].manifest.data, { owner: "FIX-C0001", result: "fail" }); });
     expect(found.some((x) => x.id === "TSK-018" && x.message.includes("records result fail"))).toBe(true);

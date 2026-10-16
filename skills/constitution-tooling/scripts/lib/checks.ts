@@ -457,12 +457,12 @@ const tasksCheck: Check = (m) => {
       if (t.status === "done") {
         // A ticket owns a manifest that names it as owner or in covers, and the manifests in
         // evidence/<ticket>/ and evidence/<ticket>-live/.
-        const owned = m.evidence.filter((ev) => ev.manifest && (ev.manifest.data?.owner === t.id || (ev.manifest.data?.covers ?? []).includes(t.id) || [t.id, `${t.id}-live`].includes(basename(ev.dir))));
+        const owned = m.evidence.filter((ev) => ev.manifest && (ev.manifest.data?.owner === t.id || (Array.isArray(ev.manifest.data?.covers) && ev.manifest.data.covers.includes(t.id)) || [t.id, `${t.id}-live`].includes(basename(ev.dir))));
         const sev: Severity = e.active ? "error" : "warning";
         for (const ev of owned) {
           const r = ev.manifest!.data;
           if (["fail", "not_met"].includes(r?.result)) out.push(f("TSK-018", sev, e.path, `${t.id} is done, but its evidence at ${ev.dir} records result ${r.result}; defer the ticket or produce passing evidence`, `${p}/status`));
-          else if (r?.result === "owed" && e.data.closeout && !(e.data.closeout.follow_ups ?? []).some((s: string) => s.includes(t.id))) out.push(f("TSK-018", sev, e.path, `${t.id} is done with owed evidence at ${ev.dir}, but no closeout follow_ups entry names ${t.id}; add one naming the owed check`, `${p}/status`));
+          else if (r?.result === "owed" && e.data.closeout && !(Array.isArray(e.data.closeout.follow_ups) ? e.data.closeout.follow_ups : []).some((s: unknown) => typeof s === "string" && s.includes(t.id))) out.push(f("TSK-018", sev, e.path, `${t.id} is done with owed evidence at ${ev.dir}, but no closeout follow_ups entry names ${t.id}; add one naming the owed check`, `${p}/status`));
         }
         // Once the closeout is written, a done live_probe ticket must carry its probe's evidence.
         if (probes && e.active && e.data.closeout) {
