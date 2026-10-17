@@ -21,7 +21,8 @@ Use this skill to turn an in-progress local worktree into a reviewable PR withou
    - If repo conventions and the current task make a value obvious, state the assumption and proceed.
    - If a value is still ambiguous, ask a focused question instead of guessing.
    - When an execution skill invokes this one with the values passed explicitly (an epic lead opening its PR during an autonomous run), use them and never ask. Anything it left out comes from repo conventions, stated as an assumption in the report.
-3. Stage intentionally.
+3. Confirm required validation, then stage intentionally.
+   - Inspect the existing results for the candidate and relevant environment; run missing or invalidated checks required by the project. Do not repeat checks solely because this skill was invoked.
    - Default to `git add -A` only when the task is to ship all current work.
    - If the worktree contains unrelated changes, stop and clarify scope instead of sweeping everything into one PR.
 4. Commit with a descriptive message.

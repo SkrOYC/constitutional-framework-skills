@@ -85,40 +85,19 @@ The guard is the evidence: when you can't name what would change your recommenda
 
 ## Subagents
 
-{% if harness.id == "claude" %}The conversation and the judgement stay with you. Delegate the fetching and the bounded work, and name the model on every dispatch, because a dispatch that falls through to a harness default is a choice nobody made.
+Keep the conversation and judgment with the interviewer. Delegate substantial independent reconnaissance, source gathering, or agreed research in bounded assignments. Use available models suited to the work and the user's cost preferences; name the chosen model or explicitly agreed inheritance. Do not require another provider for a routine interview.
 
-| Job | Model | When |
+| Job | Capability | When |
 | :--- | :--- | :--- |
-| Codebase reconnaissance | Sonnet, Explore-class, read-only | Dispatched during calibration, read in protocol step 4 |
-| External grounding of a Phase B recommendation | Haiku or Sonnet, with web tools | One parallel batch after Phase A closes |
-| Spike | Opus | Phase B, by agreement, at most three points |
-| Design review | Opus | Phase B, when a recommendation has no source behind it |
-| Design it twice | Two designers in parallel: Opus through the Agent tool, and Codex's strongest available model through `codex-subagent` | Required before an ADR-level recommendation in the TechSpec target; optional before any other expensive-to-reverse recommendation |
-{% elif harness.id == "codex" %}The conversation and the judgement stay with you. Delegate the fetching and the bounded work with `collaboration.spawn_agent` (`fork_turns: "none"`, an explicit model, and reasoning effort), because a dispatch that falls through to a harness default is a choice nobody made.
+| Codebase reconnaissance | Read-only repository inspection | During calibration when the agreed pass needs it |
+| External grounding | Web research with pinned sources | One batch of independent questions after Phase A |
+| Spike | Isolated measurement and technical judgment | By agreement, within the spike budget |
+| Design review | Analysis of methods and alternatives | When a recommendation lacks grounding |
+| Design it twice | Two isolated designers, preferably different models or runtimes | Before an unresolved ADR-level recommendation; reuse their results in Stage 3 |
 
-| Job | Model | When |
-| :--- | :--- | :--- |
-| Codebase reconnaissance | `gpt-5.6-terra`, read-only | Dispatched during calibration, read in protocol step 4 |
-| External grounding of a Phase B recommendation | `gpt-5.6-luna` or `gpt-5.6-terra`, with web tools | One parallel batch after Phase A closes |
-| Spike | `gpt-5.6-sol` | Phase B, by agreement, at most three points |
-| Design review | `gpt-5.6-sol` | Phase B, when a recommendation has no source behind it |
-| Design it twice | Two independent designers through `collaboration.spawn_agent`, or one Codex designer and one pi designer when pi is available | Required before an ADR-level recommendation in the TechSpec target; optional before any other expensive-to-reverse recommendation |
-{% else %}The conversation and the judgement stay with you. Delegate the fetching and the bounded work with `spawn_subagent`. Do not pass a subagent type (an omitted type is general-purpose). Name the model in the calibration agreement when you want a different one, and pass that `model`; otherwise omit it so the child inherits the session model. A Codex designer goes through `codex-subagent`, and that dispatch always names the model `models` listed.
+{% if harness.id == "claude" %}Use the Agent tool for native delegation and an available runtime adapter only when chosen.{% elif harness.id == "codex" %}Use `collaboration.spawn_agent` with `fork_turns: "none"` and an explicit available model and reasoning effort.{% else %}Use `spawn_subagent` with a self-contained brief and the agreed model; an omitted model is allowed only when inheritance was explicitly agreed.{% endif %} Every brief names scope, output, permissions, and a no-further-delegation boundary.
 
-| Job | Model | When |
-| :--- | :--- | :--- |
-| Codebase reconnaissance | `spawn_subagent`. The prompt says read-only: do not create, edit, or delete files. Do not pass a subagent type. Pass `model` only when the calibration agreement names one | Dispatched during calibration, read in protocol step 4 |
-| External grounding of a Phase B recommendation | `spawn_subagent`, with web tools. Pass `model` only when the agreement names one | One parallel batch after Phase A closes |
-| Spike | `spawn_subagent` on the model the agreement names. It may edit only its throwaway scratch | Phase B, by agreement, at most three points |
-| Design review | `spawn_subagent` on the model the agreement names | Phase B, when a recommendation has no source behind it |
-| Design it twice | Two designers in parallel: one `spawn_subagent` on the model the agreement names, and Codex's strongest available model through `codex-subagent` | Required before an ADR-level recommendation in the TechSpec target; optional before any other expensive-to-reverse recommendation |
-{% endif %}
-
-A grounding subagent returns pinned sources: the URL, the version it checked, and the date. Cite them in the interview record, so Stage 3 can reuse them as `external` evidence. Check any finding you rely on, because a subagent's confidence isn't yours.
-{% if harness.id == "codex" %}
-Use `fork_turns: "none"` and an explicit model and reasoning effort on Codex dispatches. Use `pi-subagent` for a pi designer.
-{% endif %}
-
+Grounding workers return the canonical URL, checked version, date, and supported claim. Check the source needed for your recommendation and cite it in the interview record so later stages reuse the same research.
 ## Interview stance
 
 - Challenge, don't absorb. When the user's stated design conflicts with good engineering judgment, say so plainly: name the problem, then offer two or three options with a recommendation.

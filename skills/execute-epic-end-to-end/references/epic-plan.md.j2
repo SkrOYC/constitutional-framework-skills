@@ -2,7 +2,7 @@
 
 The contract that lets an epic run without questions. {% if harness.id == "codex" %}It's written and validated in step 0, then approved once by the user:{% else %}It's written in a step-0 plan-mode session and approved once by the user:{% endif %} by the wave lead (`execute-wave`) for every epic in a wave, or by the epic lead itself when it runs standalone. After approval the epic lead reads it as authority and never replans. When the wave lead wrote it, amendments are the wave lead's alone; when the epic lead wrote it, the epic lead appends its own amendments, under the same rules.
 
-Every question execution could raise is answered here or by the `autonomy` policy. A plan that leaves one open fails its purpose: nobody is around to answer it.
+Resolve the decisions implementation needs here or through the `autonomy` policy. Name prerequisites, coherent work assignments, verification ownership, final gates, required evidence, and approved fallbacks. Leave routine implementation choices to the worker.
 
 The front matter is validated mechanically: `bun run ~/.{{ harness.id }}/skills/constitution-tooling/scripts/cli.ts check-plan <file> --root .` checks it against `constitution-tooling/assets/schemas/epic-plan.schema.json` and cross-checks the epic file, the register, and the sibling epics. Run it {% if harness.id == "grok" %}after the repo plan file is written, and after every amendment. Plan mode cannot write that file: `check-plan` runs after `exit_plan_mode`.{% else %}before presenting the plan and after every amendment.{% endif %}
 
@@ -25,40 +25,25 @@ merge_position: 1                      # position in the wave's listed merge ord
 lanes_in_wave: 3                       # 1 when standalone
 worktree: {% if harness.id == "grok" %}/abs/path/worktrees/EPIC-AD{% else %}/abs/path/.{{ harness.id }}/worktrees/EPIC-AD{% endif %}
 branch: epic/AD-work-planning-foundation
-base_branch: rebuild/crve-platform
+base_branch: main                    # replace with the project's recorded default branch
 planned_at_commit: 0b37d5f            # default-branch commit the repository_state assertions were checked against
 siblings:                              # every other lane in the wave; empty list when standalone or the wave is one
   - epic: EPIC-AK
     lead: epic-lead-ak                 # {% if harness.id == "claude" %}that lead's background session name, which is also its SendMessage address{% elif harness.id == "codex" %}the name the orchestrator gave that subagent{% else %}a label for plans and reports, not an address; leads message each other by the subagent id the wave lead records in Amendments after dispatch{% endif %}
     branch: epic/AK-notification-delivery
     merge_position: 2
-models:                                # {% if harness.id == "claude" %}runtime is claude | codex | pi; model is that runtime's id{% elif harness.id == "codex" %}Codex collaboration is the lead runtime; pi is an optional leaf runtime{% else %}runtime is grok | codex | pi; model is that runtime's id{% endif %}
-{% if harness.id == "claude" %}  epic_lead: { runtime: claude, model: opus }
-  worker: { runtime: claude, model: opus }
-  spec_patch_worker: { runtime: claude, model: sonnet }
-  milestone_reviewer: { runtime: codex, model: <codex model id> }   # discover ids through the runtime's skill; never guess one
-  fix_worker: { runtime: claude, model: opus }
-{% elif harness.id == "codex" %}  epic_lead: { runtime: codex, model: gpt-5.6-sol }
-  worker: { runtime: codex, model: gpt-5.6-terra }
-  spec_patch_worker: { runtime: codex, model: gpt-5.6-sol }
-  milestone_reviewer: { runtime: codex, model: gpt-5.6-sol }
-  fix_worker: { runtime: codex, model: gpt-5.6-terra }
-{% else %}  epic_lead: { runtime: grok, model: grok-4.7 }
-  worker: { runtime: grok, model: grok-4.7 }
-  spec_patch_worker: { runtime: grok, model: grok-4.6 }
-  milestone_reviewer: { runtime: codex, model: <codex model id> }   # discover ids through the runtime's skill; never guess one
-  fix_worker: { runtime: grok, model: grok-4.7 }
-{% endif %}review_panel:                          # the PR review panel; one reviewer per entry, run in parallel
-{% if harness.id == "claude" %}  - { runtime: claude, model: opus, mode: full }
-  - { runtime: codex, model: <codex model id>, mode: full }
-{% elif harness.id == "codex" %}  - { runtime: codex, model: gpt-5.6-sol, mode: full }
-  - { runtime: codex, model: gpt-5.6-terra, mode: full }
-{% else %}  - { runtime: grok, model: grok-4.7, mode: full }
-  - { runtime: codex, model: <codex model id>, mode: full }
-{% endif %}pr_review:
-  fix_worker: {% if harness.id == "claude" %}{ runtime: claude, model: opus }{% elif harness.id == "codex" %}{ runtime: codex, model: gpt-5.6-terra }{% else %}{ runtime: grok, model: grok-4.7 }{% endif %}
-  review_escalate_at: 4                # the round at which the loop changes strategy; it never stops early
-  stop: one verification round with no new Act-on finding   # the loop's own rule; restated so the lead never asks
+models:                                # replace each placeholder with an available, approved model id
+  epic_lead: { runtime: {{ harness.id }}, model: <lead model> }
+  worker: { runtime: {{ harness.id }}, model: <worker model> }
+  spec_patch_worker: { runtime: {{ harness.id }}, model: <spec-patch model> }
+  milestone_reviewer: { runtime: {{ harness.id }}, model: <reviewer model> }
+  fix_worker: { runtime: {{ harness.id }}, model: <fix-worker model> }
+review_panel:                          # add a second independent reviewer for broad or high-risk changes
+  - { runtime: {{ harness.id }}, model: <reviewer model>, mode: full }
+pr_review:
+  fix_worker: { runtime: {{ harness.id }}, model: <fix-worker model> }
+  review_escalate_at: 4
+  stop: one verification round with no new Act-on finding
 autonomy:
   policy:                              # what the lead does instead of asking; the defaults are shown
     - { trigger: blocker, action: adopt_recommendation }
@@ -71,24 +56,20 @@ autonomy:
     - { trigger: budget_threshold, action: switch_to_fallback }
     - { trigger: stall, action: retry, max_attempts: 1 }
 budget:
-  usage_ceiling_note: {% if harness.id == "claude" %}"Claude weekly Opus usage ~40% left; Codex plan has headroom"   # the user's words from step 0{% elif harness.id == "codex" %}"Use the user's stated usage ceiling from step 0"   # replace with the user's actual words{% else %}"host weekly usage ~40% left; Codex plan has headroom"   # the user's words from step 0{% endif %}
-  threshold_pct: 70                    # share of the ceiling at which leaf roles switch to fallback_models
-  fallback_models:
-{% if harness.id == "claude" %}    worker: { runtime: codex, model: <codex model id> }
-    fix_worker: { runtime: claude, model: sonnet }
-{% elif harness.id == "codex" %}    worker: { runtime: codex, model: gpt-5.6-terra }
-    fix_worker: { runtime: codex, model: gpt-5.6-terra }
-{% else %}    worker: { runtime: codex, model: <codex model id> }
-    fix_worker: { runtime: grok, model: grok-4.6 }
-{% endif %}liveness:
+  usage_ceiling_note: "Record the user's stated ceiling, or no explicit ceiling"
+  threshold_pct: 70
+  fallback_models:                     # approved replacements for budget pressure or model unavailability
+    worker: { runtime: {{ harness.id }}, model: <fallback worker model> }
+    fix_worker: { runtime: {{ harness.id }}, model: <fallback fix-worker model> }
+    milestone_reviewer: { runtime: {{ harness.id }}, model: <fallback reviewer model> }
+    pr_reviewer: { runtime: {{ harness.id }}, model: <fallback reviewer model> }
+liveness:
   stall_after_minutes: 45              # no side effect for this long means the lane is stalled
   side_effects: [commit, push, worktree_change, pr_update, plan_amendment]
 verbatim_project_rules:                # passages from the project's agent instructions every worker receives word for word
-{% if harness.id == "claude" %}  - "Run test:workers, test:policies, test:e2e, and db reset through .claude/bin/crve-lock stack -- <cmd>."
-{% elif harness.id == "grok" %}  - "Run test:workers, test:policies, test:e2e, and db reset through scripts/crve-lock stack -- <cmd>."
-{% else %}  - "Copy any project-specific runtime rule here verbatim."
-{% endif %}open_decisions:                        # register entries that touch this epic, with the interim assumption if any
-  - { id: OD-12, effect: "CRVE-AD003 waits", interim: none }
+  - "Copy only the project runtime rules relevant to these milestones."
+open_decisions:                        # register entries that touch this epic, with the interim assumption if any
+  - { id: OD-12, effect: "ABC-AD003 waits", interim: none }
 ---
 ```
 
@@ -98,13 +79,13 @@ verbatim_project_rules:                # passages from the project's agent instr
 | :--- | :--- |
 | `adopt_recommendation` | Writes the question in register shape in the epic's `decisions` list with its recommendation, marks it `interim` with the places it was applied, and continues. Never writes `prd/`, `architecture/`, or `tech-spec/`, never touches paths outside the epic's scope, never takes an irreversible action; a case that would needs `defer_tickets` instead. |
 | `defer_tickets` | Sets the affected tickets to `deferred` with `deferred_to` and the reason, and continues with the rest. |
-| `retry` | Retries the failing step up to `max_attempts`, changing one thing each time: a fresh worker, a smaller scope, the other runtime. Then falls through to `defer_tickets`. |
+| `retry` | Retries the failing step up to `max_attempts` after diagnosing the failure. Use a coherent fix assignment for a product defect, an approved fallback for service unavailability, or an unchanged focused rerun for a suspected transient. Then falls through to `defer_tickets`. |
 | `amend_plan` | Appends an amendment to the plan (only when the lead owns the plan, or for spec drift, which becomes a spec-patch milestone), runs `check-plan`, and continues. |
 | `escalate_wave_lead` | Stops with the report and waits for the wave lead's message. Invalid when `planned_by: self`. |
 | `stop_lane` | Stops the epic with a blocker report in the final Epic report; the PR opens with what is done. |
 | `resolve_and_rereview` | Dispatches a fix worker to resolve the conflict, then a verification review of the changed patch and CI. |
 | `escalate_strategy` | Changes approach instead of stopping; see `pr-review-fix-loop`. |
-| `switch_to_fallback` | Moves the roles in `budget.fallback_models` to those models, records it, and continues. |
+| `switch_to_fallback` | Moves the affected roles in `budget.fallback_models` to their approved models for budget pressure or unavailability, records it, and continues. `pr_reviewer` supplies replacements for panel entries while preserving independence. |
 
 The policy has exactly one entry per trigger; `check-plan` errors on a missing or duplicated trigger, so no situation is left without an action. Asking the user is not an action. It exists only in step 0.
 
@@ -123,7 +104,7 @@ An ordered list. Each milestone carries:
 - **id** in the form `M1`, `M2`, and so on, and a one-line goal.
 - **tickets**: the ids it completes, in ticket order.
 - **acceptance**: the mode per ticket and the evidence body, copied from the epic file rather than paraphrased.
-- **verification**: the exact command or commands whose success is the proof, and the evidence directory for a mode whose proof is the run itself. Don't put `live_probe` capture in a milestone: the lead captures that evidence once per epic, after the last milestone and before the closeout, from the recipes the epic file's tickets name.{% if harness.id != "codex" %} When lanes share a serialized runtime resource, write the focused form: the test files the milestone touches, named by path, each hold about ten minutes at most. Don't write "one full run before the PR" into a milestone; the complete gates run once, in the PR review loop, and again on the rebased head at merge.{% endif %}
+- **verification**: focused implementation checks and the final required gate set, copied from declared project commands. Name who runs each and when source freezes. Leads and reviewers reuse valid results for unchanged inputs, adding checks only for uncovered risk or a mandatory project rule. Do not put final `live_probe` capture in an implementation milestone; capture once per epic after the last milestone. A run-mode ticket names its minimal evidence directory.
 - **scope**: in-scope paths and out-of-scope paths for the worker, including the `artifact_path` of any contract or data-model artifact it creates or changes, and the tech-spec records and flow slugs it must follow.
 - **repository_state**: assertions that must hold before the milestone starts, each checkable by path or command. The epic lead verifies them and raises plan drift when one fails.
 - **approach**: constraints the planner sets that the epic file does not, such as an ordering inside the milestone, a pattern to follow from a named existing file, or a thing not to do. Keep it to constraints. How the worker implements is the worker's.
@@ -140,6 +121,10 @@ Every question the planner asked the user in step 0 and the answer, including wh
 ### Cross-lane facts
 
 Conventions or identifiers this epic touches that a sibling also touches by reference: what it is, which sibling, and which lane decides. Empty when the wave is one or nothing is shared.
+
+### Operational readiness
+
+Record service prerequisites, the relevant launch/doctor commands, expected startup and observable progress, required cleanup, and known hosted-check blockers. Include approved reviewer fallbacks as well as worker fallbacks. Product failures, jobs that never start, and advancing long-running gates need different responses; do not start duplicate jobs or interrupt an owned state transition to obtain status.
 
 ### Project runtime rules
 

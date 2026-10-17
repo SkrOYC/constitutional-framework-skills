@@ -5,12 +5,14 @@ Review a constitution-only pull request: one pipeline stage's output under `.con
 ## Step 1: Identify the PR and the stage
 
 1. Resolve the PR with `gh pr view <number> --json title,body,baseRefName,headRefName,files` and read `gh pr diff <number>`.
-2. Confirm every changed path is under `.constitution/`. If code changed too, stop and say the PR needs `mode: "full"` instead; a mixed PR breaks the two-commit rule.
+2. Confirm every changed path is under `.constitution/`. If code changed too, stop and say the PR needs `mode: "full"` instead; review code and spec commits under their respective rules.
 3. Name the stage whose directory the PR writes (`prd/`, `architecture/`, `tech-spec/`, `tasks/`, or `reports/` for an interview). A PR that writes two stage directories is itself a finding: file a `P1` asking for one PR per stage.
 
 ## Step 2: Run the machine checks first
 
-Run `validate` on the PR head without touching the caller's checkout: `git fetch origin pull/<number>/head:review-<number>`, `git worktree add /tmp/review-<number> review-<number>`, then `bun run ~/.{{ harness.id }}/skills/constitution-tooling/scripts/cli.ts validate --root /tmp/review-<number>`, and remove the worktree and the branch when you're done. If you can't create a worktree (a read-only sandbox), say so and review without it. Every error it reports is a `P1` with its check id; don't re-derive what the validator already says, and don't file findings the validator proves false. For a `tech-spec/` PR, also run `derive --root /tmp/review-<number>` and report its drift as `P2`.
+Use the caller-supplied checkout and confirm its HEAD matches the PR's captured head. Keep the review read-only: do not switch branches or create review worktrees. If the matching revision is unavailable, report the limitation or request a matching checkout from the caller.
+
+Inspect the existing `validate` result for the same validation inputs, or run `bun run ~/.{{ harness.id }}/skills/constitution-tooling/scripts/cli.ts validate --root <checkout>` when no valid result exists. Every error is a `P1` with its check id; do not manually repeat schema, file-existence, or digest checks already established by validation. For a `tech-spec/` PR, use or obtain a read-only `derive` result and report unapplied drift as `P2`.
 
 ## Step 3: Walk the stage's checklist
 

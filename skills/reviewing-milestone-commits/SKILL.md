@@ -15,7 +15,7 @@ Review a committed milestone as a concrete change to a real codebase, with the s
 
 Use this skill when the epic lead asks for review of a committed milestone during epic execution.
 
-The primary input is a commit SHA. The prompt may also include the epic file path, ticket ids, the acceptance mode and evidence body, the validation command to run, and for a spec-patch milestone the drift report it answers. The constitution is structured YAML; read `~/.{{ harness.id }}/skills/constitution-tooling/references/layout.md` once if the layout is unfamiliar, and run `bun run ~/.{{ harness.id }}/skills/constitution-tooling/scripts/cli.ts validate --root .` as part of every review: an error it reports on the committed tree is a `P1` finding with the check id.
+The primary input is a commit SHA. The prompt may also include the epic file path, ticket ids, the acceptance mode and evidence body, the validation command to run, and for a spec-patch milestone the drift report it answers. The constitution is structured YAML; read `~/.{{ harness.id }}/skills/constitution-tooling/references/layout.md` once if the layout is unfamiliar, and inspect a successful `validate` result for the committed validation inputs, running `bun run ~/.{{ harness.id }}/skills/constitution-tooling/scripts/cli.ts validate --root .` when no valid result exists: an error it reports on the committed tree is a `P1` finding with the check id.
 
 Do not use it for:
 - code generation
@@ -126,21 +126,16 @@ For a large milestone (roughly 30+ files or 1500+ lines of diff), review in batc
 
 ### Step 6 - Run Local Verification When Feasible
 
-Before finalizing the review:
-- inspect the repo for canonical verification entry points such as `README`, `package.json`, `bunfig.toml`, `Makefile`, `justfile`, language-specific task runners, and CI workflow files
-- prefer the repo's documented commands; in JavaScript or TypeScript repos, prefer `bun` commands over `npm`, `yarn`, or `pnpm` unless the repo clearly uses something else
-- run the narrowest meaningful checks first, then broaden if needed
-- record the exact commands you ran and the result, including concrete blockers when a command cannot run
+Inspect the implementation's recorded verification: candidate identity, commands, exit status, relevant environment, and coverage. Reuse results for unchanged inputs. Run focused checks when the result is absent or unreliable, the changed code exposes an uncovered risk, or the project requires independent execution. Do not repeat the complete gate set merely because the role changed. State which results you inspected, which commands you ran, and any confidence limits.
 
-Behavior-bearing milestone commits should usually trigger at least one executed verification command unless the environment or project setup makes that impossible.
-
+Keep the review in the supplied checkout at the committed revision. Do not create a review worktree, mutate shared runtime state, or launch competing verification jobs.
 **Verify by acceptance mode.** Each ticket carries one primary mode from Stage 4. The mode decides what proof you look for; Gherkin is one mode among nine, not the default.
 
 | Mode | What you verify |
 | :--- | :--- |
-| `gherkin` | A test exists per scenario, each maps to its `Given` / `When` / `Then` steps, and the tests pass when you run them |
+| `gherkin` | A test exists per scenario, each maps to its `Given` / `When` / `Then` steps, and passing results cover the committed behavior |
 | `contract_test` | Assertions run against the artifact at the sidecar's `artifact_path`, not against a copy, and pass |
-| `benchmark` | The harness exists, the threshold matches the evidence body and the PRD meter it cites, and a run you execute (or the run recorded in the commit body, when the environment cannot reproduce it) meets it |
+| `benchmark` | The harness exists, the threshold matches the evidence body and the PRD meter it cites, and a valid recorded run for the same inputs and relevant environment meets it; rerun only when inputs changed, the result is unreliable, risk is uncovered, or the project requires independent measurement |
 | `stat_threshold` | The evaluation command, the named split, and the threshold match the evidence; the recorded metric meets it; the split was not changed to make it pass |
 | `invariant` | The checker, property test, fuzz target, or proof encodes the stated invariant rather than a weaker one, and runs clean for the stated corpus or budget |
 | `hitl_sil` | The procedure and pass/fail criteria are committed; the log meets them, or the hardware step is explicitly deferred to the user rather than silently skipped |
@@ -149,6 +144,8 @@ Behavior-bearing milestone commits should usually trigger at least one executed 
 | `live_probe` | The tests the mode requires pass, and the recipe named in `recipe` is the one `guidelines.md` declares. The evidence is captured once, after the last milestone, so its absence at a milestone is not a finding, and the ticket's status stays `in_progress` until then, which is not a finding either; when it is present, it shows the state the ticket's scenario expects, not just a process that started |
 
 A ticket whose proof is missing, or whose proof was produced by loosening the threshold, corpus, split, or baseline, fails acceptance and is a `P1`.
+
+Manifest validation establishes file existence and declared digests. Inspect the observations needed to assess the acceptance claim; do not manually recalculate every hash or demand whole logs. Missing, contradictory, or failed proof remains an acceptance defect.
 
 ### Step 7 - Review Categories
 
@@ -172,7 +169,7 @@ Check every category that applies to what changed (Step 2):
 #### Tests, Lint, And CI
 - Are relevant tests present for behavior changes?
 - Do tests assert behavior independently, rather than mirroring the implementation? Audit test assertions to make sure they are checking actual behavior and outcomes—verify they are not "gaming the verification" with dummy checks or empty mocks.
-- Were relevant tests, lint, typechecks, or builds run locally? Run the ticket's `Verification Command` (Epic mode) or the validation command the epic lead named (Issue mode) and confirm it succeeds, then apply the mode table in Step 6.
+- Were relevant tests, lint, typechecks, or builds run locally? Confirm the recorded results cover the ticket's verification command (Epic mode) or the command the lead named (Issue mode); run missing or invalidated checks, then apply the mode table in Step 6.
 - Is missing coverage likely to hide regressions?
 
 #### Security And Permissions

@@ -88,27 +88,15 @@ Also treat project checks seriously:
 - if tests or lint are configured, failing checks are real review signal
 - missing or obviously insufficient coverage for a behavior change is review signal
 
-### Step 4 — Run local verification when feasible
+### Step 4 — Assess verification and resolve gaps
 
-Do not outsource verification to CI when you are inside an environment that can run commands.
+Inspect the candidate's recorded results: source identity, commands, exit status, relevant environment, and coverage. Reuse valid results for unchanged inputs. Run the narrowest meaningful check when evidence is absent or unreliable, the diff exposes an uncovered risk, or a project rule requires independent execution. Broaden only when the affected surface requires it; a new reviewer is not itself a reason to repeat the full suite.
 
-Before finalizing the review:
-- inspect the repo for the canonical verification entry points such as `README`, `package.json`, `bunfig.toml`, `Makefile`, `justfile`, language-specific task runners, and CI workflow files
-- prefer the repo's documented commands; in JavaScript or TypeScript repos, prefer `bun` commands over `npm`, `yarn`, or `pnpm` unless the repo clearly uses something else
-- run the narrowest meaningful checks first, then broaden if needed: targeted tests for touched modules, lint for affected packages, typechecks, and full test suites when the risk justifies it
-- treat build or compile failures as review signal when the PR plausibly affects build output or type shape
-- record the exact commands you ran and the result, even when the result is "could not run"
-
-Minimum expectation:
-- behavior changes should usually trigger at least one executed verification command unless the environment or project setup makes that impossible
-- pure refactors still need validation when a cheap relevant check exists
-- if you skip running checks, name the concrete blocker in the review notes
-
-If a command is likely expensive, start with the targeted version that matches the changed code. If verification is blocked by missing dependencies, credentials, services, fixtures, or time, say exactly what prevented execution and how that limits confidence in the review.
+Use the project's canonical commands and the supplied checkout at the captured PR head. Do not create a review worktree or mutate shared runtime state. Coordinate any required runtime check with its owner. Report results inspected, commands executed, and verification limits. Automated manifest validation handles declared hashes and file existence; inspect the retained observations that substantiate acceptance.
 
 ### Step 5 — Check what the PR already acknowledges
 
-Before filing findings, read the PR body carefully for explicitly deferred items, known-gaps sections, migration inventory references, or "intentional non-fix" notes. Also, map the PR's changed files to the corresponding Epic ticket `Scope (In-Scope Files)` in `.constitution/tasks/active/`.
+Before filing findings, read the PR body carefully for explicitly deferred items, known-gaps sections, migration inventory references, or "intentional non-fix" notes. Also, map the PR's changed files to the corresponding Epic ticket `Scope (In-Scope Files)` in `.constitution/tasks/epics/`.
 
 - Do **not** re-file a finding that the PR body already documents as deferred scope (e.g., "follows in Epic Q," "deferred until first publish cycle").
 - Do **not** file an `Investigate` flag for a design choice that already has an explanatory inline comment in the code. The comment resolves the concern — note it as acknowledged, not as a gap.
@@ -150,7 +138,7 @@ Check every category that applies to what changed (Step 2):
 #### Tests, lint, and CI
 - Are relevant tests present for behavior changes?
 - Do tests assert behavior independently, rather than mirroring the implementation? Audit test assertions to make sure they check actual outcomes—verify they are not "gaming the verification" with empty mocks or dummy checks.
-- Were relevant tests, lint, typechecks, or builds actually run locally? Run the specific ticket `Verification Command` if possible.
+- Were relevant tests, lint, typechecks, or builds actually run locally? Inspect its result and execute only missing, invalidated, or risk-driven checks.
 - If not, is the blocker explicit and does it reduce confidence in the review?
 - If project checks exist, are failures meaningful here?
 - Is missing coverage likely to hide regressions?
@@ -197,7 +185,7 @@ Severity discipline:
 - do not expand scope to untouched code unless the change materially depends on it
 - `P2` means a real correctness, quality, or user-visible gap — not "could be cleaner." Import ordering, assertion coverage breadth for already-passing tests, whitespace edge cases, and "slightly friendlier UX" improvements are `General feedback`, not `P2`.
 - Evidence bookkeeping under `.constitution/evidence/` is `General feedback`: manifest wording, a verified-at commit older than the head, a SHA a rebase rewrote. The verified-at commit is historical, not a pin to keep current. The epic lead captures `live_probe` evidence once, before the PR opens, so a `done` `live_probe` ticket with no evidence manifest or no `result` in the PR is a `P1`: an acceptance claim without its proof. Evidence that claims a pass that didn't happen, contradicts the code's behavior, backs a `done` ticket whose `result` is `fail` or `not_met`, or fails `validate` is a `P1`.
-- `Investigate` means you have a grounded concern that needs confirmation — not a design tradeoff already explained by a nearby comment. If the code already has an inline comment explaining the intent of a choice, the concern is resolved; do not re-file it as a flag.
+- `Investigate` means you have a grounded concern that needs confirmation — not a design tradeoff already explained by a nearby comment. An accepted documented tradeoff resolves a preference concern; it does not excuse behavior that contradicts code, a contract, or acceptance criteria.
 
 ### Step 10 — Return the review in the required format
 

@@ -24,7 +24,7 @@ Review the pull request changes against the project's coding standards, Fowler c
 *Note: In-project guidelines in `guidelines.md` always override these baseline smells; where they endorse something the baseline would flag, suppress the smell. Always treat baseline smells as judgement calls.*
 
 ### Constitutional Grounding Protocol & Decision Acknowledgment
-Every finding must trace to a rule, boundary, or guideline under `.constitution/` or to a convention visible in nearby repository code; a finding that rests on a requirement you invented is not a finding. Read the PR body and surrounding code comments before filing: a design choice or styling deviation that an inline comment or the PR body already explains is resolved, so do not file it as a P2 or an Investigate flag.
+Every finding must trace to a rule, boundary, or guideline under `.constitution/` or to a convention visible in nearby repository code; a finding that rests on a requirement you invented is not a finding. Read the PR body and governing project policy before filing. Do not re-file accepted design or style tradeoffs; explanations do not excuse a concrete correctness or acceptance defect.
 
 ---
 
@@ -43,9 +43,9 @@ Every finding must trace to a rule, boundary, or guideline under `.constitution/
     Findings for documents use the same classification and format as code findings, with `path:line-range` pointing into the document.
 
 3.  **Scope Management for Large PRs:** If the PR touches more than roughly 30 files or 1500 lines of diff, do not attempt to review everything in a single pass. Group changed files into logical batches (by module, concern, etc.) and review each batch sequentially.
-4.  **Scope Verification:** Check if any changed files fall outside the cumulative `Scope (In-Scope Files)` of the PR's Epic tickets in `.constitution/tasks/active/`. If they do, verify if there is an accompanying justification entry under `##### [TICKET_ID] Deviations & Justifications` in the active Epic task files or in the PR body. If no justification exists, flag it as an unexplained scope deviation (P2).
+4.  **Scope Verification:** Compare changed files with ticket `scope.in`, `scope.out`, and `deviations` in `.constitution/tasks/epics/EPIC-*.yaml`. Review recorded justifications; flag unexplained scope changes.
 5.  **Audit Standards Categories:** Audit the diff against the comprehensive categories defined below.
-6.  **Run Verification:** Run the project's linting/typecheck commands (e.g. `bun run lint` or `tsc --noEmit`) to verify correctness.
+6.  **Assess Verification:** Inspect recorded results for the same candidate and environment. Run focused lint, type, or behavior checks only for missing or invalidated proof, uncovered risk, or an explicit project rule. Use the supplied checkout read-only and report results inspected and commands executed.
 
 ---
 

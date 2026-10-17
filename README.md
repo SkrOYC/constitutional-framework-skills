@@ -2,7 +2,17 @@
 
 One [skillprism](https://tuvren.github.io/skillprism/) source for the **AI Project Development Framework** skills, compiled to **Claude Code**, **Codex CLI**, and **Grok CLI**.
 
-`skills/` is the only source of truth. Each harness gets its own rendered `SKILL.md` carrying that harness's subagent dispatch, model names, plan-mode behavior, and default review panel, and its own rendered references where those differ. Editors and agents still read the same framework: a governed, directory-isolated artifact chain under `.constitution/`.
+`skills/` is the only source of truth. Each harness gets its own rendered `SKILL.md` carrying that harness's delegation and plan-file mechanics, and its own rendered references where those differ. Editors and agents still read the same framework: a governed, directory-isolated artifact chain under `.constitution/`.
+
+## Execution principles
+
+- Resolve scope, prerequisites, verification ownership, evidence needs, and available model fallbacks during planning.
+- Assign coherent milestones and repair batches. Keep routine corrections with their implementation owner.
+- Reuse valid verification for unchanged inputs; rerun for changed inputs, uncovered risk, or a required project gate.
+- Review independently, with a panel sized to risk and capabilities available in the current harness.
+- Capture minimal acceptance evidence once after implementation freezes. Keep bulk run output outside the constitution.
+
+Harness adapters change tool usage, not these policies. Project instructions supply runtime limits, commands, and stronger requirements. No particular model vendor, application architecture, or deployment environment is required.
 
 ## Harnesses
 
@@ -70,7 +80,7 @@ dist/<harness>/         # build output (gitignored)
 ## How harness differences are handled
 
 - **Tooling paths** use `~/.{{ harness.id }}/skills/...`, which resolves to `~/.claude`, `~/.codex`, or `~/.grok` because the harness ids match the directory names.
-- **`SKILL.md` conditionals**: subagent dispatch, model names, plan mode, review-panel defaults, and messaging are branched with `{% if harness.id == "claude" %} / {% elif harness.id == "codex" %} / {% else %}` (Grok). Only `execute-epic-end-to-end`, `execute-wave`, `interview`, `pr-review-fix-loop`, `specifying-technical-implementation`, and `upgrading-constitution-repos` diverge. A skill without such a branch is harness-neutral in `SKILL.md`, though tooling paths and shared references can still make its rendered output differ per harness.
+- **`SKILL.md` conditionals**: native delegation, plan-mode constraints, and messaging are branched with `{% if harness.id == "claude" %} / {% elif harness.id == "codex" %} / {% else %}` (Grok). Only `execute-epic-end-to-end`, `execute-wave`, `interview`, `pr-review-fix-loop`, `specifying-technical-implementation`, and `upgrading-constitution-repos` diverge. A skill without such a branch is harness-neutral in `SKILL.md`, though tooling paths and shared references can still make its rendered output differ per harness.
 - **Templated references**: any file named `*.j2` anywhere in a skill directory renders once per harness with the suffix stripped ([skillprism#46](https://github.com/Tuvren/skillprism/issues/46), fixed in v0.5.0). The harness-sensitive references are `.md.j2` templates and use the same `harness.*` context as `SKILL.md`. Everything else is copied verbatim, so non-templated references, assets, and scripts must stay harness-neutral.
 - **Descriptions are one short string for all harnesses.** Codex rejects a description over 500 bytes (Claude Code allows more, Grok none documented) and caps its initial skills list, so each description stays comfortably under 500 and prioritizes clarity over richness.
 - **Location-independent scripts.** `upgrading-constitution-repos/scripts/survey.ts` derives the `constitution-tooling` CLI from `import.meta.dir` and scans all three plan directories, so it works from any harness install.
