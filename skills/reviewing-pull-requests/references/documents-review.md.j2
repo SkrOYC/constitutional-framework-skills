@@ -12,7 +12,7 @@ Review a constitution-only pull request: one pipeline stage's output under `.con
 
 Use the caller-supplied checkout and confirm its HEAD matches the PR's captured head. Keep the review read-only: do not switch branches or create review worktrees. If the matching revision is unavailable, report the limitation or request a matching checkout from the caller.
 
-Inspect the existing `validate` result for the same validation inputs, or run `bun run ~/.{{ harness.id }}/skills/constitution-tooling/scripts/cli.ts validate --root <checkout>` when no valid result exists. Every error is a `P1` with its check id; do not manually repeat schema, file-existence, or digest checks already established by validation. For a `tech-spec/` PR, use or obtain a read-only `derive` result and report unapplied drift as `P2`.
+Inspect the existing `validate` result for the same validation inputs, or run `bun run ~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/scripts/cli.ts validate --root <checkout>` when no valid result exists. Every error is a `P1` with its check id; do not manually repeat schema, file-existence, or digest checks already established by validation. For a `tech-spec/` PR, use or obtain a read-only `derive` result and report unapplied drift as `P2`.
 
 ## Step 3: Walk the stage's checklist
 

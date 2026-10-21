@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://tuvren.github.io/skillprism/schema/v1/harness.json
+# Antigravity CLI (Google DeepMind) harness definition.
+#
+# `antigravity` is not a skillprism built-in, so this file supplies its id,
+# capability flags, and directories. Project skills live under `.agents/skills`
+# and user-level CLI skills live under `~/.gemini/antigravity-cli/skills`.
+id: antigravity
+name: Antigravity
+capabilities:
+  supports_subagent: true
+  requires_sidecar: false
+  requires_manifest: false
+  name_max_length: 64
+  description_max_length: 1536
+paths:
+  project_scope_path: ".agents/skills"
+  user_scope_path: ".gemini/antigravity-cli/skills"
+  skill_filename: SKILL.md
+skill_ref_pattern: "/{name}"

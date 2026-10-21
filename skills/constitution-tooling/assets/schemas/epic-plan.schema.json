@@ -129,14 +129,14 @@
     }
   },
   "$defs": {
-    "runtime": { "type": "string", "enum": ["claude", "codex", "grok", "pi", "pig"] },
+    "runtime": { "type": "string", "enum": ["claude", "codex", "grok", "antigravity", "pi", "pig"] },
     "runtimeModel": {
       "type": "object",
       "additionalProperties": false,
       "required": ["runtime", "model"],
       "properties": {
         "runtime": { "$ref": "#/$defs/runtime" },
-        "model": { "type": "string", "minLength": 1, "description": "That runtime's model id; discover ids through the runtime's skill, never guess one" }
+        "model": { "type": "string", "minLength": 1, "description": "That runtime's model id (for antigravity: inherit | pro | flash | flash_lite); discover external ids through the runtime's skill, never guess one" }
       }
     }
   }

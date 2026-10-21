@@ -12,7 +12,7 @@ metadata:
 
 Stage 2 of the four-stage documentation pipeline. It reads the product requirements under `.constitution/prd/` and writes the logical system design under `.constitution/architecture/`, which Stage 3 and Stage 4 treat as binding.
 
-Read `references/framework-overview.md` before you start. Read the archetype block in `constitution.yaml` and the meters in `prd/constraints.yaml` before choosing diagram types or resilience tactics; do not assume a web container topology. Schemas live in `~/.{{ harness.id }}/skills/constitution-tooling/assets/schemas/`; run `validate` before declaring the pass complete.
+Read `references/framework-overview.md` before you start. Read the archetype block in `constitution.yaml` and the meters in `prd/constraints.yaml` before choosing diagram types or resilience tactics; do not assume a web container topology. Schemas live in `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/assets/schemas/`; run `validate` before declaring the pass complete.
 
 ## Inputs
 

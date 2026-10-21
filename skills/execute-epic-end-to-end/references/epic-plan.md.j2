@@ -1,14 +1,14 @@
 # Epic plan file
 
-The contract that lets an epic run without questions. {% if harness.id == "codex" %}It's written and validated in step 0, then approved once by the user:{% else %}It's written in a step-0 plan-mode session and approved once by the user:{% endif %} by the wave lead (`execute-wave`) for every epic in a wave, or by the epic lead itself when it runs standalone. After approval the epic lead reads it as authority and never replans. When the wave lead wrote it, amendments are the wave lead's alone; when the epic lead wrote it, the epic lead appends its own amendments, under the same rules.
+The contract that lets an epic run without questions. {% if harness.id == "codex" or harness.id == "antigravity" %}It's written and validated in step 0, then approved once by the user:{% else %}It's written in a step-0 plan-mode session and approved once by the user:{% endif %} by the wave lead (`execute-wave`) for every epic in a wave, or by the epic lead itself when it runs standalone. After approval the epic lead reads it as authority and never replans. When the wave lead wrote it, amendments are the wave lead's alone; when the epic lead wrote it, the epic lead appends its own amendments, under the same rules.
 
 Resolve the decisions implementation needs here or through the `autonomy` policy. Name prerequisites, coherent work assignments, verification ownership, final gates, required evidence, and approved fallbacks. Leave routine implementation choices to the worker.
 
-The front matter is validated mechanically: `bun run ~/.{{ harness.id }}/skills/constitution-tooling/scripts/cli.ts check-plan <file> --root .` checks it against `constitution-tooling/assets/schemas/epic-plan.schema.json` and cross-checks the epic file, the register, and the sibling epics. Run it {% if harness.id == "grok" %}after the repo plan file is written, and after every amendment. Plan mode cannot write that file: `check-plan` runs after `exit_plan_mode`.{% else %}before presenting the plan and after every amendment.{% endif %}
+The front matter is validated mechanically: `bun run ~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/scripts/cli.ts check-plan <file> --root .` checks it against `constitution-tooling/assets/schemas/epic-plan.schema.json` and cross-checks the epic file, the register, and the sibling epics. Run it {% if harness.id == "grok" %}after the repo plan file is written, and after every amendment. Plan mode cannot write that file: `check-plan` runs after `exit_plan_mode`.{% else %}before presenting the plan and after every amendment.{% endif %}
 
 ## Location
 
-Outside `.constitution/`, always. The orchestrator's write ban on the constitution is what keeps `reconcile` trustworthy, and the plan is a session artifact, not a record. The recommended path is `.{{ harness.id }}/plans/EPIC-<ID>.md` in the main checkout, gitignored, passed to the epic lead as an absolute path. A project may name another location in its agent instructions.{% if harness.id == "grok" %} The session `plan.md` under `~/.grok/sessions/...` is only the plan-mode draft.{% endif %}
+Outside `.constitution/`, always. The orchestrator's write ban on the constitution is what keeps `reconcile` trustworthy, and the plan is a session artifact, not a record. The recommended path is `.{% if harness.id == "antigravity" %}agents{% else %}{{ harness.id }}{% endif %}/plans/EPIC-<ID>.md` in the main checkout, gitignored, passed to the epic lead as an absolute path. A project may name another location in its agent instructions.{% if harness.id == "grok" %} The session `plan.md` under `~/.grok/sessions/...` is only the plan-mode draft.{% endif %}
 
 ## Shape
 
@@ -23,16 +23,16 @@ planned_by: wave_lead                  # wave_lead | self (standalone)
 wave: 1                                # 0 when standalone
 merge_position: 1                      # position in the wave's listed merge order; 1 when standalone
 lanes_in_wave: 3                       # 1 when standalone
-worktree: {% if harness.id == "grok" %}/abs/path/worktrees/EPIC-AD{% else %}/abs/path/.{{ harness.id }}/worktrees/EPIC-AD{% endif %}
+worktree: {% if harness.id == "grok" %}/abs/path/worktrees/EPIC-AD{% elif harness.id == "antigravity" %}/abs/path/.agents/worktrees/EPIC-AD{% else %}/abs/path/.{{ harness.id }}/worktrees/EPIC-AD{% endif %}
 branch: epic/AD-work-planning-foundation
 base_branch: main                    # replace with the project's recorded default branch
 planned_at_commit: 0b37d5f            # default-branch commit the repository_state assertions were checked against
 siblings:                              # every other lane in the wave; empty list when standalone or the wave is one
   - epic: EPIC-AK
-    lead: epic-lead-ak                 # {% if harness.id == "claude" %}that lead's background session name, which is also its SendMessage address{% elif harness.id == "codex" %}the name the orchestrator gave that subagent{% else %}a label for plans and reports, not an address; leads message each other by the subagent id the wave lead records in Amendments after dispatch{% endif %}
+    lead: epic-lead-ak                 # {% if harness.id == "claude" %}that lead's background session name, which is also its SendMessage address{% elif harness.id == "codex" %}the name the orchestrator gave that subagent{% elif harness.id == "antigravity" %}a label for plans and reports; leads message each other with send_message using the conversationId the wave lead records in Amendments after dispatch{% else %}a label for plans and reports, not an address; leads message each other by the subagent id the wave lead records in Amendments after dispatch{% endif %}
     branch: epic/AK-notification-delivery
     merge_position: 2
-models:                                # replace each placeholder with an available, approved model id
+models:                                # replace each placeholder with an available, approved model id{% if harness.id == "antigravity" %} (for runtime antigravity: inherit | pro | flash | flash_lite; use runtime codex or pi for external model ids){% endif %}
   epic_lead: { runtime: {{ harness.id }}, model: <lead model> }
   worker: { runtime: {{ harness.id }}, model: <worker model> }
   spec_patch_worker: { runtime: {{ harness.id }}, model: <spec-patch model> }
@@ -89,7 +89,7 @@ open_decisions:                        # register entries that touch this epic, 
 
 The policy has exactly one entry per trigger; `check-plan` errors on a missing or duplicated trigger, so no situation is left without an action. Asking the user is not an action. It exists only in step 0.
 
-{% if harness.id == "grok" %}In plan mode the wave lead may draft the whole wave in the session plan: each plan starts at a line `<!-- plan: EPIC-<ID> -->` followed by its own front matter and body. A bundle file in the repo is optional. `check-plan` validates a bundle plan by plan and across plans (sibling names, unique merge positions) once that file is written after exit. After approval each plan is copied unchanged to its own file.{% elif harness.id == "codex" %}The wave lead drafts the whole wave in one bundle file: each plan starts at a line `<!-- plan: EPIC-<ID> -->` followed by its own front matter and body, and `check-plan` validates such a bundle plan by plan and across plans (sibling names, unique merge positions). After approval each plan is copied unchanged to its own file.{% else %}In plan mode the wave lead drafts the whole wave in one file: each plan starts at a line `<!-- plan: EPIC-<ID> -->` followed by its own front matter and body, and `check-plan` validates such a bundle plan by plan and across plans (sibling names, unique merge positions). After approval each plan is copied unchanged to its own file.{% endif %}
+{% if harness.id == "grok" %}In plan mode the wave lead may draft the whole wave in the session plan: each plan starts at a line `<!-- plan: EPIC-<ID> -->` followed by its own front matter and body. A bundle file in the repo is optional. `check-plan` validates a bundle plan by plan and across plans (sibling names, unique merge positions) once that file is written after exit. After approval each plan is copied unchanged to its own file.{% elif harness.id == "codex" or harness.id == "antigravity" %}The wave lead drafts the whole wave in one bundle file: each plan starts at a line `<!-- plan: EPIC-<ID> -->` followed by its own front matter and body, and `check-plan` validates such a bundle plan by plan and across plans (sibling names, unique merge positions). After approval each plan is copied unchanged to its own file.{% else %}In plan mode the wave lead drafts the whole wave in one file: each plan starts at a line `<!-- plan: EPIC-<ID> -->` followed by its own front matter and body, and `check-plan` validates such a bundle plan by plan and across plans (sibling names, unique merge positions). After approval each plan is copied unchanged to its own file.{% endif %}
 
 ## Body sections
 

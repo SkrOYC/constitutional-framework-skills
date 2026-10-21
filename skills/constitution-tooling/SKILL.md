@@ -12,7 +12,7 @@ metadata:
 One CLI, run from the skills directory against any repository, so it never enters the project's dependency graph:
 
 ```bash
-bun run ~/.{{ harness.id }}/skills/constitution-tooling/scripts/cli.ts <command> --root <repo> [--json]
+bun run ~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/scripts/cli.ts <command> --root <repo> [--json]
 ```
 
 The structured constitution keeps facts that something reads mechanically in YAML files validated by the schemas under `assets/schemas/`, and prose in markdown with front matter where one fact must be read. `references/layout.md` lists every file, its schema, and who writes it. `references/checks.md` lists every check id the validator can print. Stage skills hand the relevant schema to the agent writing a file; the schema is the output contract.
@@ -72,7 +72,7 @@ A project may downgrade a check to info by listing it under `exceptions` in `con
 ## Tests
 
 ```bash
-bun test ~/.{{ harness.id }}/skills/constitution-tooling/scripts/
+bun test ~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/scripts/
 ```
 
 The fixtures under `assets/fixtures/` are a valid mini-repository, an invalid copy with known violations, and a markdown constitution in the old format for migrate. Tests also cover partial constitutions: Stage 1 only, architecture started but incomplete, tech-spec before tasks, and interview-only. When a check changes, all must still pass.

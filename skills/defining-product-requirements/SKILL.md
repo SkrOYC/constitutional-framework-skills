@@ -14,7 +14,7 @@ Stage 1 of the four-stage documentation pipeline. Read `references/framework-ove
 
 Stage 1 settles what to build, why it matters, whom it serves, which capabilities are required, and what is out of scope. It records those decisions as technology-agnostic files under `.constitution/prd/`, and the product archetype in `.constitution/constitution.yaml`. Stages 2 through 4 read these as their upstream contract.
 
-The data files are the contract. Their schemas live in `~/.{{ harness.id }}/skills/constitution-tooling/assets/schemas/`; read the schema for each file you write, and run `validate` before you declare the pass complete.
+The data files are the contract. Their schemas live in `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/assets/schemas/`; read the schema for each file you write, and run `validate` before you declare the pass complete.
 
 ## Inputs
 
@@ -51,7 +51,7 @@ Stage 1 doesn't choose frameworks, runtimes, databases, cloud vendors, or protoc
 On a repository with no constitution, run `init` first. Init writes Stage 1 files. Later stages are added with `init --stage architecture` (and the later stage names) or by writing the files in those passes. `validate` doesn't require `architecture/`, `tech-spec/`, or `tasks/` yet. On an interview-only tree, run `init --stage prd` instead.
 
 ```bash
-bun run ~/.{{ harness.id }}/skills/constitution-tooling/scripts/cli.ts init --root . --acronym ABC --archetype "CLI/Tooling"
+bun run ~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/scripts/cli.ts init --root . --acronym ABC --archetype "CLI/Tooling"
 ```
 
 Then produce or revise the files below. Re-read every file before you write, so user edits made between turns survive. Integrate each change; don't append disconnected fragments.

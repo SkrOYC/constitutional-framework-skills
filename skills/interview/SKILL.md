@@ -95,7 +95,7 @@ Keep the conversation and judgment with the interviewer. Delegate substantial in
 | Design review | Analysis of methods and alternatives | When a recommendation lacks grounding |
 | Design it twice | Two isolated designers, preferably different models or runtimes | Before an unresolved ADR-level recommendation; reuse their results in Stage 3 |
 
-{% if harness.id == "claude" %}Use the Agent tool for native delegation and an available runtime adapter only when chosen.{% elif harness.id == "codex" %}Use `collaboration.spawn_agent` with `fork_turns: "none"` and an explicit available model and reasoning effort.{% else %}Use `spawn_subagent` with a self-contained brief and the agreed model; an omitted model is allowed only when inheritance was explicitly agreed.{% endif %} Every brief names scope, output, permissions, and a no-further-delegation boundary.
+{% if harness.id == "claude" %}Use the Agent tool for native delegation and an available runtime adapter only when chosen.{% elif harness.id == "codex" %}Use `collaboration.spawn_agent` with `fork_turns: "none"` and an explicit available model and reasoning effort.{% elif harness.id == "antigravity" %}Use `invoke_subagent` (`TypeName: "research"` for read-only reconnaissance, grounding, or design reviews; for a spike that writes scratch files, first register a spike subagent with `define_subagent` setting `EnableWriteTools: true` and `EnableSubagentTools: false`) with a self-contained brief and the agreed `Model` tier (`"pro"`, `"flash"`, `"flash_lite"`, or `"inherit"` when inheritance was agreed); use an available runtime adapter (`codex-subagent` or `pi-subagent`) when an external model ID is chosen.{% else %}Use `spawn_subagent` with a self-contained brief and the agreed model; an omitted model is allowed only when inheritance was explicitly agreed.{% endif %} Every brief names scope, output, permissions, and a no-further-delegation boundary.
 
 Grounding workers return the canonical URL, checked version, date, and supported claim. Check the source needed for your recommendation and cite it in the interview record so later stages reuse the same research.
 ## Interview stance
@@ -120,7 +120,7 @@ Ask one question at a time by default. Batch two to four when their answers are 
 
 ## The register
 
-`reports/open-decisions.yaml`, schema `open-decisions.schema.json` in `~/.{{ harness.id }}/skills/constitution-tooling/assets/schemas/`, is the single live register and this skill owns it.
+`reports/open-decisions.yaml`, schema `open-decisions.schema.json` in `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/assets/schemas/`, is the single live register and this skill owns it.
 
 Only the user defers a question. Every entry records a question the user was actually asked and chose to leave open, or chose to close by evidence. Never register a question you skipped or ran out of budget for: ask it before closing, or drop it.
 
@@ -137,7 +137,7 @@ In each interview: mark entries the user closed as `closed` with the ruling; kee
 
 When a question needs a fact about this system and the work fits in three points, close it here instead of deferring it. Anything larger is registered with `spike` closure for Stage 4 to plan.
 
-Register the entry first, because the spike's name comes from its number. The spike file is `spikes/SPK-<ACRONYM>-OD<NNN>.md`, written from the Stage 4 template at `~/.{{ harness.id }}/skills/planning-engineering-execution/assets/templates/spike.md`. `<NNN>` is the entry's number padded to three digits, so `OD-07` gives `SPK-FIX-OD007`. `OD` is reserved for these spikes, and the validator rejects an epic that takes it as an id.
+Register the entry first, because the spike's name comes from its number. The spike file is `spikes/SPK-<ACRONYM>-OD<NNN>.md`, written from the Stage 4 template at `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/planning-engineering-execution/assets/templates/spike.md`. `<NNN>` is the entry's number padded to three digits, so `OD-07` gives `SPK-FIX-OD007`. `OD` is reserved for these spikes, and the validator rejects an epic that takes it as an id.
 
 Give the subagent the question, the budget in points, and the option set from the entry. It works in a throwaway git worktree or temp directory that's discarded afterwards, and that scratch code is never committed. Measurements go in the spike file's options section with units of measure, never calendar time, because the validator rejects time units in a spike. Read the spike and run `validate` before you use it. When you accept its recommendation, close the entry with the spike as its ruling reference, so the next stage writes against a settled record. When it fails to answer, leave the entry open and record what it ruled out.
 

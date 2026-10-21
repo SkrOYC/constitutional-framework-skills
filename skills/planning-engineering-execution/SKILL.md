@@ -12,7 +12,7 @@ metadata:
 
 Stage 4 of the four-stage documentation pipeline. Read `references/framework-overview.md` before doing stage work. Decompose the contracts, schemas, and guidelines under `tech-spec/` into an epic graph under `tasks/epics/`. Every ticket carries an effort estimate, its place inside its epic, mode-tagged acceptance evidence, the flows it implements, and a certainty tag. Gherkin is one mode, not the only mode.
 
-Schemas live in `~/.{{ harness.id }}/skills/constitution-tooling/assets/schemas/`; `epic.schema.json` is the output contract. Run `render` after writing epics and `validate` before declaring the pass complete.
+Schemas live in `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/assets/schemas/`; `epic.schema.json` is the output contract. Run `render` after writing epics and `validate` before declaring the pass complete.
 
 ## Inputs
 

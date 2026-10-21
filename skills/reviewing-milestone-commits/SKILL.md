@@ -15,7 +15,7 @@ Review a committed milestone as a concrete change to a real codebase, with the s
 
 Use this skill when the epic lead asks for review of a committed milestone during epic execution.
 
-The primary input is a commit SHA. The prompt may also include the epic file path, ticket ids, the acceptance mode and evidence body, the validation command to run, and for a spec-patch milestone the drift report it answers. The constitution is structured YAML; read `~/.{{ harness.id }}/skills/constitution-tooling/references/layout.md` once if the layout is unfamiliar, and inspect a successful `validate` result for the committed validation inputs, running `bun run ~/.{{ harness.id }}/skills/constitution-tooling/scripts/cli.ts validate --root .` when no valid result exists: an error it reports on the committed tree is a `P1` finding with the check id.
+The primary input is a commit SHA. The prompt may also include the epic file path, ticket ids, the acceptance mode and evidence body, the validation command to run, and for a spec-patch milestone the drift report it answers. The constitution is structured YAML; read `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/references/layout.md` once if the layout is unfamiliar, and inspect a successful `validate` result for the committed validation inputs, running `bun run ~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/scripts/cli.ts validate --root .` when no valid result exists: an error it reports on the committed tree is a `P1` finding with the check id.
 
 Do not use it for:
 - code generation

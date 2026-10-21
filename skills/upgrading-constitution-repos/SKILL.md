@@ -10,14 +10,14 @@ metadata:
 
 Bring one repository's `.constitution/` up to the current framework. Nothing breaks if a repository never upgrades: the old layout only produces warnings. The upgrade is worth doing because it removes the duplicate copies of contracts and schemas that turn ordinary code changes into spec patches, gives autonomous runs a way to prove behavior on the running system, and fixes the calibration data.
 
-Read `~/.{{ harness.id }}/skills/specifying-technical-implementation/references/framework-overview.md` first, then the sidecar and live-verification sections of `~/.{{ harness.id }}/skills/specifying-technical-implementation/SKILL.md`. The CLI is `bun run ~/.{{ harness.id }}/skills/constitution-tooling/scripts/cli.ts <command> --root <repo>`.
+Read `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/specifying-technical-implementation/references/framework-overview.md` first, then the sidecar and live-verification sections of `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/specifying-technical-implementation/SKILL.md`. The CLI is `bun run ~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/scripts/cli.ts <command> --root <repo>`.
 
 ## Hard rules
 
 - **One repository per run, named by the user.** Confirm the absolute path before touching anything. If the user has said a repository is off limits, don't run anything there, including read-only commands.
 - **Never during a wave.** The survey's gates must pass: default branch checked out and clean, no open pull requests, no ticket in progress. Look at each extra git worktree it lists; one with unmerged work means an epic is in flight, so stop. When a gate fails, report it and stop; don't work around it.
 - **The two-commit rule holds throughout.** A commit that changes code never changes `prd/`, `architecture/`, or `tech-spec/`, and the reverse. `references/move-map.md` gives the commit order.
-{% if harness.id == "codex" %}- **The user decides once, during planning.** Everything that needs their judgment goes into the plan; after approval, run the phases without further questions, except in phase 3, which is an interactive stage pass by design.{% else %}- **The user decides once, in plan mode.** Everything that needs their judgment goes into the plan; after approval, run the phases without further questions, except in phase 3, which is an interactive stage pass by design.{% endif %}
+{% if harness.id == "codex" or harness.id == "antigravity" %}- **The user decides once, during planning.** Everything that needs their judgment goes into the plan; after approval, run the phases without further questions, except in phase 3, which is an interactive stage pass by design.{% else %}- **The user decides once, in plan mode.** Everything that needs their judgment goes into the plan; after approval, run the phases without further questions, except in phase 3, which is an interactive stage pass by design.{% endif %}
 - **Nothing is merged without the user.** Each phase ends at a review-clean pull request. The user merges, or tells you to.
 - **Commits and PRs.** Branches follow `type/description` (`chore/constitution-upgrade-estimates`, `chore/constitution-upgrade-artifacts`, `docs/constitution-live-verification`). Commit messages and PR bodies are human-written and complete, with body paragraphs on one line each and no AI attribution.
 
@@ -26,7 +26,7 @@ Read `~/.{{ harness.id }}/skills/specifying-technical-implementation/references/
 Run the survey from this skill's directory:
 
 ```bash
-bun ~/.{{ harness.id }}/skills/upgrading-constitution-repos/scripts/survey.ts --root <repo>
+bun ~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/upgrading-constitution-repos/scripts/survey.ts --root <repo>
 ```
 
 It's read-only. It runs `validate` and `derive`, checks the gates, and lists every legacy artifact with a classification, the patchable entries that name raw artifacts, back-filled estimates, declared recipes, sidecars by surface, and surface globs that still point into `tech-spec/`. Keep its output; you'll compare against it at the end. Add `--json` when you need the data programmatically.
@@ -39,6 +39,9 @@ Plan mode lets you write only its one plan file, so do all of this read-only and
 {% elif harness.id == "codex" %}## Step 2: Plan
 
 Write one plan file under the project's plan path or `.codex/plans/` before asking for approval. Codex does not require a special plan-mode file or mode switch.
+{% elif harness.id == "antigravity" %}## Step 2: Plan
+
+Write one plan file under the project's plan path or `.agents/plans/` before asking for approval.
 {% else %}## Step 2: Plan in plan mode
 
 Call `enter_plan_mode`. While it is active the only writable file is the session `plan.md` under `~/.grok/sessions/...`. Do the repository reads first, and put the plan there. If the upgrade plan is already approved, skip plan mode.{% endif %}

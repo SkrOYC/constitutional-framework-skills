@@ -4,11 +4,11 @@ Working notes for this repository. Read this before editing.
 
 ## What this is
 
-A **skillprism v0.5.0** project. `skills/<name>/{skill.yaml,SKILL.md}` is the source of truth; `skillprism build` compiles each skill per harness into `dist/`, and `skillprism add` installs it where an agent reads it. It targets `claude` (Claude Code), `codex` (Codex CLI), and `grok` (Grok CLI). The 14 skills are the constitutional framework.
+A **skillprism v0.5.0** project. `skills/<name>/{skill.yaml,SKILL.md}` is the source of truth; `skillprism build` compiles each skill per harness into `dist/`, and `skillprism add` installs it where an agent reads it. It targets `claude` (Claude Code), `codex` (Codex CLI), `grok` (Grok CLI), and `antigravity` (Antigravity CLI). The 14 skills are the constitutional framework.
 
 ## Status
 
-- ✅ `validate` passes for all 14 skills × 3 harnesses; `build` renders 14 × 3.
+- ✅ `validate` passes for all 14 skills × 4 harnesses; `build` renders 14 × 4.
 - ✅ **References are templated now.** v0.5.0 renders any `*.j2` file anywhere in a skill directory, stripping the suffix. The harness-sensitive references (`framework-overview.md`, `epic-plan.md`, `documents-review.md`, `move-map.md`, `checks.md`) are `.md.j2` templates.
 - ✅ `bun test skills/constitution-tooling/scripts/` passes.
 - ⚠️ **The intentional canonicalization needs one review pass.** The unified source adopts the newest content for each harness, so Codex and Grok gain checks and wording they were missing (Codex `constitution-tooling` gains `format` and newer checks; `commit-push-open-pr` gains autonomous-run handling).
@@ -20,8 +20,9 @@ A **skillprism v0.5.0** project. `skills/<name>/{skill.yaml,SKILL.md}` is the so
 | `claude` (Claude Code) | skillprism built-in | `~/.claude/skills/` | `/skill-name` |
 | `codex` (Codex CLI) | skillprism built-in | `~/.codex/skills/` | `/skill-name` |
 | `grok` (Grok CLI) | custom, `harnesses/grok.yaml` | `~/.grok/skills/` | `/skill-name` |
+| `antigravity` (Antigravity CLI) | custom, `harnesses/antigravity.yaml` | `~/.gemini/antigravity-cli/skills/` | `/skill-name` |
 
-Grok is not a skillprism built-in, so `harnesses/grok.yaml` defines its id, capability flags, and directories.
+Grok and Antigravity are not skillprism built-ins, so `harnesses/grok.yaml` and `harnesses/antigravity.yaml` define their ids, capability flags, and directories.
 
 ## Layout
 
@@ -32,7 +33,9 @@ skills/<name>/
   references/           # *.j2 files are templates; other files are copied verbatim
   assets/               # same: *.j2 rendered, the rest copied
   scripts/              # same: *.j2 rendered, the rest copied
-harnesses/grok.yaml     # custom harness for Grok CLI
+harnesses/
+  grok.yaml             # custom harness for Grok CLI
+  antigravity.yaml      # custom harness for Antigravity CLI
 skillprism.yaml         # harnesses + skills_dir
 dist/<harness>/         # build output (gitignored)
 ```
@@ -40,12 +43,12 @@ dist/<harness>/         # build output (gitignored)
 ## Rules
 
 - **One short description for every harness, comfortably under Codex's 500-byte cap.** Codex rejects a description over 500 (Claude Code allows more, Grok none documented) and caps its initial skills list, so keep descriptions short and clear rather than rich; check the length yourself, because `validate` does not. `validate` reads the *source* `skill.yaml` description, not the rendered frontmatter, so a per-harness description branch cannot work.
-- **Harness conditionals in `SKILL.md` live only in the six skills that genuinely differ**: `execute-epic-end-to-end`, `execute-wave`, `interview`, `pr-review-fix-loop`, `specifying-technical-implementation`, `upgrading-constitution-repos`. The convention is `{% if harness.id == "claude" %}...{% elif harness.id == "codex" %}...{% else %}...{% endif %}` (Grok is `else`). A skill without such a branch is harness-neutral in `SKILL.md`; keep it that way unless a real difference exists.
-- **Tooling paths** use `~/.{{ harness.id }}/skills/...`, which resolves to `~/.claude`, `~/.codex`, or `~/.grok` because the harness ids match the directory names.
+- **Harness conditionals in `SKILL.md` live only in the six skills that genuinely differ**: `execute-epic-end-to-end`, `execute-wave`, `interview`, `pr-review-fix-loop`, `specifying-technical-implementation`, `upgrading-constitution-repos`. The convention is `{% if harness.id == "claude" %}...{% elif harness.id == "codex" %}...{% elif harness.id == "antigravity" %}...{% else %}...{% endif %}` (Grok is `else`). A skill without such a branch is harness-neutral in `SKILL.md`; keep it that way unless a real difference exists.
+- **Tooling paths** use `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/...`, which resolves to `~/.claude/skills`, `~/.codex/skills`, `~/.grok/skills`, or `~/.gemini/antigravity-cli/skills`.
 - **References can be harness-specific via `.j2`.** A reference that names a path, tool, or model per harness is a `.md.j2` template, not a neutral `.md`. Name a file `foo.md.j2`; `build` writes `foo.md`.
 - **`references/framework-overview.md.j2` is duplicated into seven skills and must stay byte-identical.** Edit one, copy to the others, verify with `cmp`.
 - Quote every interpolated frontmatter value with the `yaml_str` filter; `yaml_str` and `tojson` work in `.j2` files too.
-- `constitution-tooling/assets/schemas/epic-plan.schema.json` accepts every runtime (`claude`, `codex`, `grok`, `pi`, `pig`), so a plan written under one harness validates under the others.
+- `constitution-tooling/assets/schemas/epic-plan.schema.json` accepts every runtime (`claude`, `codex`, `grok`, `antigravity`, `pi`, `pig`), so a plan written under one harness validates under the others.
 
 ## skillprism v0.5.0 facts (verified against the binary)
 
@@ -65,15 +68,15 @@ The one intentional neutralization left is a code comment in `constitution-tooli
 
 ## Permanent portability fixes (not workarounds)
 
-- `upgrading-constitution-repos/scripts/survey.ts` derives the `constitution-tooling` CLI from `import.meta.dir` (its own install location) and scans `.claude`, `.codex`, and `.grok` plan dirs. This is correct regardless of templating and should stay.
-- `constitution-tooling/assets/schemas/epic-plan.schema.json` accepts every runtime (`claude`, `codex`, `grok`, `pi`, `pig`). Correctness fix; keep.
-- Codex's 500-byte description cap and the `~/.{{ harness.id }}` tooling-path convention are permanent.
+- `upgrading-constitution-repos/scripts/survey.ts` derives the `constitution-tooling` CLI from `import.meta.dir` (its own install location) and scans `.claude`, `.codex`, `.grok`, and `.agents` plan dirs. This is correct regardless of templating and should stay.
+- `constitution-tooling/assets/schemas/epic-plan.schema.json` accepts every runtime (`claude`, `codex`, `grok`, `antigravity`, `pi`, `pig`). Correctness fix; keep.
+- Codex's 500-byte description cap and the `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills` tooling-path convention are permanent.
 
 ## Before calling a change done
 
 ```bash
 export SKILLPRISM_VERSION=0.5.0
-bunx skillprism@0.5.0 validate .          # all 14 skills × 3 harnesses
+bunx skillprism@0.5.0 validate .          # all 14 skills × 4 harnesses
 bunx skillprism@0.5.0 build --force       # dist/<harness>/ (gitignored)
 ```
 
@@ -81,8 +84,8 @@ Then confirm:
 
 - No unrendered Jinja in `dist/`: `grep -rn '{{' dist` is empty.
 - No `.j2` files in `dist/`: every template was rendered and renamed.
-- `dist/claude`, `dist/codex`, and `dist/grok` each contain 14 skills.
-- Skills differ per harness only in the expected regions: `~/.{{ harness.id }}` tooling paths, harness-conditional `SKILL.md` or reference text, and frontmatter quoting. A skill with none of those stays byte-identical across harnesses.
+- `dist/claude`, `dist/codex`, `dist/grok`, and `dist/antigravity` each contain 14 skills.
+- Skills differ per harness only in the expected regions: tooling paths, harness-conditional `SKILL.md` or reference text, and frontmatter quoting. A skill with none of those stays byte-identical across harnesses.
 - The seven rendered `references/framework-overview.md` copies are identical within a harness.
 - `bun test skills/constitution-tooling/scripts/` passes.
 - Delete `dist/` when done — it is gitignored but should not be left around.
@@ -93,4 +96,4 @@ Then confirm:
 
 ## Do not touch user-level skills
 
-Unless explicitly asked, **never** run `skillprism add --target user`, edit anything under `~/.claude/skills`, `~/.codex/skills`, or `~/.grok/skills`, or run `git` commands that write there. `add --target project` is fine. This repo's `.claude/`, `.codex/`, `.grok/`, `.agents/`, and `dist/` are gitignored.
+Unless explicitly asked, **never** run `skillprism add --target user`, edit anything under `~/.claude/skills`, `~/.codex/skills`, `~/.grok/skills`, or `~/.gemini/antigravity-cli/skills`, or run `git` commands that write there. `add --target project` is fine. This repo's `.claude/`, `.codex/`, `.grok/`, `.agents/`, and `dist/` are gitignored.

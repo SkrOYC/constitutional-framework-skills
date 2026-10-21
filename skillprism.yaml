@@ -3,4 +3,5 @@ harnesses:
   - claude
   - codex
   - grok
+  - antigravity
 skills_dir: skills

@@ -14,7 +14,7 @@ Stage 3 of the four-stage documentation pipeline. Read `references/framework-ove
 
 `tech-spec/` records decisions and points at the code; it doesn't hold a second copy of it. Raw artifacts (SQL, migrations, OpenAPI, AsyncAPI, JSON Schema, `.proto`, public headers) live in the repository where the code builds from them. Keeping them inside `tech-spec/` doubles every change and turns ordinary code edits into spec-patch cycles.
 
-Read the archetype in `constitution.yaml` and the operator preferences in `prd/vision.md`. Do not default to HTTP/OpenAPI unless an HTTP API surface exists. Schemas live in `~/.{{ harness.id }}/skills/constitution-tooling/assets/schemas/`; run `validate` before declaring the pass complete.
+Read the archetype in `constitution.yaml` and the operator preferences in `prd/vision.md`. Do not default to HTTP/OpenAPI unless an HTTP API surface exists. Schemas live in `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/assets/schemas/`; run `validate` before declaring the pass complete.
 
 ## Passes
 
@@ -88,7 +88,7 @@ One file per expensive-to-reverse choice: contract family, persistence engine, c
 
 For every ADR-level choice the user hasn't already ruled on in the session, get two independent designs before you recommend one. Dispatch two designers on available approved models, preferably different models or runtimes. Use the harness's native delegation tool or an available runtime adapter; do not make another provider a prerequisite. Give both the same brief: the question, binding architecture boundaries and flows, PRD constraint meters, and operator preferences. Withhold your own view and each other's output. Reuse independent designs the interview already obtained for the same decision.
 
-{% if harness.id == "claude" %}Use the Agent tool for native workers; use a runtime adapter only when available and chosen.{% elif harness.id == "codex" %}Use `collaboration.spawn_agent` with `fork_turns: "none"` and the approved model; use an available adapter for another chosen runtime.{% else %}Use `spawn_subagent` with the approved model and a self-contained brief; use an available adapter for another chosen runtime.{% endif %}
+{% if harness.id == "claude" %}Use the Agent tool for native workers; use a runtime adapter only when available and chosen.{% elif harness.id == "codex" %}Use `collaboration.spawn_agent` with `fork_turns: "none"` and the approved model; use an available adapter for another chosen runtime.{% elif harness.id == "antigravity" %}Use `invoke_subagent` with `TypeName: "research"`, the approved `Model` tier (`"pro"`, `"flash"`, `"flash_lite"`, or `"inherit"`), and a self-contained brief; use an available adapter (`codex-subagent` or `pi-subagent`) for another chosen runtime or external model ID.{% else %}Use `spawn_subagent` with the approved model and a self-contained brief; use an available adapter for another chosen runtime.{% endif %}
 
 Screen both candidates against the Depth Standard and the Deletion Test, and against the risks in `architecture/risks.md`. Then synthesise: pick a base, graft what the other did better, and record both candidates and the reason for the pick under "Alternatives considered". When the two converge independently, say so; that is strong signal. When they diverge on a point you can't settle, state the question in register shape for the user. Skip the second design only for a choice that is cheap to reverse, and say so in one line.
 

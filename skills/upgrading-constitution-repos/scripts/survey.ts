@@ -67,7 +67,7 @@ for (const f of activeEpics) {
   epicData[f] = e;
   for (const t of e.tickets ?? []) if (t.status && !["planned", "done", "deferred"].includes(t.status)) inProgress.push(`${t.id} (${t.status})`);
 }
-const plansDirs = [".claude", ".codex", ".grok"].map((h) => join(root, h, "plans"));
+const plansDirs = [".claude", ".codex", ".grok", ".agents"].map((h) => join(root, h, "plans"));
 const plans = plansDirs.flatMap((dir) => (existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".md")) : []));
 
 // Validator and derive findings.
