@@ -6,6 +6,14 @@ import { exists, readText, type Model } from "./model.ts";
 // A compound command resolves only when every segment joined by &&, || or ; resolves, and every script
 // path passed as an argument exists; a bare first token is looked up on PATH or in package scripts.
 export function commandResolves(m: Model, command: string): boolean {
+  // A `bash -c '<script>'` or `sh -c '<script>'` wrapper is one command: its script is shell syntax (`!`, `for`,
+  // `done`), not a list of executables, so splitting it on `&&` and `;` would test keywords as binaries. It resolves
+  // when the shell exists and every repository file path the script names exists.
+  const wrapped = /^(bash|sh)\s+-c\s+'([^']*)'$/s.exec(command.trim());
+  if (wrapped) {
+    const paths = [...wrapped[2]!.matchAll(/(?:^|[\s='"])((?:\.\/)?\.?[\w@-][\w.@-]*(?:\/[\w.@-]+)+\.(?:md|sh|bash|ts|js|mjs|cjs|py|yaml|yml|json))(?=$|[\s'";])/g)].map((mm) => mm[1]!.replace(/^\.\//, ""));
+    return Bun.which(wrapped[1]!) !== null && paths.every((p) => exists(m, p));
+  }
   const segments = command.split(/\s*(?:&&|\|\||;)\s*/).map((x) => x.trim()).filter(Boolean);
   return segments.length > 0 && segments.every((seg) => segmentResolves(m, seg));
 }

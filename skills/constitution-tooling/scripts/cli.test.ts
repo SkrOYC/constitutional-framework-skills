@@ -800,6 +800,8 @@ test("commandResolves checks every segment and script path", async () => {
   expect(commandResolves(m, "bun test && ./scripts/does-not-exist.sh --strict")).toBe(false);
   expect(commandResolves(m, "bash scripts/does-not-exist.sh")).toBe(false);
   expect(commandResolves(m, "bun test; definitely-not-a-binary-xyz")).toBe(false);
+  expect(commandResolves(m, `bash -c 'f=.constitution/constitution.yaml; ! grep -qi "fill during execution" "$f" && for l in "A" "B"; do grep -q "$l" "$f" || exit 1; done'`)).toBe(true);
+  expect(commandResolves(m, `bash -c 'f=.constitution/spikes/SPK-NOPE-X001.md; test -s "$f"'`)).toBe(false);
 });
 
 describe("partial constitutions", () => {
