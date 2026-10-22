@@ -298,7 +298,7 @@ export function reconcile(root: string, opts: { date?: string; commit?: boolean;
     let changed = false;
     for (const vc of (gd as any)?.verification_commands ?? []) {
       if (vc.exists === false && vc.owner && archivedIds.has(vc.owner)) {
-        if (commandResolves(m, vc.command)) { vc.exists = true; delete vc.owner; changed = true; (techEntry.added ??= []).push(`Verification command ${vc.command} now exists (${[...archivedIds].find((id) => id)})`); techTouched = true; }
+        if (commandResolves(m, vc.command)) { const owner = vc.owner; vc.exists = true; delete vc.owner; changed = true; (techEntry.added ??= []).push(`Verification command ${vc.command} now exists (${owner})`); techTouched = true; }
         else result.routed.push({ stage: "tech-spec", item: `verification command "${vc.command}" is owned by archived ticket ${vc.owner} and still does not resolve`, from: candidates.find((e) => (e.data.tickets ?? []).some((t: any) => t.id === vc.owner))?.data.id ?? vc.owner });
       }
     }

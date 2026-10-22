@@ -327,6 +327,40 @@ closeout:
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  test("credits a flipped verification command to its own owner ticket, not the first archived ticket", async () => {
+    const { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { reconcile } = await import("./lib/reconcile.ts");
+    const dir = mkdtempSync(`${tmpdir()}/constitution-reconcile-owner-`);
+    const g = (...args: string[]) => { const r = Bun.spawnSync(["git", "-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd: dir, stdout: "pipe", stderr: "pipe" }); if (r.exitCode !== 0) throw new Error(r.stderr.toString()); return r.stdout.toString(); };
+    try {
+      cpSync(`${FIX}/valid`, dir, { recursive: true });
+      g("init", "-q", "-b", "main"); g("add", "."); g("commit", "-q", "-m", "Plan");
+      // bench is owned by FIX-C002, the second of the epic's two tickets
+      writeFileSync(`${dir}/scripts/bench.sh`, "#!/usr/bin/env bash\nexit 0\n"); writeFileSync(`${dir}/package.json`, readFileSync(`${dir}/package.json`, "utf8").replace('"typecheck": "tsc --noEmit"', '"typecheck": "tsc --noEmit",\n    "bench": "./scripts/bench.sh"')); g("add", "."); g("commit", "-q", "-m", "FIX-C002 bench command");
+      const epicPath = `${dir}/.constitution/tasks/epics/EPIC-C-checking.yaml`;
+      writeFileSync(epicPath, readFileSync(epicPath, "utf8").replace(/status: planned/g, "status: done") + `closeout:
+  tickets_completed: [FIX-C001, FIX-C002]
+  tickets_deferred: []
+  points_completed: 5
+  spec_patches: []
+  changelog_entries: []
+  candidate_terms: []
+  routed_upstream: []
+  follow_ups: []
+  code_decisions: []
+  settled: []
+`);
+      g("add", "."); g("commit", "-q", "-m", "Closeout EPIC-C");
+      reconcile(dir, { date: "2026-09-03" });
+      const log = readFileSync(`${dir}/.constitution/tech-spec/changelog.yaml`, "utf8");
+      expect(log).toContain("Verification command bun run bench now exists (FIX-C002)");
+      expect(log).not.toContain("now exists (FIX-C001)");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("check-plan", () => {
