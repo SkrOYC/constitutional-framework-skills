@@ -333,9 +333,12 @@ closeout:
     const { tmpdir } = await import("node:os");
     const { reconcile } = await import("./lib/reconcile.ts");
     const dir = mkdtempSync(`${tmpdir()}/constitution-reconcile-owner-`);
+    const benchCommand = 'BENCHFLAGS="-D warnings" bun run bench';
     const g = (...args: string[]) => { const r = Bun.spawnSync(["git", "-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd: dir, stdout: "pipe", stderr: "pipe" }); if (r.exitCode !== 0) throw new Error(r.stderr.toString()); return r.stdout.toString(); };
     try {
       cpSync(`${FIX}/valid`, dir, { recursive: true });
+      const guidelines = `${dir}/.constitution/tech-spec/guidelines.md`;
+      writeFileSync(guidelines, readFileSync(guidelines, "utf8").replace("command: bun run bench,", `command: '${benchCommand}',`));
       g("init", "-q", "-b", "main"); g("add", "."); g("commit", "-q", "-m", "Plan");
       // bench is owned by FIX-C002, the second of the epic's two tickets
       writeFileSync(`${dir}/scripts/bench.sh`, "#!/usr/bin/env bash\nexit 0\n"); writeFileSync(`${dir}/package.json`, readFileSync(`${dir}/package.json`, "utf8").replace('"typecheck": "tsc --noEmit"', '"typecheck": "tsc --noEmit",\n    "bench": "./scripts/bench.sh"')); g("add", "."); g("commit", "-q", "-m", "FIX-C002 bench command");
@@ -355,8 +358,10 @@ closeout:
       g("add", "."); g("commit", "-q", "-m", "Closeout EPIC-C");
       reconcile(dir, { date: "2026-09-03" });
       const log = readFileSync(`${dir}/.constitution/tech-spec/changelog.yaml`, "utf8");
-      expect(log).toContain("Verification command bun run bench now exists (FIX-C002)");
+      expect(log).toContain(`Verification command ${benchCommand.replaceAll('"', '\\"')} now exists (FIX-C002)`);
       expect(log).not.toContain("now exists (FIX-C001)");
+      expect(readFileSync(guidelines, "utf8")).toMatch(/name: bench[\s\S]*?exists: true/);
+      expect(validate(dir).filter((x) => ["TS-001", "TS-002"].includes(x.id) && x.message.includes(benchCommand)).map((x) => x.message)).toEqual([]);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -824,6 +829,27 @@ test("migrates the field-list markdown format without dropping records", async (
     const findings = validate(dir);
     expect(findings.filter((x) => ["SCH-000", "STR-001", "STR-003", "STR-004"].includes(x.id)).map((x) => `${x.id} ${x.file} ${x.message}`)).toEqual([]);
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("commandResolves handles literal leading environment assignments", async () => {
+  const { loadModel } = await import("./lib/model.ts");
+  const { commandResolves } = await import("./lib/repo.ts");
+  const m = loadModel(`${FIX}/valid`);
+  for (const command of [
+    'RUSTDOCFLAGS="-D warnings" bun run typecheck',
+    'FOO=bar bun test',
+    'lower_case=bar bun test',
+    `FOO='a b' BAR="c d" bun test`,
+    String.raw`FOO=a\ b BAR="c\" d" bun test`,
+    `FOO='a'" b" bun test`,
+  ]) expect(commandResolves(m, command)).toBe(true);
+  for (const command of [
+    `FOO='unterminated bun test`,
+    'FOO="unterminated bun test',
+    "FOO=unfinished\\",
+    `FOO='a b' definitely-not-a-binary-xyz`,
+    `FOO='a b'`,
+  ]) expect(commandResolves(m, command)).toBe(false);
 });
 
 test("commandResolves checks every segment and script path", async () => {

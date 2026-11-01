@@ -18,7 +18,28 @@ export function commandResolves(m: Model, command: string): boolean {
   return segments.length > 0 && segments.every((seg) => segmentResolves(m, seg));
 }
 function segmentResolves(m: Model, command: string): boolean {
-  const tokens = command.trim().split(/\s+/).filter((t) => !/^[A-Z_][A-Z0-9_]*=/.test(t));
+  // Skip leading assignment words without interpreting or executing their values. Whitespace inside
+  // quotes or after a backslash belongs to the assignment, not to the executable name.
+  let rest = command.trim();
+  while (/^[A-Za-z_][A-Za-z0-9_]*=/.test(rest)) {
+    let quote: "'" | '"' | undefined;
+    let i = 0;
+    for (; i < rest.length; i++) {
+      const c = rest[i];
+      if (c === "\\" && quote !== "'") {
+        if (++i >= rest.length) return false;
+      } else if (quote) {
+        if (c === quote) quote = undefined;
+      } else if (c === "'" || c === '"') {
+        quote = c;
+      } else if (/\s/.test(c)) {
+        break;
+      }
+    }
+    if (quote) return false;
+    rest = rest.slice(i).trimStart();
+  }
+  const tokens = rest.split(/\s+/).filter((t) => !/^[A-Z_][A-Z0-9_]*=/.test(t));
   const [head, second] = tokens;
   if (!head) return false;
   const script = tokens.slice(1).find((t) => !t.startsWith("-") && /^(?:\.\/)?[\w.@-]+(?:\/[\w.@-]+)+\.(?:sh|bash|ts|js|mjs|cjs|py|rb|pl)$/.test(t));
