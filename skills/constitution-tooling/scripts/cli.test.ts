@@ -339,6 +339,9 @@ closeout:
       cpSync(`${FIX}/valid`, dir, { recursive: true });
       const guidelines = `${dir}/.constitution/tech-spec/guidelines.md`;
       writeFileSync(guidelines, readFileSync(guidelines, "utf8").replace("command: bun run bench,", `command: '${benchCommand}',`));
+      writeFileSync(`${dir}/docs/check-report.schema.json`, "{}\n");
+      for (const script of ["doctor", "drive-check", "clean"]) writeFileSync(`${dir}/scripts/${script}.sh`, "#!/usr/bin/env bash\nexit 0\n");
+      writeFileSync(`${dir}/package.json`, readFileSync(`${dir}/package.json`, "utf8").replace('"test": "bun test",', '"test": "bun test",\n    "build": "bun build src/cli/parse.ts --outdir dist",'));
       g("init", "-q", "-b", "main"); g("add", "."); g("commit", "-q", "-m", "Plan");
       // bench is owned by FIX-C002, the second of the epic's two tickets
       writeFileSync(`${dir}/scripts/bench.sh`, "#!/usr/bin/env bash\nexit 0\n"); writeFileSync(`${dir}/package.json`, readFileSync(`${dir}/package.json`, "utf8").replace('"typecheck": "tsc --noEmit"', '"typecheck": "tsc --noEmit",\n    "bench": "./scripts/bench.sh"')); g("add", "."); g("commit", "-q", "-m", "FIX-C002 bench command");
@@ -724,7 +727,7 @@ describe("settled record paths stay inside .constitution", () => {
       cpSync(`${FIX}/valid`, dir, { recursive: true });
       writeFileSync(`${dir}/config.yaml`, "certainty: assumed\n");
       const epicPath = `${dir}/.constitution/tasks/epics/EPIC-C-checking.yaml`;
-      writeFileSync(epicPath, readFileSync(epicPath, "utf8") + "closeout:\n  tickets_completed: []\n  tickets_deferred: []\n  points_completed: 0\n  spec_patches: []\n  changelog_entries: []\n  routed_upstream: []\n  follow_ups: []\n  settled:\n    - record: ../config.yaml\n      evidence: { kind: repository, ref: src/core/render.ts, version: \"0000000\", date: \"2026-09-03\" }\n");
+      writeFileSync(epicPath, readFileSync(epicPath, "utf8") + "closeout:\n  tickets_completed: []\n  tickets_deferred: []\n  points_completed: 0\n  spec_patches: []\n  changelog_entries: []\n  candidate_terms: []\n  routed_upstream: []\n  follow_ups: []\n  settled:\n    - record: ../config.yaml\n      evidence: { kind: repository, ref: src/core/render.ts, version: \"0000000\", date: \"2026-09-03\" }\n");
       g("init", "-q", "-b", "main"); g("add", "."); g("commit", "-q", "-m", "Plan");
       writeFileSync(`${dir}/src/core/render.ts`, "export const render = (s: string) => s.trimEnd();\n"); g("add", ".");
       g("commit", "-q", "-m", "fix: trim trailing whitespace", "-m", "Constitution-Lane: fast\nSettles: .constitution/../config.yaml\nEvidence: src/core/render.ts");
@@ -748,7 +751,7 @@ describe("reconcile --epic", () => {
     try {
       cpSync(`${FIX}/valid`, dir, { recursive: true });
       const epicPath = `${dir}/.constitution/tasks/epics/EPIC-C-checking.yaml`;
-      writeFileSync(epicPath, readFileSync(epicPath, "utf8") + "closeout:\n  tickets_completed: []\n  tickets_deferred: []\n  points_completed: 0\n  spec_patches: []\n  changelog_entries: []\n  routed_upstream: []\n  follow_ups: []\n  settled: []\n");
+      writeFileSync(epicPath, readFileSync(epicPath, "utf8") + "closeout:\n  tickets_completed: []\n  tickets_deferred: []\n  points_completed: 0\n  spec_patches: []\n  changelog_entries: []\n  candidate_terms: []\n  routed_upstream: []\n  follow_ups: []\n  settled: []\n");
       g("init", "-q", "-b", "main"); g("add", "."); g("commit", "-q", "-m", "Plan");
       // History has no fast-lane commit, so only the filter decides.
       const noMatch = cli("--epic", "EPIC-Z");
@@ -1604,7 +1607,7 @@ describe("settles targets must be certainty-bearing records", () => {
     try {
       cpSync(`${FIX}/valid`, dir, { recursive: true });
       const epicPath = `${dir}/.constitution/tasks/epics/EPIC-C-checking.yaml`;
-      writeFileSync(epicPath, readFileSync(epicPath, "utf8") + `closeout:\n  tickets_completed: []\n  tickets_deferred: []\n  points_completed: 0\n  spec_patches: []\n  changelog_entries: []\n  routed_upstream: []\n  follow_ups: []\n  settled:\n    - record: tech-spec/guidelines.md\n      evidence: ${EVIDENCE}\n    - record: prd/capabilities.yaml#CAP-003\n      evidence: ${EVIDENCE}\n`);
+      writeFileSync(epicPath, readFileSync(epicPath, "utf8") + `closeout:\n  tickets_completed: []\n  tickets_deferred: []\n  points_completed: 0\n  spec_patches: []\n  changelog_entries: []\n  candidate_terms: []\n  routed_upstream: []\n  follow_ups: []\n  settled:\n    - record: tech-spec/guidelines.md\n      evidence: ${EVIDENCE}\n    - record: prd/capabilities.yaml#CAP-003\n      evidence: ${EVIDENCE}\n`);
       g("init", "-q", "-b", "main"); g("add", "."); g("commit", "-q", "-m", "Plan");
       const guidelines = `${dir}/.constitution/tech-spec/guidelines.md`;
       const before = readFileSync(guidelines, "utf8");

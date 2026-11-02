@@ -1,8 +1,8 @@
 # Epic plan file
 
-The contract that lets an epic run without questions. {% if harness.id == "codex" or harness.id == "antigravity" %}It's written and validated in step 0, then approved once by the user:{% else %}It's written in a step-0 plan-mode session and approved once by the user:{% endif %} by the wave lead (`execute-wave`) for every epic in a wave, or by the epic lead itself when it runs standalone. After approval the epic lead reads it as authority and never replans. When the wave lead wrote it, amendments are the wave lead's alone; when the epic lead wrote it, the epic lead appends its own amendments, under the same rules.
+The approved execution contract. {% if harness.id == "codex" or harness.id == "antigravity" %}Write and validate it in step 0:{% else %}Draft it in a step-0 plan-mode session:{% endif %} the wave lead plans every epic in a wave; the epic lead plans a standalone run. The wave lead sets the cross-epic path and binding envelope. Epic leads adapt execution inside that envelope, including standalone execution. Task authority never grants host, sandbox, filesystem, or network permissions.
 
-Resolve the decisions implementation needs here or through the `autonomy` policy. Name prerequisites, coherent work assignments, verification ownership, final gates, required evidence, and approved fallbacks. Leave routine implementation choices to the worker.
+State outcomes, acceptance, owned scope, contracts, dependencies, resource limits, and delegated authority. Name prerequisites, coherent assignments, verification owners, required evidence and gates, and approved fallbacks. Leave local grouping, independent-step ordering, minor sizing overruns, and implementation choices to the epic lead and workers. Each milestone still needs a fresh worker and independent review.
 
 The front matter is validated mechanically: `bun run ~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/scripts/cli.ts check-plan <file> --root .` checks it against `constitution-tooling/assets/schemas/epic-plan.schema.json` and cross-checks the epic file, the register, and the sibling epics. Run it {% if harness.id == "grok" %}after the repo plan file is written, and after every amendment. Plan mode cannot write that file: `check-plan` runs after `exit_plan_mode`.{% else %}before presenting the plan and after every amendment.{% endif %}
 
@@ -12,7 +12,7 @@ Outside `.constitution/`, always. The orchestrator's write ban on the constituti
 
 ## Shape
 
-YAML front matter carries everything read mechanically; the body carries the plan in prose and tables. Every key below is present; a key that does not apply says so in one line rather than being omitted, so the epic lead never has to guess whether something was forgotten.
+YAML front matter carries mechanical fields; the body carries binding constraints and execution state. Existing plans remain valid without the optional `invocation` and `reasoning_effort` fields. New plans state invocation explicitly; on legacy-plan dispatch, supply those facts in the prompt. Use `none` where a required field doesn't apply.
 
 ```yaml
 ---
@@ -20,6 +20,11 @@ epic: EPIC-AD                          # FAST-<slug> or ISSUE-<number> when kind
 epic_file: .constitution/tasks/epics/EPIC-AD-work-planning-foundation.yaml   # the literal none when there is no epic file
 kind: epic                             # epic | fast_lane | no_constitution
 planned_by: wave_lead                  # wave_lead | self (standalone)
+invocation:
+  mode: orchestrated                   # standalone | orchestrated | single_epic_wave
+  caller: "execute-wave: <confirmed handle>"
+  effective_authority: "Binding envelope and Step-0 rulings below"
+  stop_boundary: "Epic report, or a policy escalation; no merge or reconcile"
 wave: 1                                # 0 when standalone
 merge_position: 1                      # position in the wave's listed merge order; 1 when standalone
 lanes_in_wave: 3                       # 1 when standalone
@@ -32,8 +37,8 @@ siblings:                              # every other lane in the wave; empty lis
     lead: epic-lead-ak                 # {% if harness.id == "claude" %}that lead's background session name, which is also its SendMessage address{% elif harness.id == "codex" %}the name the orchestrator gave that subagent{% elif harness.id == "antigravity" %}a label for plans and reports; leads message each other with send_message using the conversationId the wave lead records in Amendments after dispatch{% else %}a label for plans and reports, not an address; leads message each other by the subagent id the wave lead records in Amendments after dispatch{% endif %}
     branch: epic/AK-notification-delivery
     merge_position: 2
-models:                                # replace each placeholder with an available, approved model id{% if harness.id == "antigravity" %} (for runtime antigravity: inherit | pro | flash | flash_lite; use runtime codex or pi for external model ids){% endif %}
-  epic_lead: { runtime: {{ harness.id }}, model: <lead model> }
+models:                                # available approved models or approved inheritance; don't invent tool options
+  epic_lead: { runtime: {{ harness.id }}, model: <lead model> }{% if harness.id == "codex" %} # optional reasoning_effort uses the actual runtime schema{% endif %}
   worker: { runtime: {{ harness.id }}, model: <worker model> }
   spec_patch_worker: { runtime: {{ harness.id }}, model: <spec-patch model> }
   milestone_reviewer: { runtime: {{ harness.id }}, model: <reviewer model> }
@@ -48,7 +53,7 @@ autonomy:
   policy:                              # what the lead does instead of asking; the defaults are shown
     - { trigger: blocker, action: adopt_recommendation }
     - { trigger: open_decision, action: adopt_recommendation }
-    - { trigger: plan_drift, action: escalate_wave_lead }   # amend_plan when planned_by is self
+    - { trigger: plan_drift, action: escalate_wave_lead }   # binding/shared change only; amend_plan when self or authorized single_epic_wave
     - { trigger: spec_drift, action: amend_plan }           # physical drift becomes a spec-patch milestone
     - { trigger: test_failure, action: retry, max_attempts: 3 }
     - { trigger: review_nonconvergence, action: escalate_strategy }
@@ -66,8 +71,7 @@ budget:
 liveness:
   stall_after_minutes: 45              # no side effect for this long means the lane is stalled
   side_effects: [commit, push, worktree_change, pr_update, plan_amendment]
-verbatim_project_rules:                # passages from the project's agent instructions every worker receives word for word
-  - "Copy only the project runtime rules relevant to these milestones."
+verbatim_project_rules: []              # legacy field; quote only essential constraints, use focused pointers below
 open_decisions:                        # register entries that touch this epic, with the interim assumption if any
   - { id: OD-12, effect: "ABC-AD003 waits", interim: none }
 ---
@@ -79,15 +83,15 @@ open_decisions:                        # register entries that touch this epic, 
 | :--- | :--- |
 | `adopt_recommendation` | Writes the question in register shape in the epic's `decisions` list with its recommendation, marks it `interim` with the places it was applied, and continues. Never writes `prd/`, `architecture/`, or `tech-spec/`, never touches paths outside the epic's scope, never takes an irreversible action; a case that would needs `defer_tickets` instead. |
 | `defer_tickets` | Sets the affected tickets to `deferred` with `deferred_to` and the reason, and continues with the rest. |
-| `retry` | Retries the failing step up to `max_attempts` after diagnosing the failure. Use a coherent fix assignment for a product defect, an approved fallback for service unavailability, or an unchanged focused rerun for a suspected transient. Then falls through to `defer_tickets`. |
-| `amend_plan` | Appends an amendment to the plan (only when the lead owns the plan, or for spec drift, which becomes a spec-patch milestone), runs `check-plan`, and continues. |
-| `escalate_wave_lead` | Stops with the report and waits for the wave lead's message. Invalid when `planned_by: self`. |
+| `retry` | Diagnose the failure and retry up to `max_attempts`. Batch related repairs; after two same-premise failures, state and test the premise before another patch. Use approved availability fallbacks or a focused transient rerun. Then defer affected tickets if needed. |
+| `amend_plan` | Amend binding constraints only within delegated authority, run `check-plan`, and continue. Local regrouping, independent-step ordering, and small guide overruns are ordinary adaptations, recorded in execution state without wave approval. Physical spec drift invokes `specifying-technical-implementation` with `pass: execution-patch` and exact parent-authorized files; the worker returns scoped results without commits, nested agents, versions, changelogs, or a PR. |
+| `escalate_wave_lead` | Report shared or out-of-authority change; hold only affected dependent work and await the ruling. Invalid for self-planned execution or a direct single-epic wave with no separate wave lead. |
 | `stop_lane` | Stops the epic with a blocker report in the final Epic report; the PR opens with what is done. |
-| `resolve_and_rereview` | Dispatches a fix worker to resolve the conflict, then a verification review of the changed patch and CI. |
+| `resolve_and_rereview` | Assigns a fresh fix worker, then independent verification of the changed patch and interactions plus owner-required merge gates. |
 | `escalate_strategy` | Changes approach instead of stopping; see `pr-review-fix-loop`. |
 | `switch_to_fallback` | Moves the affected roles in `budget.fallback_models` to their approved models for budget pressure or unavailability, records it, and continues. `pr_reviewer` supplies replacements for panel entries while preserving independence. |
 
-The policy has exactly one entry per trigger; `check-plan` errors on a missing or duplicated trigger, so no situation is left without an action. Asking the user is not an action. It exists only in step 0.
+The policy has exactly one entry per trigger; `check-plan` errors on missing or duplicated triggers. Routine in-envelope changes don't trigger escalation. Resolve task decisions during step 0 or through delegated authority; actual host permission still applies.
 
 {% if harness.id == "grok" %}In plan mode the wave lead may draft the whole wave in the session plan: each plan starts at a line `<!-- plan: EPIC-<ID> -->` followed by its own front matter and body. A bundle file in the repo is optional. `check-plan` validates a bundle plan by plan and across plans (sibling names, unique merge positions) once that file is written after exit. After approval each plan is copied unchanged to its own file.{% elif harness.id == "codex" or harness.id == "antigravity" %}The wave lead drafts the whole wave in one bundle file: each plan starts at a line `<!-- plan: EPIC-<ID> -->` followed by its own front matter and body, and `check-plan` validates such a bundle plan by plan and across plans (sibling names, unique merge positions). After approval each plan is copied unchanged to its own file.{% else %}In plan mode the wave lead drafts the whole wave in one file: each plan starts at a line `<!-- plan: EPIC-<ID> -->` followed by its own front matter and body, and `check-plan` validates such a bundle plan by plan and across plans (sibling names, unique merge positions). After approval each plan is copied unchanged to its own file.{% endif %}
 
@@ -97,26 +101,30 @@ The policy has exactly one entry per trigger; `check-plan` errors on a missing o
 
 What exists, what is partial, and what is missing for each ticket at `planned_at_commit`, with paths. This is the planner's inspection, and the source of every milestone's assertions below. Cite files, not impressions.
 
+### Binding envelope
+
+State the outcomes, acceptance, owned scope, contracts, dependencies, resource ceiling, permitted actions, and merge authority. Cite authoritative records and user rulings. Distinguish hard constraints from sizing and scheduling guides. A wave lead owns genuinely shared judgment; the epic lead owns execution inside this envelope. A single-epic wave runs directly as epic lead and retains wave merge/reconcile duties without another lead session.
+
 ### Milestones
 
 An ordered list. Each milestone carries:
 
 - **id** in the form `M1`, `M2`, and so on, and a one-line goal.
 - **tickets**: the ids it completes, in ticket order.
-- **acceptance**: the mode per ticket and the evidence body, copied from the epic file rather than paraphrased.
+- **acceptance**: ticket mode and exact evidence pointers. Use relevant source sections rather than copying full records into every worker prompt. Prefer decisive real-interface behavior proof and existing coverage; new isolated unit tests are rare exceptions, with no test-per-ticket or test-first quota.
 - **verification**: focused implementation checks and the final required gate set, copied from declared project commands. Name who runs each and when source freezes. Leads and reviewers reuse valid results for unchanged inputs, adding checks only for uncovered risk or a mandatory project rule. Do not put final `live_probe` capture in an implementation milestone; capture once per epic after the last milestone. A run-mode ticket names its minimal evidence directory.
 - **scope**: in-scope paths and out-of-scope paths for the worker, including the `artifact_path` of any contract or data-model artifact it creates or changes, and the tech-spec records and flow slugs it must follow.
-- **repository_state**: assertions that must hold before the milestone starts, each checkable by path or command. The epic lead verifies them and raises plan drift when one fails.
+- **repository_state**: relevant preconditions checkable by path or command. The epic lead checks changed inputs, distinguishes ordinary adaptation from binding drift, and reuses still-valid readiness on resume.
 - **approach**: constraints the planner sets that the epic file does not, such as an ordering inside the milestone, a pattern to follow from a named existing file, or a thing not to do. Keep it to constraints. How the worker implements is the worker's.
 - **expected_spec_patches**: tech-spec files the planner already expects physical drift in, so the lead can budget the extra commit and review. Expectation does not waive the spec-patch milestone.
 - **independent_of**: milestone ids that may continue while this one is blocked or drifting, or none.
-- **pilot**: `true` on the one milestone the wave runs alone before fanning out, when the wave lead asks for a pilot; absent otherwise.
+- **pilot**: `true` only for an uncertain prerequisite, with its decisive proof and dependent work to hold. Independent work continues.
 
-Size each milestone so its review diff stays under roughly 30 files or 1,500 lines.
+Roughly 30 files or 1,500 lines is a sizing guide, not an escalation threshold. Review each coherent milestone's combined base/head delta once; incidental commits don't each create another gate. Preserve independent milestone coverage and separate code/spec commits. Small related stage changes can share a PR.
 
 ### Step-0 rulings
 
-Every question the planner asked the user in step 0 and the answer, including whether an out-of-band epic waits for a running wave and any override of the default autonomy policy. The lead cites this section instead of asking again.
+Record sourced preferences, user authorization, and rulings, including merge authority, whether an out-of-band epic waits for a running wave, and autonomy overrides. Cite this section on continuation instead of asking again. A task amendment doesn't change actual host permissions.
 
 ### Cross-lane facts
 
@@ -124,12 +132,18 @@ Conventions or identifiers this epic touches that a sibling also touches by refe
 
 ### Operational readiness
 
-Record service prerequisites, the relevant launch/doctor commands, expected startup and observable progress, required cleanup, and known hosted-check blockers. Include approved reviewer fallbacks as well as worker fallbacks. Product failures, jobs that never start, and advancing long-running gates need different responses; do not start duplicate jobs or interrupt an owned state transition to obtain status.
+Record service prerequisites, launch/doctor commands, expected startup, observable progress, cleanup, and owner-required hosted blockers. Establish runtime/tool capabilities once and reuse until they change. Include worker and reviewer fallbacks without weakening independent review. Distinguish product failures, jobs that never start, and advancing gates; never launch duplicate work to obtain status.
+
+Private projects verify locally unless the owner needs remote tests. Projects accepting outside contributions ordinarily use contribution CI; visibility alone doesn't establish the contribution model. Keep tests separate from release authentication, signing, publishing, and deployment. Existing owner-required gates bind the run; don't invent an arbitrary green-CI condition.
 
 ### Project runtime rules
 
-A pointer to the sections of the project's agent instructions that govern shared resources, locks, ports, service lifecycle, and mandatory manual verification, plus anything the planner wants stated here in full. The `verbatim_project_rules` list in the front matter is what workers receive; this section is the epic lead's fuller reading.
+Point to relevant sections for shared resources, locks, ports, service lifecycle, and required manual verification. Pass each worker focused startup pointers, revision, constraints, and expected proof. Reserve `verbatim_project_rules` for essential wording; don't copy background or entire ticket/spec records.
+
+### Execution state
+
+At a handoff, retain sourced preferences and rulings, authorized continuation, mode/caller/authority, stop boundary, current milestone, next gate, valid proof, and native agent/session/command handles. Record material local adaptations here. Derive mechanical status from existing tasks, commits, reports, and native events; don't maintain a second manual ledger. Where supported, distinguish queued, delivered, and applied messages. Restore this state and recheck only invalidated readiness.
 
 ### Amendments
 
-Appended by the plan's owner only (the wave lead, or the epic lead when `planned_by: self`), newest last, each dated with the report or trigger it answers, the autonomy action taken, what changed, and which milestones it affects. Every adopted interim assumption is listed here too. The epic lead re-reads this section whenever the orchestrator messages it to continue.
+Binding amendments belong to the delegated owner: the wave lead for shared changes, or the epic lead within its explicit amendment authority. Date each with its source report/ruling, action, changed constraints, and affected milestones. Keep ordinary adaptations in execution state. Record adopted interim assumptions and re-read applicable amendments on continuation.

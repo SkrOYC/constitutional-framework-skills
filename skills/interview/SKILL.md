@@ -19,19 +19,19 @@ This skill is a conversation, not a generation stage. Its main product is shared
 | PRD | `defining-product-requirements` | None. Work from user intent, draft material, and the codebase. |
 | Architecture | `designing-solution-architecture` | `prd/` |
 | TechSpec | `specifying-technical-implementation` | `prd/`, `architecture/` |
-| Tasks | `planning-engineering-execution` | `prd/`, `architecture/`, `tech-spec/`, the newest `reports/audit-*.md` when planning from an audit, the newest `tasks/changelog.yaml` entry for reconciliation follow-ups, and the actuals under `tasks/completed/` |
+| Tasks | `planning-engineering-execution` | `prd/`, `architecture/`, `tech-spec/`, the newest relevant `reports/audit-*.md`, `tasks/changelog.yaml`, the actuals under `tasks/completed/`, and the derived `Outstanding obligations` section in `tasks/critical-path.md` with its source records |
 | Realign | The stage skills its plan schedules, in pipeline order | Every `.constitution/` directory, the codebase, and `validate` output |
 
-If the user doesn't name a target, ask for one and wait. An example invocation is `/interview for TechSpec`.
+Use the target named by the user or the authorized handoff. If neither identifies a target, ask for one and wait. An example invocation is `/interview for TechSpec`.
 
 ## Calibrate before questioning
 
-Before the first question, estimate the domain's intrinsic complexity and agree on a depth budget.
+Before the first question, restore the target, mode, settled choices, and depth budget from the conversation or handoff. Reuse an agreed budget; otherwise estimate the domain's intrinsic complexity and agree on one.
 
 - Never infer size from the volume of existing artifacts. A thin constitution can sit on top of a large domain.
 - Judge complexity from domain signals: distinct actors, entities with nontrivial lifecycles, external integrations, failure and recovery semantics, the security and compliance surface.
-- Rank evidence sources: running code, then committed documents, then draft material, then the user's description. Treat every claim in a draft as a seed to probe.
-- State your estimate out loud, then agree the pass: the question budget, the reconnaissance you'll dispatch, and how many spikes you can run. After the user picks the full sweep, don't cut it short.
+- For claims about implementation, prefer running code, then committed documents, then draft material. The user's intent and accepted rulings govern the requested behavior. Treat unsupported draft claims as seeds to probe.
+- When depth isn't settled, state your estimate and agree the question budget, reconnaissance, and spike ceiling. After the user picks the full sweep, don't cut it short.
 
 | Pass | Question budget | Reconnaissance subagents | Spikes you can run |
 | :--- | :--- | :--- | :--- |
@@ -43,14 +43,14 @@ Dispatch the reconnaissance as soon as the pass is agreed, so its findings are b
 ## Protocol
 
 1. Read the target skill's `SKILL.md`, so your questions respect its decisions, boundaries, defaults, and schemas. For Realign, read all four.
-2. Read the upstream inputs and the register `reports/open-decisions.yaml`.
-3. Calibrate depth, agree the pass, and dispatch the reconnaissance subagents it names.
-4. Run `validate` and collect the reconnaissance: what's built, the patterns in use, and where the code contradicts an assumed record. Check any finding you rely on yourself.
+2. Read the upstream inputs, `reports/open-decisions.yaml`, and relevant prior rulings and handoffs. Carry their sourced preferences and continuation limits forward.
+3. Calibrate any unsettled depth choices and dispatch the reconnaissance the agreed pass needs. Don't repeat an answered calibration question.
+4. Inspect applicable `validate` evidence and run it only when missing or invalidated. Collect the reconnaissance: what's built, the patterns in use, and where the code contradicts an assumed record. Check any finding you rely on yourself.
 5. Summarize your analysis before you ask anything: the gaps, the disagreements between the constitution and the code, the assumed records, and the expensive paths.
 6. Run Phase A. When it closes, dispatch one parallel batch of grounding subagents for the external facts Phase B will lean on, then run Phase B.
 7. Finish the artifacts.
-8. End by listing the files you wrote, asking the user to commit them as a constitution-only commit, and asking: "Should I run `TARGET_SKILL` now?" For Realign, present the ordered realignment plan and ask to run its first stage skill.
-9. Wait for the answer. Run a skill only if the user agrees.
+8. List the files you wrote and hand the settled context to the target stage. For Realign, include the ordered realignment plan. Keep code and constitution changes in separate commits; small related stage changes can share one coherent PR.
+9. Continue into the named stage when existing user authorization covers it. Otherwise ask once to run it and wait. Stop at the user's stated boundary; completing the interview doesn't expand that authority.
 
 ### Phase A: elicitation
 
@@ -66,7 +66,7 @@ Sweep the surface before settling any design. PRD gets the heaviest sweep. Archi
 
 Settle the design decisions Phase A surfaced. Three patterns mark an ambiguity worth a question: a gap that forces the stage to invent state, schemas, or protocols; a framework default that might conflict with an unstated preference; a path that's expensive to reverse.
 
-For each question, name the upstream record or Phase A answer that prompted it, and give your recommended answer, the alternatives, and their trade-offs. That framing is not optional, because a deferred answer becomes a register entry in exactly that shape.
+For each unresolved question, name the upstream record or Phase A answer that prompted it, and give your recommended answer, the alternatives, and their trade-offs. A deferred answer becomes a register entry in exactly that shape. Don't ask again for a settled choice unless new evidence or changed scope invalidates it; name that change before reopening it.
 
 #### Offer a closure when your ground is thin
 
@@ -95,9 +95,9 @@ Keep the conversation and judgment with the interviewer. Delegate substantial in
 | Design review | Analysis of methods and alternatives | When a recommendation lacks grounding |
 | Design it twice | Two isolated designers, preferably different models or runtimes | Before an unresolved ADR-level recommendation; reuse their results in Stage 3 |
 
-{% if harness.id == "claude" %}Use the Agent tool for native delegation and an available runtime adapter only when chosen.{% elif harness.id == "codex" %}Use `collaboration.spawn_agent` with `fork_turns: "none"` and an explicit available model and reasoning effort.{% elif harness.id == "antigravity" %}Use `invoke_subagent` (`TypeName: "research"` for read-only reconnaissance, grounding, or design reviews; for a spike that writes scratch files, first register a spike subagent with `define_subagent` setting `EnableWriteTools: true` and `EnableSubagentTools: false`) with a self-contained brief and the agreed `Model` tier (`"pro"`, `"flash"`, `"flash_lite"`, or `"inherit"` when inheritance was agreed); use an available runtime adapter (`codex-subagent` or `pi-subagent`) when an external model ID is chosen.{% else %}Use `spawn_subagent` with a self-contained brief and the agreed model; an omitted model is allowed only when inheritance was explicitly agreed.{% endif %} Every brief names scope, output, permissions, and a no-further-delegation boundary.
+{% if harness.id == "claude" %}Use the Agent tool for native delegation and an available runtime adapter only when chosen.{% elif harness.id == "codex" %}Use `collaboration.spawn_agent` with `fork_turns: "none"` and an explicit available model and reasoning effort.{% elif harness.id == "antigravity" %}Use `invoke_subagent` (`TypeName: "research"` for read-only reconnaissance, grounding, or design reviews; for a spike that writes scratch files, first register a spike subagent with `define_subagent` setting `EnableWriteTools: true` and `EnableSubagentTools: false`) with a self-contained brief and the agreed `Model` tier (`"pro"`, `"flash"`, `"flash_lite"`, or `"inherit"` when inheritance was agreed); use an available runtime adapter (`codex-subagent` or `pi-subagent`) when an external model ID is chosen.{% else %}Use `spawn_subagent` with a self-contained brief and the agreed model; an omitted model is allowed only when inheritance was explicitly agreed.{% endif %} Every brief names the role, target revision, bounded question, exact input pointers, constraints, output, permissions, and a no-further-delegation boundary. Do small mechanical reads and corrections directly.
 
-Grounding workers return the canonical URL, checked version, date, and supported claim. Check the source needed for your recommendation and cite it in the interview record so later stages reuse the same research.
+Grounding workers return the canonical URL, checked version, date, and supported claim. Check the source needed for your recommendation and cite it in the interview record so later stages reuse the same research. Reuse applicable research; refresh only claims invalidated by changed versions, inputs, or constraints.
 ## Interview stance
 
 - Challenge, don't absorb. When the user's stated design conflicts with good engineering judgment, say so plainly: name the problem, then offer two or three options with a recommendation.
@@ -117,6 +117,7 @@ Ask one question at a time by default. Batch two to four when their answers are 
 - **Cost of being wrong.** Prioritize expensive-to-reverse decisions. Skip low-impact defaults unless the user raises them.
 - **Unfamiliar decisions.** Teach before you ask for a choice: a plain-language mental model, options by analogy, a lens to apply, then your recommendation and its caveat.
 - **Delegated decisions.** When the user says "you decide," take the framework default, state it back in one line, and stop asking.
+- **Verification preferences.** Carry the owner's contribution model and local or remote verification requirements forward. Don't infer outside contributions from repository visibility or reopen an agreed comments, tests, CI, or release policy without a material change.
 
 ## The register
 
@@ -132,6 +133,8 @@ An entry is a decision, not a topic. It carries one concrete question, what it b
 An `interim` assumption lets downstream work proceed and records where it was applied, so the ruling can revisit those places. Closure requires a ruling reference: this interview record, a spike, a changelog version, or the user's words.
 
 In each interview: mark entries the user closed as `closed` with the ruling; keep unresolved entries `open`; review entries execution proposed (`status: proposed`) with the user and either open them properly or close them. Never delete an entry.
+
+For a Tasks or Realign interview, inspect the derived `Outstanding obligations` section when present and its active or archived source records. Match existing owners, scheduled replacements, accepted rulings, delivery evidence, and explicit retirement before proposing work. An archived epic or a done replacement doesn't by itself close an obligation. Keep material residual risk visible without creating duplicate tickets or a second register.
 
 ### Close a question with a spike
 
@@ -158,15 +161,19 @@ When the target is Realign, the interview upgrades the constitution of a running
 
 ## Artifacts
 
-- `reports/DATE-interview-TARGET.md`: every ruling made, with the user's reasoning, and the pinned sources the grounding returned. This is a log; its rulings reach the constitution through the stage that runs next, cited as `ruling` evidence.
+- `reports/DATE-interview-TARGET.md`: every ruling made, with the user's reasoning, sourced preferences and communication channel, authorized continuation and stop boundary, and the pinned sources the grounding returned. This is a log; its rulings reach the constitution through the stage that runs next, cited as `ruling` evidence.
 - `reports/open-decisions.yaml`: the register, updated as above.
 - `spikes/SPK-<ACRONYM>-OD<NNN>.md`: a spike you ran to close an entry. It's the entry's ruling reference and `spike` evidence for the stage that writes next.
 - `research/<slug>.md`: a design review you commissioned. It informs a ruling; nothing cites it as evidence.
+
+## Handoff and continuation
+
+Pass a compact handoff: role, target and mode, effective authority and its source, settled rulings and preference pointers, communication channel, current unit, next gate, stop boundary, artifact paths, and any native task handles. Include only the context the receiving stage needs. Distinguish queued, delivered, and applied instructions where the harness exposes those states; sending a handoff doesn't prove it was applied. On resume, restore that state and repeat only invalidated readiness checks. A task amendment doesn't grant host permissions.
 
 ## Guardrails
 
 - Write only the artifacts above. Never touch the stage directories, and never commit a spike's scratch code.
 - Don't start without a target from the table.
-- Don't run a generation skill without explicit confirmation.
+- Don't run a generation skill beyond the user's existing authorization. Ask only when that authorization doesn't cover continuation.
 - In Phase B, skip low-impact questions when the defaults are acceptable or the user signals impatience. Phase A depth is governed by the calibration agreement.
 - Don't reopen a decision recorded in `prd/out-of-scope/` unless the user asks to reconsider it.

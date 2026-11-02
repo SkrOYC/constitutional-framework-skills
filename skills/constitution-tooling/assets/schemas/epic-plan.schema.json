@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "epic-plan.schema.json",
-  "title": "Front matter of an epic plan file (execute-epic-end-to-end/references/epic-plan.md), which lives outside .constitution/. Every key is present; one that does not apply says so rather than being omitted. Milestone bodies are not checked.",
+  "title": "Front matter of an epic plan outside .constitution/. Required fields retain legacy compatibility; invocation and reasoning_effort are optional. Milestone bodies are not checked.",
   "type": "object",
   "additionalProperties": false,
   "required": ["kind", "epic", "epic_file", "planned_by", "wave", "merge_position", "lanes_in_wave", "worktree", "branch", "base_branch", "planned_at_commit", "siblings", "models", "review_panel", "pr_review", "autonomy", "budget", "liveness", "verbatim_project_rules", "open_decisions"],
@@ -10,6 +10,17 @@
     "epic": { "type": "string", "pattern": "^(EPIC-[A-Z]{1,2}|FAST-[a-z0-9]+(-[a-z0-9]+)*|ISSUE-[0-9]+)$", "description": "EPIC-<ID> for kind epic; FAST-<slug> or ISSUE-<number> for fast_lane and no_constitution. check-plan enforces the pairing with kind" },
     "epic_file": { "type": "string", "minLength": 1, "description": "For kind epic, the repository-relative path of the epic file, whose id must match epic; for fast_lane and no_constitution, the literal none" },
     "planned_by": { "type": "string", "enum": ["wave_lead", "self"], "description": "wave_lead under execute-wave; self for a standalone epic lead's step-0 plan" },
+    "invocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "caller", "effective_authority", "stop_boundary"],
+      "properties": {
+        "mode": { "type": "string", "enum": ["standalone", "orchestrated", "single_epic_wave"] },
+        "caller": { "type": "string", "minLength": 1 },
+        "effective_authority": { "type": "string", "minLength": 1, "description": "Pointer to approved task authority; never grants host permissions" },
+        "stop_boundary": { "type": "string", "minLength": 1 }
+      }
+    },
     "wave": { "type": "integer", "minimum": 0, "description": "0 when standalone" },
     "merge_position": { "type": "integer", "minimum": 1, "description": "Position in the wave's listed merge order" },
     "lanes_in_wave": { "type": "integer", "minimum": 1 },
@@ -45,7 +56,7 @@
       }
     },
     "review_panel": {
-      "description": "Reviewers that run in parallel on the pull request; the default panel is per harness (Claude and Codex, two Codex models, or Grok and Codex)",
+      "description": "Independent PR reviewers selected for risk and approved runtime availability",
       "type": "array",
       "minItems": 1,
       "items": {
@@ -55,6 +66,7 @@
         "properties": {
           "runtime": { "$ref": "#/$defs/runtime" },
           "model": { "type": "string", "minLength": 1 },
+          "reasoning_effort": { "type": "string", "minLength": 1 },
           "mode": { "type": "string", "enum": ["full", "standards", "spec", "documents"] }
         }
       }
@@ -112,7 +124,7 @@
         "side_effects": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "enum": ["commit", "push", "pr_update", "plan_amendment", "worktree_change"] } }
       }
     },
-    "verbatim_project_rules": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "verbatim_project_rules": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "Legacy field for essential quoted constraints only; focused source pointers belong in the plan body" },
     "open_decisions": {
       "description": "Register entries that touch this epic, with the interim assumption if any",
       "type": "array",
@@ -136,7 +148,8 @@
       "required": ["runtime", "model"],
       "properties": {
         "runtime": { "$ref": "#/$defs/runtime" },
-        "model": { "type": "string", "minLength": 1, "description": "That runtime's model id (for antigravity: inherit | pro | flash | flash_lite); discover external ids through the runtime's skill, never guess one" }
+        "model": { "type": "string", "minLength": 1, "description": "Approved runtime model id or approved inheritance; discover supported selection controls, never guess" },
+        "reasoning_effort": { "type": "string", "minLength": 1, "description": "Optional approved effort when the runtime exposes that control" }
       }
     }
   }

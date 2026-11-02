@@ -1,6 +1,6 @@
 // Converts a markdown constitution (the old skill templates) into the structured layout.
 // Deterministic where the old templates were regular; everything it cannot fill is listed in the report.
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
 import { toBlockYaml } from "./yaml.ts";
 import { estimateLooksBackfilled, findCycle, isInterviewRecord } from "./checks.ts";
@@ -55,9 +55,33 @@ export function migrate(root: string, opts: { date?: string } = {}): Report {
   const date = opts.date ?? today();
   const R: Report = { moved: [], written: [], deleted: [], todo: [], notes: [] };
   const rel = (p: string) => relative(root, p);
+  const reportPath = join(root, ".constitution-migration-report.md");
+  const writeReport = () => {
+    const lines = [`# Constitution migration report`, ``, `Generated ${date}. Delete this file when every item below is done.`, ``, `## To do (${R.todo.length})`, ``, ...R.todo.map((t) => `- [ ] ${t}`), ``, `## Written (${R.written.length})`, ``, ...R.written.map((w) => `- ${w}`), ``, `## Moved (${R.moved.length})`, ``, ...R.moved.map((w) => `- ${w}`), ``, `## Deleted (${R.deleted.length})`, ``, ...R.deleted.map((w) => `- ${w}`), ``];
+    writeFileSync(reportPath, lines.join("\n"));
+  };
   const writeYaml = (p: string, data: unknown) => { mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, toBlockYaml(data) + "\n"); R.written.push(rel(p)); };
   const writeText = (p: string, text: string) => { mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, text.endsWith("\n") ? text : text + "\n"); R.written.push(rel(p)); };
-  const del = (p: string) => { if (has(p)) { rmSync(p, { recursive: true }); R.deleted.push(rel(p)); } };
+  let preservedDir: string | undefined;
+  const del = (p: string, destination: string) => {
+    if (!has(p)) return;
+    if (statSync(p).isDirectory()) {
+      if (readdirSync(p).length) throw new Error(`Refusing to delete nonempty migration source directory ${rel(p)}`);
+    } else {
+      const original = readFileSync(p);
+      if (original.toString("utf8").trim()) {
+        preservedDir ??= mkdtempSync(join(root, ".constitution-migration-sources-"));
+        const preserved = join(preservedDir, relative(c, p));
+        mkdirSync(dirname(preserved), { recursive: true });
+        writeFileSync(preserved, original, { flag: "wx" });
+        R.written.push(rel(preserved));
+        R.todo.push(`${rel(p)}: original preserved at ${rel(preserved)}. Compare every source record and field with ${rel(destination)}; manually migrate unsupported content, including partially recognized records, before removing the preserved source. Automatic conversion does not establish complete coverage.`);
+        writeReport();
+      }
+    }
+    rmSync(p, { recursive: true });
+    R.deleted.push(rel(p));
+  };
   const move = (from: string, to: string) => { mkdirSync(dirname(to), { recursive: true }); renameSync(from, to); R.moved.push(`${rel(from)} -> ${rel(to)}`); };
   const todo = (s: string) => R.todo.push(s);
 
@@ -137,7 +161,7 @@ export function migrate(root: string, opts: { date?: string } = {}): Report {
     entries[0].by = entries[0].by ?? "migrate";
     if (upstreamOf.length) entries[0].upstream = Object.fromEntries(upstreamOf.map((u) => [u, currentVersion(u)]));
     writeYaml(join(c, dir, "changelog.yaml"), { entries });
-    del(p);
+    del(p, join(c, dir, "changelog.yaml"));
     versions.set(dir, entries[0].version);
   };
   const versions = new Map<string, string>();
@@ -213,7 +237,7 @@ export function migrate(root: string, opts: { date?: string } = {}): Report {
   if (!caps.length) todo("prd/capabilities.yaml: no capability bullets recognized; write them");
   if (noJob) todo(`prd/capabilities.yaml: ${noJob} capabilities cite no job; every capability needs at least one JOB id`);
   writeYaml(join(c, "prd/capabilities.yaml"), { capabilities: caps });
-  del(join(c, "prd/capabilities.md"));
+  del(join(c, "prd/capabilities.md"), join(c, "prd/capabilities.yaml"));
 
   const cons: any[] = [];
   const consMd = has(join(c, "prd/constraints.md")) ? read(join(c, "prd/constraints.md")) : "";
@@ -241,9 +265,22 @@ export function migrate(root: string, opts: { date?: string } = {}): Report {
     const id = `NFC-${String(cons.length + 1).padStart(2, "0")}`;
     cons.push({ id, legacy_id: sec.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""), class: classOf(`${grp.title} ${sec.title}`), statement: sentence(sec.title), scale: field("Scale") ?? "TODO", meter: field("Meter") ?? "TODO", goal: field("Goal") ?? "TODO", ...(field("Stretch") ? { stretch: field("Stretch") } : {}), fail: field("Fail") ?? "TODO", certainty: "assumed", assumption: "Migrated target; not yet measured." });
   }
+  for (const sec of sections(consMd).length ? sections(consMd) : [{ title: "Constraints", body: consMd }]) {
+    let cols: Record<string, number> | null = null;
+    for (const row of tableRows(sec.body)) {
+      const header = headerCols(row, { id: /^(constraint id|id)$/, statement: /^(constraint|statement|requirement|description)$/, scale: /^scale$/, meter: /^meter$/, goal: /^goal$/, stretch: /^stretch$/, fail: /^fail$/ });
+      if (header) { cols = header; continue; }
+      if (!cols) continue;
+      const cell = (key: string) => row[cols?.[key] ?? -1]?.trim() ?? "";
+      if (["id", "scale", "meter", "goal", "fail"].some((key) => !cell(key))) continue;
+      const legacy = strip(cell("id"));
+      const scale = sentence(cell("scale"));
+      cons.push({ id: `NFC-${String(cons.length + 1).padStart(2, "0")}`, legacy_id: legacy, class: classOf(sec.title), statement: sentence(cell("statement")) || scale, scale, meter: sentence(cell("meter")), goal: sentence(cell("goal")), ...(cell("stretch") ? { stretch: sentence(cell("stretch")) } : {}), fail: sentence(cell("fail")), certainty: "assumed", assumption: "Migrated target; not yet measured." });
+    }
+  }
   if (cons.some((x) => [x.scale, x.meter, x.goal, x.fail].includes("TODO"))) todo("prd/constraints.yaml: some constraints have TODO in scale, meter, goal, or fail; fill them from the original prose");
   writeYaml(join(c, "prd/constraints.yaml"), { constraints: cons, deferred: [] });
-  del(join(c, "prd/constraints.md"));
+  del(join(c, "prd/constraints.md"), join(c, "prd/constraints.yaml"));
 
   const terms: any[] = [];
   const glossMd = has(join(c, "prd/glossary.md")) ? read(join(c, "prd/glossary.md")) : "";
@@ -254,7 +291,7 @@ export function migrate(root: string, opts: { date?: string } = {}): Report {
   }
   if (!terms.length) todo("prd/glossary.yaml: no glossary table found; write the terms");
   writeYaml(join(c, "prd/glossary.yaml"), { terms });
-  del(join(c, "prd/glossary.md"));
+  del(join(c, "prd/glossary.md"), join(c, "prd/glossary.yaml"));
   todo("prd/glossary.yaml: review do_not_use lists; remove generic English and technical words (the checker greps these on surfaces)");
 
   for (const n of list(join(c, "prd/out-of-scope"))) {
@@ -351,7 +388,7 @@ export function migrate(root: string, opts: { date?: string } = {}): Report {
     if (has(gp0)) { writeText(gp0, read(gp0).trimEnd() + "\n\n## Migrated from stack.md\n\n" + stackProse + "\n"); todo("tech-spec/guidelines.md: prose sections of stack.md were appended under 'Migrated from stack.md'; move each to its owner or delete it"); }
     else todo("tech-spec/stack.md had prose sections with no home and guidelines.md does not exist; recover them from git history");
   }
-  del(join(c, "tech-spec/stack.md"));
+  del(join(c, "tech-spec/stack.md"), join(c, "tech-spec/stack.yaml"));
 
   const gp = join(c, "tech-spec/guidelines.md");
   if (has(gp) && !read(gp).startsWith("---\n")) {
@@ -468,7 +505,7 @@ export function migrate(root: string, opts: { date?: string } = {}): Report {
   }
   for (const e of parsed) {
     const target = join(c, e.active ? "tasks/epics" : "tasks/completed", `EPIC-${e.data.id}-${basename(e.file).replace(/^EPIC-[A-Z]{1,2}-/, "").replace(/\.md$/, "")}.yaml`);
-    writeYaml(target, e.data); del(e.file);
+    writeYaml(target, e.data); del(e.file, target);
   }
   const g = new Map(parsed.map((e) => [e.data.id as string, e.data.depends_on as string[]]));
   const cyc = findCycle(g);
@@ -477,8 +514,8 @@ export function migrate(root: string, opts: { date?: string } = {}): Report {
     todo(`tasks/epics: ${parsed.length} epics migrated. For each: confirm kind (defaulted A tooling, B foundation, others product), give each active epic a planned estimated_diff_lines and set estimate_source: planned (never copy a completed epic's actuals into its estimate; calibration only counts planned estimates), set scope.paths (derived from ticket scopes) and tech_spec_patchable, and set flows on tickets`);
     todo("tasks/epics: cross-epic ticket dependencies were lifted to epic depends_on and removed from the tickets; confirm the epic graph");
   }
-  if (has(join(c, "tasks/active"))) { if (readdirSync(join(c, "tasks/active")).length) todo("tasks/active: files that could not be converted were left there; rename or convert them, then delete the directory"); else del(join(c, "tasks/active")); }
-  del(join(c, "tasks/critical-path.md"));
+  if (has(join(c, "tasks/active"))) { if (readdirSync(join(c, "tasks/active")).length) todo("tasks/active: files that could not be converted were left there; rename or convert them, then delete the directory"); else del(join(c, "tasks/active"), epicOut); }
+  del(join(c, "tasks/critical-path.md"), join(c, "tasks/critical-path.md"));
   writeText(join(c, "tasks/critical-path.md"), "# Critical path\n\nRun `render` to generate this file.\n");
 
   // ---------- spikes ----------
@@ -508,7 +545,7 @@ export function migrate(root: string, opts: { date?: string } = {}): Report {
   }
   decisions.sort((a, b) => a.id.localeCompare(b.id));
   writeYaml(join(reportsDir, "open-decisions.yaml"), { decisions });
-  for (const n of registers) del(join(reportsDir, n));
+  for (const n of registers) del(join(reportsDir, n), join(reportsDir, "open-decisions.yaml"));
   if (decisions.some((d) => d.status !== "closed")) todo(`reports/open-decisions.yaml: ${decisions.filter((d) => d.status !== "closed").length} open entries need options (at least two, with pros and cons), a recommendation, and a closure path (spike with a spike id, or ruling with a ruler)`);
   for (const n of list(reportsDir, "")) {
     if (n === "open-decisions.yaml" || isInterviewRecord(n) || /^audit-\d{4}-\d{2}-\d{2}-\d{6}-[a-z0-9-]+\.md$/.test(n)) continue;
@@ -522,9 +559,7 @@ export function migrate(root: string, opts: { date?: string } = {}): Report {
   if (!has(join(c, "research/README.md"))) writeText(join(c, "research/README.md"), RESEARCH_README);
 
   // ---------- report ----------
-  const reportPath = join(root, ".constitution-migration-report.md");
-  const lines = [`# Constitution migration report`, ``, `Generated ${date}. Delete this file when every item below is done.`, ``, `## To do (${R.todo.length})`, ``, ...R.todo.map((t) => `- [ ] ${t}`), ``, `## Written (${R.written.length})`, ``, ...R.written.map((w) => `- ${w}`), ``, `## Moved (${R.moved.length})`, ``, ...R.moved.map((w) => `- ${w}`), ``, `## Deleted (${R.deleted.length})`, ``, ...R.deleted.map((w) => `- ${w}`), ``];
-  writeFileSync(reportPath, lines.join("\n"));
+  writeReport();
   R.notes.push(`report: ${rel(reportPath)}`);
   return R;
 }

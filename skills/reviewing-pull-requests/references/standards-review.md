@@ -1,108 +1,80 @@
-# PR Review: Standards Axis
+# Standards review
 
-Review the pull request changes against the project's coding standards, Fowler code smells, and cross-cutting structural guidelines.
+Review the PR's conformance to binding project standards and the practical consequences of its structure. Apply the router's candidate, evidence, verification, and completion rules. This mode covers the standards axis; do not imply it establishes full PR correctness.
 
----
+## Read the governing standards
 
-## 1. Reference Sources
+Read relevant `.constitution/tech-spec/guidelines.md` rules, architecture boundaries, repository instructions, and nearby code conventions. Inspect the complete candidate, issue context, PR decisions, and authorized deviations through `gh` or the offline snapshot. Cite the actual rule when a finding depends on one. Do not invent a convention because a familiar pattern seems preferable.
 
-*   **Project Guidelines & Architecture:** Read the project's `.constitution/tech-spec/guidelines.md` (coding standards, project structure, module layout) and structural rules in `.constitution/architecture/` (logical boundaries, modular seams). These are the primary standards.
-*   **Smell Baseline:** Scans for Fowler code smells (each smell is a labeled heuristic / judgement call, never a hard violation, and you must skip anything automatic tooling already enforces):
-    *   **Mysterious Name** — A function, variable, or type whose name doesn't reveal what it does or holds. -> *Fix: Rename it; if no honest name comes, the design is murky.*
-    *   **Duplicated Code** — The same logic shape appears in more than one hunk or file in the change. -> *Fix: Extract the shared shape, call it from both.*
-    *   **Feature Envy** — A method that reaches into another object's data more than its own. -> *Fix: Move the method onto the data it envies.*
-    *   **Data Clumps** — The same few fields or parameters keep travelling together (a type wanting to be born). -> *Fix: Bundle them into one type, pass that.*
-    *   **Primitive Obsession** — A primitive or string standing in for a domain concept that deserves its own type. -> *Fix: Give the concept its own small type.*
-    *   **Repeated Switches** — The same `switch` or `if`-cascade on the same type recurs across the change. -> *Fix: Replace with polymorphism, or a shared map.*
-    *   **Shotgun Surgery** — One logical change forces scattered edits across many files in the diff. -> *Fix: Gather what changes together into one module.*
-    *   **Divergent Change** — One file or module is edited for several unrelated reasons. -> *Fix: Split so each module changes for one reason.*
-    *   **Speculative Generality** — Abstraction, parameters, or hooks added for future needs the spec doesn't have. -> *Fix: Delete it; inline back until a real need shows.*
-    *   **Message Chains** — Long `a.b().c().d()` navigation the caller shouldn't depend on. -> *Fix: Hide the walk behind one method on the first object.*
-    *   **Middle Man** — A class or function that mostly just delegates onward. -> *Fix: Cut it, call the real target direct.*
-    *   **Refused Bequest** — A subclass or implementer that ignores or overrides most of what it inherits. -> *Fix: Drop the inheritance, use composition.*
+Match investigation to the changed surfaces. Documents need accurate instructions, stage ownership, canonical terms, valid references, and coherent downstream claims. Do not apply code smells to prose or run code gates without a relevant claim.
 
-*Note: In-project guidelines in `guidelines.md` always override these baseline smells; where they endorse something the baseline would flag, suppress the smell. Always treat baseline smells as judgement calls.*
+## Investigate structural signals
 
-### Constitutional Grounding Protocol & Decision Acknowledgment
-Every finding must trace to a rule, boundary, or guideline under `.constitution/` or to a convention visible in nearby repository code; a finding that rests on a requirement you invented is not a finding. Read the PR body and governing project policy before filing. Do not re-file accepted design or style tradeoffs; explanations do not excuse a concrete correctness or acceptance defect.
+Fowler smell names describe questions, not defects or prescribed repairs. Skip matters settled by valid automated checks or accepted governing policy. Investigate a signal only when the changed code gives it a concrete consequence:
 
----
+| Signal | Question to decide |
+| :--- | :--- |
+| Mysterious name | Does ambiguity conceal a contract, state, or caller mistake? |
+| Duplicated code | Must these copies evolve together, and is there evidence they already disagree? |
+| Feature envy | Does data access break ownership or invariants, or is this the right orchestration boundary? |
+| Data clumps | Do the values form one invariant-bearing concept, or are they independent inputs? |
+| Primitive obsession | Can an invalid domain value cross a real boundary that a type would protect? |
+| Repeated switches | Can the cases drift, or does explicit branching preserve a useful local contract? |
+| Shotgun surgery | Does one behavior require coordinated edits that are likely to be missed? |
+| Divergent change | Do unrelated responsibilities interfere or create conflicting dependencies? |
+| Speculative generality | Does unused flexibility add concrete complexity, risk, or unsupported behavior? |
+| Message chains | Is the caller coupled to internal ownership that is likely to break its contract? |
+| Middle man | Does delegation preserve a boundary or obscure behavior and errors? |
+| Refused bequest | Does an implementation violate its substitutability or inherited contract? |
 
-## 2. Required Workflow
+Do not recommend extraction, polymorphism, a wrapper type, or composition merely because a smell name fits. Explain the failure or maintenance consequence and assess the cost of changing the design.
 
-1.  **Extract Diff:** Use `gh pr view <number>` and `gh pr diff <number>` to get the changes.
-2.  **Match the Review to What Changed:**
+## Check applicable standards
 
-    Classify the changed files before choosing what to check: application code, tests, configuration and tooling, `.constitution/` documents, other documentation. Review what the PR actually touches.
+- *Layout and boundaries:* Are changed files in the required locations? Do dependencies preserve declared boundaries and allowed import directions?
+- *Patterns and interfaces:* Do error handling, state ownership, data access, and exported signatures match binding conventions or a justified deviation?
+- *Operability:* Do affected critical paths retain required diagnostic signals without leaking sensitive data? Do not demand unrelated logs or telemetry.
+- *Tooling:* Do types, generated artifacts, configuration, and checks preserve the project's workflow and supported environment?
+- *Comments and contracts:* Express intent through names, types, structure, and invariants. Ordinary comments are rare; TSDoc-style contracts and license headers are exempt. Do not request reassuring comments or treat a comment as proof of safety.
+- *Verification:* Prefer meaningful public-interface checks and reusable evidence. Missing unit tests alone is not a standards violation. Do not impose a test quota or repeat valid lint/type results because the reviewer changed.
+- *Scope:* Distinguish routine adaptations within the approved envelope from actual scope expansion or shared-contract changes that need owning authority.
 
-    - **`.constitution/`-only PR.** This is a document review against the framework rules: each directory decides only what its stage owns and never repairs an upstream directory; naming uses the glossary's canonical terms; every touched directory gets a SemVer bump and a changelog entry; versions, counts, ticket IDs, and cross-references agree across files; Mermaid diagrams and links resolve; and any downstream directory the change makes stale is either updated or explicitly flagged. Skip the smell baseline, the Section 3 categories, and the lint/typecheck run. Verification here means confirming that referenced paths exist and diagrams parse.
-    - **Other docs-only PR** (README, guides, comments): check accuracy against the code, stale commands, and dead links or paths. Skip the smell baseline, the Section 3 categories, and the lint/typecheck run.
-    - **Code PR.** Run the full workflow.
-    - **Mixed PR.** Review each part by its own rules, and check that the code matches the constitution changes shipped with it.
+For a broad delta, investigate coherent batches and finish with their interactions. Size alone does not establish a defect or require more reviewers. Record uncovered scope honestly.
 
-    Findings for documents use the same classification and format as code findings, with `path:line-range` pointing into the document.
+## Return findings
 
-3.  **Scope Management for Large PRs:** If the PR touches more than roughly 30 files or 1500 lines of diff, do not attempt to review everything in a single pass. Group changed files into logical batches (by module, concern, etc.) and review each batch sequentially.
-4.  **Scope Verification:** Compare changed files with ticket `scope.in`, `scope.out`, and `deviations` in `.constitution/tasks/epics/EPIC-*.yaml`. Review recorded justifications; flag unexplained scope changes.
-5.  **Audit Standards Categories:** Audit the diff against the comprehensive categories defined below.
-6.  **Assess Verification:** Inspect recorded results for the same candidate and environment. Run focused lint, type, or behavior checks only for missing or invalidated proof, uncovered risk, or an explicit project rule. Use the supplied checkout read-only and report results inspected and commands executed.
+Use the smallest supported severity:
 
----
+- `P0`: A severe standards violation with demonstrated security, data-loss, or production risk.
+- `P1`: A meaningful binding-rule or boundary violation with concrete consequences.
+- `P2`: A smaller demonstrated structural or maintenance defect.
+- `Investigate`: A grounded standards question and the evidence needed to decide it.
+- `General feedback`: A non-blocking observation; a smell name alone is at most a prompt to investigate.
 
-## 3. Standards Review Categories
+Accepted style tradeoffs resolve preference concerns. They do not excuse a proven defect. A source trace can establish the consequence without runtime execution; disclose unavailable execution separately.
 
-### A. Project Guidelines & Layout Consistency
-*   Verify that the code conforms to the exact monospaced project structure in `guidelines.md`.
-*   Ensure files and assets are written to their designated locations (no ad-hoc/out-of-place file additions).
+Return the router's completion fields and findings in this format, omitting empty subsections:
 
-### B. Maintainability, Layering & Seams
-*   **Layering Violations:** Ensure UI layers do not import database/data layer internals directly. Check for circular dependencies.
-*   **Module Size & Focus:** Identify "God modules" or files that are exceptionally large. Ensure modules present a small interface that hides internal complexity.
-*   **Pattern Consistency:** Ensure the patterns used for error handling, data fetching, or state management match the conventions established recently in nearby code.
-
-### C. Observability, Operability & Logging
-*   **Log Structure:** Ensure logs are structured and do not leak PII or private metadata.
-*   **Context Tracing:** Check that critical execution paths pass correlation IDs or request contexts.
-*   **Signal Sufficiency:** Verify that operators will have enough log/metric signals to diagnose failure states on critical paths.
-
-### D. DX & Tooling
-*   Ensure type definitions and exported signatures are clean, documented, and do not introduce compiler/IDE latency.
-
----
-
-## 4. Findings & Classifications
-
-Classify and return findings in this exact format:
-- `P0`: Severe guideline violations, security risks, or production blockers.
-- `P1`: Meaningful guidelines or layering violations.
-- `P2`: Valid design/smell issues (Fowler code smells) or missing scope justifications.
-- `Investigate`: Potential guidelines deviations requiring confirmation.
-- `General feedback`: Style nitpicks or noted deviations.
-
-<output_format>
-
-```markdown
+```md
 ## Standards Findings
 
 ### P0
 path:line-range
-[Description of the severe guidelines or security blocker]
+Rule, evidence, and severe consequence.
 
 ### P1
 path:line-range
-[Description of the guidelines or layering violation]
+Rule, evidence, and consequence.
 
 ### P2
 path:line-range
-[Description of the Fowler code smell or design gap, with a suggested fix]
+Concrete structural defect and consequence.
 
 ### Investigate
 path:line-range
-[Description of the potential standards deviation requiring confirmation]
+Question and decisive evidence needed.
 
 ### General feedback
 path:line-range
-[Nitpicks or noted deviations]
+Non-blocking observation tied to the change.
 ```
-
-</output_format>

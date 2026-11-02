@@ -8,7 +8,8 @@
 ## Question
 
 - **Owner:** the `Spike` ticket id, or the register entry id when an open decision owns it
-- **Decision this spike must produce:** one concrete question the implementation backlog cannot answer safely yet
+- **Decision this spike must produce:** one concrete question whose answer can change dependent implementation
+- **Enough evidence:** the observation that answers the question; stop when it is obtained or the budget is spent
 
 ## Context and objective
 
@@ -21,9 +22,16 @@
 - **State today:** factual findings from direct workspace or codebase inspection
 - **Discovered constraints:** real constraints, dependency boundaries, or structural risks identified
 
+## Decisive pilot or probe
+
+- **Revision and environment:** the candidate and relevant runtime, service, device, or dataset
+- **Public interface and command:** the cheapest executable path that distinguishes the options or tests the assumption; reuse coverage when it already answers the question
+- **Expected observation:** success, failure, threshold, or invariant that changes the decision
+- **Observed result:** concise evidence and its run or artifact reference; disclose unavailable execution and inconclusive results
+
 ## Options and trade-offs
 
-- Option A against option B (add C if needed), with concrete solo-dev parameters, or raw benchmark / measurement results when the spike is measurement-bounded
+- Compare only the alternatives the decision needs, against observed constraints and measurements. Avoid exhaustive speculative contracts or implementation detail.
 
 ## Recommendation
 
@@ -35,6 +43,7 @@
 
 - **ADRs to write or update:** paths or "none"
 - **Tickets unblocked:** exact implementation ticket ids in the epic file, or "none" for a decision-owned spike
+- **Work still held:** only the dependents the evidence doesn't unblock; unrelated work can continue
 - **Register entry closed:** the open decision id this spike rules and the option chosen, or "none"
 - **Tickets to add or split:** if the answer changes scope of work
 - **Spec edits required:** name Stage 3 (or earlier) if the active specs must change; the spike never edits them; the epic lead raises a blocker for the owning stage

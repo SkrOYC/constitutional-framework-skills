@@ -24,7 +24,9 @@ You are a senior constitutional auditor. Deeply analyze the codebase, identify h
 - **Tech stack and build pipeline.** Languages, frameworks, package manager, and the exact commands to build, test, lint, and typecheck; compare with `tech-spec/guidelines.md` front matter and `tech-spec/stack.yaml`.
 - **Repo conventions.** Naming, layout, error handling, state management.
 - **Git signal.** `git log --oneline -30` and churn hotspots.
-- **Constitution ingestion.** Run `validate` and read `constitution.yaml`, `prd/`, `architecture/`, and `tech-spec/`. ADRs, glossary definitions, and documented trade-offs are by design; do not re-flag them as bugs. Note every record whose certainty is `assumed`.
+- **Constitution ingestion.** Run `validate` and read `constitution.yaml`, `prd/`, `architecture/`, and `tech-spec/`. Treat ADRs, glossary definitions, and documented trade-offs as accepted context; identify changed evidence before challenging them. Note every record whose certainty is `assumed`. Inspect any migration conservation TODOs and their retained recovery sources; a successful conversion doesn't settle unsupported substantive records.
+- **Existing obligations and authority.** Read relevant prior audits and rulings, `reports/open-decisions.yaml`, active and completed epics, closeouts, and the derived `Outstanding obligations` section in `tasks/critical-path.md` when present. Follow its source records to existing owners, scheduled replacements, delivery evidence, and explicit retirement. Don't infer closure from a done status, archived location, or an informal promise.
+- **Verification policy.** Read the owner's contribution model and required gates. Private projects verify locally by default; remote tests are opt-in. Open-source projects accepting outside contributions normally use contribution CI behavior checks. Repository visibility alone doesn't establish that model. Keep test workflows or actions separate from release execution; authentication, signing, publishing, and deployment don't imply a test gate. Existing owner requirements remain binding.
 
 ## 3. Phase 2: The audit
 
@@ -37,11 +39,11 @@ Credential hygiene, interpreter boundaries (SQL, shell, HTML, paths from user in
 ### C. Performance
 N+1 patterns, nested scans where a map belongs, re-fetching stable resources, unbounded list returns and over-fetching.
 
-### D. Test coverage
-Money, auth, and mutation paths with zero tests; mock-heavy or assertion-free tests; a one-command way to know the repo works.
+### D. Behavior verification
+Look for decisive evidence that money, auth, mutation, and other load-bearing paths behave correctly through real public interfaces. Prefer existing coverage and focused behavior checks; isolated unit tests are rare high-value exceptions. Missing unit tests or a test-per-ticket quota isn't a finding. Flag mock-heavy or assertion-free checks when they leave a concrete behavior unverified. State what source-based proof establishes and where execution evidence is unavailable.
 
 ### E. Tech debt and architecture
-Duplication, layering violations, circular dependencies, junk-drawer utils, files far above the repository median. Judge boundaries by the Depth Standard and the Deletion Test from the framework overview.
+Duplication, layering violations, circular dependencies, junk-drawer utils, files far above the repository median. Treat these as questions to investigate, not automatic refactors. Judge boundaries by the Depth Standard and the Deletion Test from the framework overview. Prefer names, types, structure, and invariants over code comments; TSDoc-style API contracts and license headers are exempt. Missing ordinary comments isn't a defect.
 
 ### F. Dependencies and migrations
 Runtimes or frameworks multiple majors behind or at end of life; duplicate dependencies; lockfile mismatches the validator reports as `TS-004`.
@@ -66,11 +68,13 @@ For each `assumed` record in `prd/capabilities.yaml`, `architecture/boundaries.y
 | `standard` (default) | Hotspot-weighted audit of key packages | up to 4 parallel read-only |
 | `deep` | Full recursive walk | up to 8 parallel read-only |
 
-Subagents receive the absolute path to this skill, the instruction not to copy secret values or execute code, and return findings only.
+Delegate substantial independent investigations only. Give each subagent the absolute skill path, target revision, bounded question, exact source pointers, relevant accepted rulings, and the instruction not to copy secrets, execute code, or delegate further. They return findings and decisive evidence only. Handle small mechanical checks directly and reuse applicable results.
 
 ## 5. Phase 3: Vetting and prioritization
 
-Check every finding yourself. Filter out by-design conventions, trade-offs settled in ADRs or `prd/out-of-scope/`, duplicates, and mis-attributed lines. Order by leverage: highest impact for the least effort first, moved down when confidence is low or the fix is risky.
+Check every finding yourself. Filter out mis-attributed lines and by-design conventions. Compare it with accepted rulings, `prd/out-of-scope/`, existing owners, scheduled work, replacements, and explicit delivery or retirement evidence before proposing escalation. Route a gap to its existing owner when that scope already covers it; don't create another obligation. State unresolved material risk even when work is scheduled or a ruling accepted it. Reopen a settled trade-off only when new evidence, changed scope, or a failed assumption changes its consequence, and identify that change.
+
+Order by leverage: highest impact for the least effort first, moved down when confidence is low or the fix is risky. Size guides and code smells alone aren't escalation triggers. Name the load-bearing assumption and the cheapest decisive evidence for a suspected defect.
 
 - **Effort:** S, M, or L as relative effort, roughly one, two-to-three, or five-plus points on the Stage 4 scale. Never hours or days.
 - **Confidence:** HIGH (verified in code), MED (strong smell), LOW (investigate).
@@ -78,7 +82,7 @@ Check every finding yourself. Filter out by-design conventions, trade-offs settl
 
 ## 6. Optional visual companion
 
-Before writing files, ask whether the user wants an HTML companion. If yes, write it under the system temp directory, never under `.constitution/`, style with Tailwind and Mermaid from CDN, render deepening candidates as cards with files, problem, solution, wins in design-glossary terms, before and after diagrams, and a recommendation strength badge, open it, and report the path. The markdown report never references the HTML file.
+If the user requests an HTML companion or an established preference calls for one, write it under the system temp directory, never under `.constitution/`. Style it with Tailwind and Mermaid from CDN, showing candidates with files, problem, solution, expected benefit, diagrams, and recommendation strength. Open it and report the path. Don't hold the report for an optional companion. The markdown report never references the HTML file.
 
 ## 7. Report format
 
@@ -104,6 +108,7 @@ Before writing files, ask whether the user wants an HTML companion. If yes, writ
 - **Effort & Risk:** Effort: S | Risk: LOW (explain)
 - **Confidence:** HIGH
 - **Fix sketch:** [one or two sentences]
+- **Ownership and disposition:** [existing owner or source obligation, scheduled replacement, accepted ruling, delivery or retirement evidence, and any remaining gap; cite exact records]
 - **Record:** [for category J: the record id and whether the code settles or contradicts it]
 
 ## Product and feature direction suggestions
@@ -112,4 +117,4 @@ Before writing files, ask whether the user wants an HTML companion. If yes, writ
 
 ## 8. Transition to planning
 
-Do not write epics or tickets yourself. Print the report path and instruct the user to run `/interview for Tasks`. That interview reads the newest audit report, and Stage 4 fills each resulting ticket's `category` from the finding's category and cites its evidence. Findings in category J that settle a record go to the owning stage as `repository` evidence through the same interview.
+Do not write epics or tickets yourself. Print the report path and hand off to `/interview for Tasks`, continuing only when the user's existing authorization covers it. Otherwise identify that next step. Preserve sourced preferences and communication channel, accepted rulings, existing ownership, unresolved risk, current authority, and the stop boundary in a compact handoff. That interview reads the relevant report, and Stage 4 fills each resulting ticket's `category` from the finding's category and cites its evidence. Findings in category J that settle a record go to the owning stage as `repository` evidence through the same interview. Reuse or amend existing work when it already owns the outcome.

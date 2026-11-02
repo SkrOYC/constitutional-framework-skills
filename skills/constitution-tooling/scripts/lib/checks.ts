@@ -3,7 +3,8 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import { matchesAny, overlaps } from "./glob.ts";
-import { STAGE_DIRS, exists, isStageId, readText, recordProblem, sidecarTarget, walkRepo, type Finding, type Model, type Severity } from "./model.ts";
+import { STAGE_DIRS, exists, isStageId, readText, recordProblem, repositoryPath, sidecarTarget, walkRepo, type Finding, type Model, type Severity } from "./model.ts";
+import { deriveObligations } from "./obligations.ts";
 import { commandResolves, lockfileVersions } from "./repo.ts";
 import type { SchemaSet } from "./schema.ts";
 
@@ -71,7 +72,7 @@ const structureCheck: Check = (m) => {
     // file of a measured mode, and any file whose role starts with baseline or measurement.
     const measured = ["benchmark", "stat_threshold", "visual_regression"].includes(ev.manifest.data?.mode);
     for (const file of ev.manifest.data?.files ?? []) {
-      const p = join(m.root, ev.dir, file.path);
+      const p = repositoryPath(m, join(ev.dir, file.path));
       if (!existsSync(p)) { out.push(f("STR-005", "error", ev.manifest.path, `listed file ${file.path} is missing`)); continue; }
       const compared = /^(baseline|measurement)/i.test(String(file.role ?? ""));
       if ((measured || compared) && file.sha256 === undefined) out.push(f("STR-005", "error", ev.manifest.path, `${file.path}: ${measured ? `a ${ev.manifest.data.mode} file` : `a ${file.role} file`} needs a sha256, because a later run compares against it`));
@@ -517,6 +518,7 @@ const tasksCheck: Check = (m) => {
     const excluded = completed.length - usable.length;
     out.push(f("INFO-CAL", "info", ".constitution/tasks", usable.length ? `calibration: actual/estimate = ${(act / est).toFixed(2)} over ${usable.length} completed epics; ${excluded} excluded` : `calibration: no completed epic has a planned estimate and actuals; ${excluded} excluded`));
   }
+  out.push(...deriveObligations(m).findings);
   return out;
 };
 
@@ -553,7 +555,7 @@ const glossaryCheck: Check = (m) => {
   const tally = new Map<string, number>();
   for (const p of files) {
     let text: string; try { text = readText(m, p); } catch { continue; }
-    if (text.slice(0, 512).includes(" ")) continue;
+    if (text.slice(0, 512).includes("\u0000")) continue;
     const onSurface = matchesAny(p, surfaces);
     for (const b of banned) {
       const n = (text.match(b.re) ?? []).length; if (!n) continue;

@@ -3,128 +3,120 @@ name: {{ skill_name | yaml_str }}
 description: {{ skill_description | yaml_str }}
 ---
 
-# PR Review Fix Loop
+# PR review fix loop
 
-## Overview
+Use this skill after a PR exists. Independently review the complete candidate, triage findings, repair coherent causes, and verify the changed scope. A completed milestone review covers that milestone's implementation and acceptance. PR review covers integration, cross-milestone assumptions, and the final claims; earlier reviews do not prove the whole PR.
 
-Use this skill only after the PR already exists. The loop keeps pressure on correctness and ends when a verification round finds nothing new worth acting on. Two things make it converge: findings are triaged by judgment before anything is fixed, and every round after the first reviews only what changed since the last one.
+## Configuration and dispatch
 
-## Configuration
+Use the caller's approved `review_panel`, `fix_worker`, `review_escalate_at`, fallback, and resource policy. An execution caller supplies these from its plan. For a direct invocation without configuration, use one available independent reviewer and a suitable available fixer. Ask only when a needed choice exceeds the existing authority or resource envelope.
 
-The caller passes the configuration; an execution skill passes the plan file's `review_panel` and `pr_review` blocks. Use what is passed and never ask. Only when a user invokes the loop directly and names nothing, ask once for all of it in one question, and save the answer as the preference for the session.
+The configuration controls these decisions:
 
 | Setting | Meaning | Default |
 | :--- | :--- | :--- |
-| `review_panel` | One independent reviewer per entry, each `{runtime, model, mode}` | One for bounded low-risk changes; two for broad or high-risk changes. Use available approved models and runtimes; `documents` mode for constitution-only PRs. |
-| `fix_worker` | Runtime and model of the worker assigned the accepted findings | Choose an available model suited to the repair; use the caller's approved choice. |
-| `review_escalate_at` | The round at which the loop changes strategy if it hasn't converged | 4 |
+| `review_panel` | Independent reviewers, each `{runtime, model, mode}` | One verifier for bounded risk. Add reviewers for distinct security, migration, concurrency, or integration risks; line count alone does not require a panel. Use `documents` for constitution-only PRs. |
+| `fix_worker` | Runtime and model for coherent repairs | The caller's approved choice, or an available model suited to the repair. |
+| `review_escalate_at` | A strategy checkpoint if unresolved findings remain | 4; repeated failure can require a premise check earlier. |
 
-{% if harness.id == "claude" %}Always pass the model explicitly on every dispatch. A Claude panelist runs through the Agent tool. A Codex or pi panelist runs through the `codex-subagent` or `pi-subagent` skill's one-off form with read-only access, using the offline snapshot below when its effective permissions do not allow `gh` network access, told to read `~/.{{ harness.id }}/skills/reviewing-pull-requests/SKILL.md` and follow it, since it can't invoke a Claude skill by name. Discover model ids through that skill's `models` command; never guess one.{% elif harness.id == "codex" %}Dispatch Codex panelists through `collaboration.spawn_agent` with `fork_turns: "none"`, an explicit available model, and reasoning effort. Dispatch pi panelists through `pi-subagent` with read-only access and the offline snapshot below when `gh` network access is unavailable. Every panelist reads `~/.{{ harness.id }}/skills/reviewing-pull-requests/SKILL.md` and follows the requested mode. Use only models actually available in the current harness.{% elif harness.id == "antigravity" %}Always pass the model explicitly on every dispatch. An Antigravity panelist runs through `invoke_subagent` with `Model` set to the configured tier (`"pro"`, `"flash"`, `"flash_lite"`, or `"inherit"`) and a read-only subagent type (`TypeName: "research"`, or a reviewer type defined via `define_subagent` with `EnableWriteTools: false` and `EnableSubagentTools: false`); a fix worker uses a type defined via `define_subagent` with `EnableWriteTools: true` and `EnableSubagentTools: false` (never `"self"`, which retains subagent tools and inherits the lead's prompt). `invoke_subagent` only accepts those four `Model` tiers; for an external model ID, dispatch a Codex or pi panelist through the `codex-subagent` or `pi-subagent` skill's one-off form with read-only access, using the offline snapshot below when its effective permissions do not allow `gh` network access, told to read `~/.gemini/antigravity-cli/skills/reviewing-pull-requests/SKILL.md` and follow it. Discover model ids through that skill's `models` command; never guess one.{% else %}Always pass the model explicitly on every dispatch. A Grok panelist is a `spawn_subagent`. Do not pass a subagent type. The prompt says the reviewer must not create, edit, or delete files, and must not spawn further subagents. A Codex or pi panelist runs through the `codex-subagent` or `pi-subagent` skill's one-off form with read-only access, using the offline snapshot below when its effective permissions do not allow `gh` network access, told to read `~/.{{ harness.id }}/skills/reviewing-pull-requests/SKILL.md` and follow it, since it can't invoke a Grok skill by name. Discover model ids through that skill's `models` command; never guess one. The Grok panelist's model is the one the caller named.{% endif %}
+Establish the runtime's schema, capabilities, and approved model/fallback choice once per session. Recheck only after a runtime change or a failed capability assumption.
 
-## Loop contract
+{% if harness.id == "claude" %}Pass the approved model on every dispatch. A Claude reviewer or fixer uses the Agent tool with an available non-fork type, such as `subagent_type: "general-purpose"`. A `fork` type inherits parent history and is unsuitable for independent review. Check the child type's actual tools; background Agent children can have a reduced tool pool. A Codex or pi reviewer uses the `codex-subagent` or `pi-subagent` skill's one-off form and supported read-only controls. Tell it to read `~/.{{ harness.id }}/skills/reviewing-pull-requests/SKILL.md`; it cannot invoke a Claude skill by name. Discover external model ids through that skill's `models` command. Supply a snapshot when effective permissions do not allow GitHub access.{% elif harness.id == "codex" %}Dispatch Codex reviewers through `collaboration.spawn_agent` with `fork_turns: "none"` and the approved available model and reasoning effort. Full-history forks inherit model and effort and do not accept overrides. A native child inherits the parent's host permissions; a review-only prompt is a role constraint, not a separate sandbox. Dispatch pi reviewers through `pi-subagent` with its supported read-only controls. Every reviewer reads `~/.{{ harness.id }}/skills/reviewing-pull-requests/SKILL.md`. Use a snapshot when effective permissions do not allow GitHub access.{% elif harness.id == "antigravity" %}An Antigravity reviewer uses `invoke_subagent` with a fresh context and the approved schema-supported model choice. Select a review-only type and controls using the exposed tool schema; do not invent tier names or argument casing. Native children inherit host permissions. Disabling write tools can also remove command execution, so a review-only type might be unable to check source identity or run required investigation. Supply a complete snapshot, use an approved capable runtime when needed, and report incomplete coverage when required checks remain unavailable. A fixer receives only its batch's authority and no delegation authority. For an external model id, use the `codex-subagent` or `pi-subagent` skill's one-off form and supported read-only controls; discover ids through that skill's `models` command. Every reviewer reads `~/.gemini/antigravity-cli/skills/reviewing-pull-requests/SKILL.md`.{% else %}A Grok reviewer uses `spawn_subagent`; do not pass a subagent type. Use the exposed schema and approved model or inheritance policy; do not invent a `model` argument when the runtime does not accept it. The prompt prohibits file changes and further delegation. A Codex or pi reviewer uses the `codex-subagent` or `pi-subagent` skill's one-off form and supported read-only controls. Tell it to read `~/.{{ harness.id }}/skills/reviewing-pull-requests/SKILL.md`; it cannot invoke a Grok skill by name. Discover external model ids through that skill's `models` command. Supply a snapshot when effective permissions do not allow GitHub access.{% endif %}
 
-### 1. Confirm the PR
+## Establish the candidate
 
-Identify the PR number from the caller, or resolve it from the current branch with `gh pr view`. Stop if no PR exists yet. If every changed path is under `.constitution/`, run the documents flow in §7 instead of this one.
+Resolve the PR from the caller or `gh pr view`. If no PR exists, return that blocker. Capture the repository, PR number, base and head SHAs, merge base, complete changed-file inventory and diff, issue requirements, comments, reviews, and available check status. Use `documents` when every changed path is under `.constitution/`.
 
-### 2. Round one: the panel
+Confirm the supplied checkout matches the candidate head and has no tracked changes. Reviewers stay in that checkout; they do not switch branches, create worktrees, or change shared runtime state. Establish effective network access for each runtime. A filesystem read-only policy does not by itself establish network availability.
 
-Before dispatch, establish whether each runtime can fetch the PR with its effective permissions. A filesystem read-only policy does not universally imply no network. The `codex-subagent` wrapper's `network` option configures `workspace-write`; turning it on does not grant network to that wrapper's read-only sandbox. Keep the review read-only and supply a snapshot when network is unavailable.
+For offline review, publish a complete immutable snapshot under an ignored worktree scratch directory. Follow both producer and consumer requirements in `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/reviewing-pull-requests/references/offline-snapshot.md`. Reuse immutable material only when its source and inputs remain valid; refresh changed metadata and affected diffs. Never edit a snapshot while reviewers use it. Snapshot reuse does not excuse a partial candidate or stale issue requirements.
 
-For an offline panelist, collect a fresh snapshot under `<worktree>/.{% if harness.id == "antigravity" %}agents{% else %}{{ harness.id }}{% endif %}/scratch/pr-<number>/<head-SHA>/`. Ensure the scratch path is ignored and stays inside the worktree. Follow the producer contract below before dispatching; tell the reviewer its absolute `snapshot` path, expected `head` SHA, and checkout path.
+## Review independently
 
-Spawn every panelist in parallel, with no parent context. Give each only the skill, the PR number, the mode, the expected head and checkout, the snapshot path when needed, and this prompt:
+Dispatch the configured reviewer or reviewers with fresh contexts. Supply only the skill, mode, PR, expected base and head, checkout, optional snapshot, relevant governing policy, and existing verification references. Independent reviewers inspect the assumptions and observations behind that evidence; independence does not require repeating every expensive check.
+
+Use this prompt, replacing the placeholders:
 
 <reviewer_prompt>
 
-```
-{% if harness.id == "codex" or harness.id == "antigravity" %}Read ~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/reviewing-pull-requests/SKILL.md and follow it exactly in mode: "<mode>".{% else %}Run /reviewing-pull-requests and follow it exactly in mode: "<mode>".{% endif %}
+```text
+Read ~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/reviewing-pull-requests/SKILL.md and follow mode: "<mode>".
 
-PR#<number>. Expected head: <head-SHA>. Checkout: <absolute worktree path>. When supplied, read snapshot: <absolute snapshot directory> under the reviewing-pull-requests offline contract. Return the reviewed head SHA, whether required coverage is complete, and findings or an explicit statement that there are none; name verification limits. Report every issue you find, including low-severity ones and uncertain ones filed as Investigate, each with a severity label. Do not pad to a count and do not filter for importance; the loop filters afterwards.
+PR: <number>. Expected base: <base-SHA>. Expected head: <head-SHA>.
+Checkout: <absolute worktree path>. Snapshot, when supplied: <absolute directory>.
+Verification references and governing policy: <paths or none>.
 
-{% if harness.id == "claude" %}Do NOT launch any subagents (no Agent tool use) — do all reading and work directly yourself.{% elif harness.id == "codex" %}Do not spawn or delegate to subagents; do all reading and work directly yourself.{% elif harness.id == "antigravity" %}Do NOT launch any subagents (no invoke_subagent, and no codex or pi workers) — do all reading and work directly yourself.{% else %}Do NOT launch any subagents (no spawn_subagent, and no codex or pi workers) — do all reading and work directly yourself.{% endif %}
+Review the full candidate in this mode. Identify load-bearing safety assumptions and use the cheapest decisive evidence for the changed behavior. Return the reviewed base/head, coverage completed and any gaps, findings or an explicit statement that there are none, acceptance evidence limits, and checks inspected or run. Report grounded low-severity findings and Investigate concerns without padding to a count.
+
+Do not create, edit, or delete files, alter shared runtime state, or spawn further subagents. Work directly within the granted host permissions.
 ```
 
 </reviewer_prompt>
 
-{% if harness.id != "codex" and harness.id != "antigravity" %}For a Codex or pi panelist, replace the first line with `Read ~/.{{ harness.id }}/skills/reviewing-pull-requests/SKILL.md and follow it exactly in mode: "<mode>".`
+When multiple reviewers are justified, dispatch independent reviews in parallel and wait for each required result before triage. Use approved fallbacks for unavailable runtimes. An empty response, access failure, wrong revision, or incomplete review is not clean. Repair the concrete input or runtime problem and retry once when useful. If no approved route completes, report a blocker.
 
-{% endif %}Wait for every panelist before triage. Use the plan's approved reviewer fallback when a model cannot run; do not spend repeated attempts on the same unavailable service. A completed review names the expected head, confirms coverage, and returns findings or explicitly states there are none. An empty response, access failure, mismatched revision, or incomplete review is re-dispatched once after repairing its inputs or runtime. If that attempt and any approved fallback cannot complete, report the review blocker to the caller; do not declare the PR review-clean. This rule applies to every runtime, round, and documents-mode panel. Confirm the PR's head and base SHAs still match the reviewed inputs before accepting the round; if either changed, refresh the inputs and review the changed candidate.
+Before accepting a result, confirm the candidate base/head and relevant hosted requirements remain current. Refresh changed context and invalidate only affected judgments or coverage. A base change can alter integration risk even when the head is unchanged.
 
-#### Offline snapshot producer contract
+## Triage findings
 
-Collect `pr.json` with `gh pr view <number> --json number,title,body,author,baseRefName,headRefName,baseRefOid,headRefOid,files,commits,comments,reviews`, then `pr.diff` with `gh pr diff <number>`. If the hosting API cannot return the complete diff but both captured commits exist locally, use `git diff <merge-base> <head-SHA>` and record that source; keep the same revision and completeness checks. Capture `commits.txt` with `git log --format=fuller <merge-base>..<head-SHA>`, where the merge base is computed from the captured base and head SHAs. Fetch missing objects before dispatch; never ask an offline reviewer to fetch them.
+Read each finding against the code and governing requirements. Deduplicate shared defects and retain reviewer attribution. Agreement is supporting signal, not proof. Choose one bucket and record a short reason:
 
-Read the PR's explicit issue references and collect their number, URL, title, body, state, and comments with `gh issue view <issue> --json number,url,title,body,state,comments`; write the records as an array in `issues.json`, or `[]` when none is referenced. Collect `checks.json` with `gh pr view <number> --json statusCheckRollup` when available. An optional checks fetch failure goes in `unavailable.txt`; a required PR or issue fetch failure blocks dispatch. In a verification round, write the exact prior reviewed SHA to `since.txt` and capture `since.diff` with `git diff <since-SHA> <head-SHA>`.
+- *Act on:* A confirmed `P0` or `P1`, or a real `P2` correctness, user-facing, contract, or acceptance defect. Broken documented commands and handoffs count.
+- *Consider:* A valid improvement whose cost or scope exceeds its value for this candidate. Fix it only when authorized and worthwhile; otherwise name its follow-up owner.
+- *Noted:* Valid context or historical evidence bookkeeping. An older verified-at SHA is not itself a defect. Missing required proof, a false pass, contradictory observations, failed validation, or a `done` ticket with failed or absent required results belongs in Act on.
+- *Dismissed:* Unsupported, incorrect, preference-only, or already resolved by governing policy. Cite the evidence or accepted ruling. A comment can explain intent; it cannot prove safety or dismiss a concrete defect.
 
-Require the checkout's `git rev-parse HEAD` to match `headRefOid` and its tracked files to be clean. Re-read `headRefOid` and `baseRefOid` from GitHub after collection. If either changed, discard the candidate snapshot and capture again; if it changes again during that retry, report an unstable-candidate blocker. Publish a complete snapshot only after these checks, and keep it unchanged while its panelists run. The consumer contract is `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/reviewing-pull-requests/references/offline-snapshot.md`.
+Preserve triage, dismissals, candidate identities, and strategy decisions in the existing local run artifact or execution record. Do not create a separate manually synchronized ledger. Publish one cumulative PR update at completion or a material blocker, unless the owner requires per-round comments.
 
-### 3. Triage: you are the lead, not an aggregator
+If the initial review is complete and has no Act-on findings, proceed to completion. There is no repair delta to verify.
 
-Read every finding, deduplicate the ones that describe the same defect in different words, and note which panelists raised each. A finding two model families raised independently is the strongest signal the loop gets; a lone finding still gets read. Then check each finding against the code yourself: re-read the cited lines and their surroundings, and run a check when one settles it. Sort every finding into one bucket, with a one-line reason:
+## Repair coherent causes
 
-- **Act on.** A `P0` or `P1` that holds up locally, or a `P2` that is a real correctness or user-facing defect, including anything that would make a documented command, instruction, or handoff fail when followed literally. These get fixed this round.
-- **Consider.** Legitimate, but the fix costs more than it's worth now. Fixed only if cheap; otherwise reported as a follow-up.
-- **Noted.** Valid and not actionable: context-dependent, premature, or low impact at this stage. Evidence bookkeeping lands here, whatever severity the reviewer gave it: manifest wording, a stale verified-at commit, a SHA a rebase rewrote. Evidence that claims a pass that didn't happen, contradicts the code's behavior, backs a `done` ticket whose `result` is `fail` or `not_met`, or fails `validate` is a defect, and goes to Act on. So does a `done` `live_probe` ticket with no evidence manifest or no `result`: that is an acceptance claim without its proof, not bookkeeping.
-- **Dismissed.** Wrong, a nitpick, or missing context that the code or a nearby comment already supplies. The reason says which.
+Group accepted findings by shared root cause, owned scope, and validation needs. Use one bounded fix assignment per substantive batch; the lead can handle a mechanical correction within its authority. Keep the same worker responsible for routine formatting, typing, and focused verification within that assignment. Do not create workers or commits for each minor nit.
 
-Post one PR comment per round with the triage table: finding, panelists, bucket, reason. Dismissals with reasons on the record are what stop the next round from re-filing them.
+Give the fixer the candidate, accepted findings, relevant paths and constraints, prior failed attempts, and the required evidence. Require these outcomes:
 
-If round one's triage has no Act-on finding, the loop is done: skip §4 and §5 and go to §8. A round with nothing to fix has nothing to verify.
+- Re-read the affected code and determine why the defect occurs. Fix the cause within authority; do not hide an impossible state with a guard or retry.
+- Express meaning in names, types, structure, and invariants. Ordinary code comments are rare; TSDoc-style API contracts and license headers are exempt. Do not add reassuring comments to satisfy review.
+- Reconcile affected contracts, fixtures, generated artifacts, repeated values, and final PR claims. Update a check that pins a changed contract when needed.
+- Prefer public-interface behavior checks and useful existing coverage. Add isolated unit tests only for a rare high-value case; there is no test-per-finding quota.
+- Complete routine formatting and type fixes, and run the narrowest meaningful checks. Record candidate/input identity, command, exit status, environment, observed outcome, and coverage so results can be reused.
+- Do not delegate further or exceed the batch's file, resource, or host-permission authority.
 
-### 4. Fix the Act-on findings
+When the caller owns commit discipline, return the repaired changes for that process. Otherwise use the authorized commit and push workflow with descriptive commits. Never make an empty commit. Keep the PR description accurate for the cumulative change.
 
-Group accepted findings by shared cause and scope, then dispatch one fresh fix worker per coherent batch with no parent context, on the configured `fix_worker` runtime and model, with the Act-on list (and any cheap Consider items), the PR branch, and these instructions, the last one verbatim:
+## Verify the changed scope
 
-- Re-read the cited code and surrounding context before patching. Fix only what the finding describes.
-- Follow the project's coding and comment policy. Express intent in code and contracts; do not add comments merely to satisfy a review template.
-- Reconcile restated values: when a fix changes a count, status, digest, version, inventory, or convention repeated elsewhere in the PR (sibling files, summaries, changelogs, the PR body), grep for the old value and update every copy.
-- When a fix changes a contract, schema, lock, golden, fixture, or generated artifact, change the check that pins the old value too.
-- Complete the batch, including routine formatting and type corrections, and run the narrowest relevant checks. Report the candidate, command, exit status, environment, and outcome so the caller can reuse valid results. Broaden only for missing coverage, changed inputs, or a mandatory project gate.
-- {% if harness.id == "claude" %}"Do NOT launch any subagents (no Agent tool use) — do all reading and work directly yourself."{% elif harness.id == "codex" %}"Do not spawn or delegate to subagents; do all reading and work directly yourself."{% elif harness.id == "antigravity" %}"Do NOT launch any subagents (no invoke_subagent, and no codex or pi workers) — do all reading and work directly yourself."{% else %}"Do NOT launch any subagents (no spawn_subagent, and no codex or pi workers) — do all reading and work directly yourself."{% endif %}
+After repairs, obtain independent verification of the changed candidate. Supply the prior reviewed SHA as `since`, the exact repair delta, prior Act-on and Dismissed findings, relevant interactions, and reusable evidence. Keep the complete candidate context available. Refresh only invalidated snapshot material and metadata, following the snapshot contract.
 
-A caller that runs its own commit discipline (an epic lead verifying and committing per its Step 3) receives the worker's changes and commits them itself; otherwise commit with a descriptive message and push. Never create an empty commit. After pushing, refresh the PR body if it no longer matches the cumulative change.
+One independent verifier is the default for bounded repairs. Add expertise or expand coverage when the repair introduces distinct security, migration, concurrency, compatibility, or integration risk. Changed-file count alone does not require a full panel. The verifier confirms every accepted repair, examines its interactions, and reviews any uncovered effects. Unchanged findings are not reopened unless the new evidence changes their grounds.
 
-### 5. Verification rounds
+Triage new findings and repair further Act-on defects. Stop when required coverage is complete, every prior Act-on finding is resolved, and the independent review finds no new Act-on finding. A second confirming clean round is unnecessary.
 
-Run a verification round against the new head. Refresh all offline snapshot inputs, including the PR metadata, issue context, CI status when available, and `since.diff`, before dispatch. Its reviewers get the same prompt plus the `since` SHA (the head the previous round reviewed) and the previous round's Act-on and Dismissed lists; `reviewing-pull-requests` then reviews only the changed diff and what it touches, and confirms each prior Act-on finding is resolved.
+Every final behavioral edit requires this scoped independent verification, including edits outside live-probe coverage. Passing runtime checks alone does not replace review. A mechanical correction can reuse applicable checks and be confirmed directly without a new panel. If it changes behavior, safety assumptions, or acceptance claims, treat it as a repair delta.
 
-- Use an independent reviewer context; prefer a different approved model or runtime when available. One verification reviewer is enough for a small fix; use the full panel when the fix changed behavior materially or touched many files.
-- Triage its findings as in §3. New Act-on findings go back to §4, and the round after that is another verification round.
-- **Stop** when a verification round has no new Act-on finding of any severity and every prior Act-on finding is resolved. That single clean round is the stop condition; a second confirming round is not needed, because triage has already filtered the noise that used to require it.
+## Change strategy when repairs fail
 
-### 6. When the loop doesn't converge
+After two related failed repairs based on the same premise, state and test that premise before a third patch. Name the expected invariant, the contrary observation, and the cheapest decisive probe or source trace. Change the root-cause approach using that evidence; do not repeat the same patch elsewhere.
 
-On a code PR the loop has no round cap: it keeps going until it stops cleanly. At `review_escalate_at`, and at every round after it that still isn't clean, change strategy instead of repeating the same move, one change per round, in this order:
+At `review_escalate_at`, reassess unresolved causes, coverage, resources, and authority. Choose a useful change: a bounded diagnostic, a different repair approach, an approved fixer or specialist, or broader independent review. Do not cycle through a fixed escalation sequence or add agents without a concrete risk to investigate.
 
-1. **Attack the premise.** When the recurring findings share a cause (the same kind of defect coming back one file over, fixes that keep breaking something adjacent), name the shared premise and brief the next fix worker to fix that premise, not the latest instance.
-2. **A stronger or different fixer.** Use a stronger or different approved fixer when available; otherwise change the repair approach within the approved runtime.
-3. **A fresh full panel.** Run a fresh independent full-PR panel round, changing approved models when available, to separate real defects from one reviewer's persistent blind spot.
+Continue while a supported repair path fits the approved authority and resources. Use the caller's approved fallback or nonconvergence policy when it does not. Return the unresolved defect, evidence, attempts, and next decision as a blocker; never manufacture review-clean status.
 
-When all three have been used and the loop still isn't clean, start the sequence again from step 1 with what the last rounds showed; each pass through it should narrow the premise. Dismiss a recurring preference or tradeoff concern only when the governing records accept that choice. An explanation of intent never dismisses a concrete correctness, contract, or acceptance defect. Record every strategy change in the round's PR comment and in the final report.
+## Documents mode
 
-### 7. Documents mode
+Use the same triage and scoped verification principles for constitution-only PRs. Keep repairs focused on actionable contradictions, stage authority, broken references, and downstream effects. Small related stage changes can share a coherent PR while each stage owns its decisions and code/spec commits remain separate.
 
-For a PR that changes only `.constitution/`, the loop is bounded by design, because a code-review loop doesn't converge on cross-referencing documents.
+If verification reveals another substantive defect, repair and independently verify the affected records, or report it unresolved. Do not declare a document PR clean merely because a round limit was reached. Report mechanically detectable findings as tooling follow-ups without replacing the current repair with a tooling project.
 
-1. Run the panel once with `mode: "documents"`.
-2. Triage as in §3, and have one fix worker address the Act-on findings.
-3. Run one verification round, scoped as in §5.
-4. Fix any Act-on `P0` or `P1` it finds, confirm with `validate`, and stop. Don't review again.
-5. Every finding a reviewer tagged with a validator check that would have caught it goes in the report as a tooling follow-up for `constitution-tooling`.
+## Complete the loop
 
-### 8. Finish
+Report the final base/head, review scope and completeness, reviewers used, accepted repairs, deferred items and owners, dismissals with reasons, strategy changes, and verification limits. Cite existing results concisely; retain full logs in the run artifacts.
 
-After the loop stops, remaining `P2`s may land as one final batch without another round only if each is small, verified by the same checks the loop used, pushed with CI green, and doesn't change behavior a live probe asserts; everything else is reported as a known deferred item. Don't reopen the loop for that batch.
+Keep three conclusions separate:
 
-Report: rounds run, the panel and the models used, strategy changes and when, Act-on findings fixed, Consider and Noted items left, Dismissed findings with their reasons, tooling follow-ups, and the final head SHA.
+- *Review completeness:* Required independent coverage completed and no unresolved Act-on finding remains.
+- *Acceptance status:* The candidate satisfies required acceptance and project gates, or the named proof remains unavailable or failed.
+- *Merge authorization:* The owner or approved execution policy authorizes merge. This skill does not grant it.
 
-## Safeguards
-
-Verification has one execution owner per candidate and environment. Inspect recorded results before rerunning a check; re-execute for changed inputs, uncovered risk, an unreliable result, or an explicit project requirement. Reviewers remain independent through their code and acceptance analysis, not by repeating every expensive command. Keep full logs in the existing run artifacts or temporary scratch, and cite a concise result in the PR.
-
-- Do not pass parent conversation context into a reviewer or fix worker beyond what §2 and §4 list. The point is an independent pass.
-- Do not let spawned subagents launch subagents of their own. Every reviewer and fix-worker prompt carries the no-further-subagents instruction; a reviewer that fans out into its own agent tree wastes tokens, escapes the loop's model policy, and can be orphaned mid-flight by session limits.
-- Do not fix findings you haven't triaged, and do not fix Dismissed findings.
-- Do not stop after a round just because some feedback was fixed; stop only on the §5 condition.
-- If a fix in round N introduces a `P1` in round N+1 (a stale copy, a contradiction with a sibling file), treat it as a reconciliation failure of the fix step, not as new review noise: brief the next fix worker on the reconciliation it missed.
+Apply the owner's verification policy. Private projects verify locally by default; remote tests require an owner need. Open-source projects accepting outside contributions use contribution CI behavior checks by default. Repository visibility alone does not establish that model. Required project gates remain binding. Keep test workflows separate from secure authentication, signing, publishing, deployment, and release execution; do not invent a dependency between them. Arbitrary CI green is not a completion condition.

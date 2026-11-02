@@ -113,6 +113,8 @@ export function requiredStages(present: Record<StageId, boolean>): Record<StageI
 }
 
 export function rel(m: Model, abs: string): string {
+  const within = relative(m.cdir, abs).split("\\").join("/");
+  if (within === "" || (within !== ".." && !within.startsWith("../") && !isAbsolute(within))) return posix.join(".constitution", within);
   return relative(m.root, abs).split("\\").join("/");
 }
 
@@ -132,8 +134,8 @@ function loadFailure(e: unknown, file: string): Finding {
   return { id: dup ? "YAML-001" : "SCH-000", severity: "error", file, message: dup ? `duplicate mapping key "${e.key}" at line ${e.line} (first at line ${e.firstLine})` : (e as Error).message };
 }
 
-export function loadModel(root: string): Model {
-  const cdir = join(root, ".constitution");
+export function loadModel(root: string, opts: { constitutionDir?: string } = {}): Model {
+  const cdir = opts.constitutionDir ?? join(root, ".constitution");
   const none: Record<StageId, boolean> = { prd: false, architecture: false, "tech-spec": false, tasks: false };
   const m: Model = {
     root, cdir, findings: [], present: none,
@@ -217,12 +219,19 @@ export function loadModel(root: string): Model {
   return m;
 }
 
+export function repositoryPath(m: Model, relPath: string): string {
+  const normalized = posix.normalize(relPath.split("\\").join("/"));
+  if (normalized === ".constitution") return m.cdir;
+  if (normalized.startsWith(".constitution/")) return join(m.cdir, normalized.slice(".constitution/".length));
+  return join(m.root, relPath);
+}
+
 export function readText(m: Model, relPath: string): string {
-  return readFileSync(join(m.root, relPath), "utf8");
+  return readFileSync(repositoryPath(m, relPath), "utf8");
 }
 
 export function exists(m: Model, relPath: string): boolean {
-  return existsSync(join(m.root, relPath));
+  return existsSync(repositoryPath(m, relPath));
 }
 
 /** Walk the repository for text files, skipping VCS, dependency, and build directories. */
@@ -232,6 +241,7 @@ export function walkRepo(m: Model, opts: { includeConstitution: boolean }): stri
   const walk = (dir: string) => {
     for (const n of readdirSync(dir)) {
       if (skip.has(n)) continue;
+      if (dir === m.root && n === ".constitution") continue;
       const p = join(dir, n);
       let st; try { st = lstatSync(p); } catch { continue; }
       if (st.isSymbolicLink()) continue;
@@ -240,6 +250,7 @@ export function walkRepo(m: Model, opts: { includeConstitution: boolean }): stri
     }
   };
   walk(m.root);
+  if (opts.includeConstitution && existsSync(m.cdir)) walk(m.cdir);
   return out;
 }
 
