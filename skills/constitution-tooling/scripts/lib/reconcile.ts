@@ -7,7 +7,6 @@ import { runChecks } from "./checks.ts";
 import { globToRegExp, overlaps } from "./glob.ts";
 import { commandResolves } from "./repo.ts";
 import { RECORD_LIST_KEYS, certaintyRecord, loadModel, recordPath, recordProblem, repositoryPath, type Finding, type Model } from "./model.ts";
-import { deriveObligations } from "./obligations.ts";
 import { renderCriticalPath } from "./render.ts";
 import { SchemaSet } from "./schema.ts";
 import { loadFrontMatter, loadYamlFile, prependChangelogEntry, toBlockYaml } from "./yaml.ts";
@@ -438,7 +437,6 @@ function proposeReconciliation(root: string, cdir: string, opts: ReconcileOption
     for (const vc of (gd as any)?.verification_commands ?? []) {
       if (vc.exists === false && vc.owner && archivedIds.has(vc.owner)) {
         if (commandResolves(m, vc.command)) { const owner = vc.owner; vc.exists = true; delete vc.owner; changed = true; (techEntry.added ??= []).push(`Verification command ${vc.command} now exists (${owner})`); techTouched = true; }
-        else result.routed.push({ stage: "tech-spec", item: `verification command "${vc.command}" is owned by archived ticket ${vc.owner} and still does not resolve`, from: candidates.find((e) => (e.data.tickets ?? []).some((t: any) => t.id === vc.owner))?.data.id ?? vc.owner });
       }
     }
     // Live-verification recipes follow the same flag rule; only a command drive is resolved.
@@ -447,7 +445,6 @@ function proposeReconciliation(root: string, cdir: string, opts: ReconcileOption
       const commands = [r.launch, r.doctor, ...(r.drive_kind === "command" ? [r.drive] : []), ...(r.cleanup ? [r.cleanup] : [])];
       const unresolved = commands.filter((c) => !commandResolves(m, c));
       if (!unresolved.length) { r.exists = true; delete r.owner; changed = true; (techEntry.added ??= []).push(`Live-verification recipe ${r.name} now runs`); techTouched = true; }
-      else result.routed.push({ stage: "tech-spec", item: `live-verification recipe ${r.name} is owned by archived ticket ${r.owner} and still does not resolve: ${unresolved.join("; ")}`, from: candidates.find((e) => (e.data.tickets ?? []).some((t: any) => t.id === r.owner))?.data.id ?? r.owner });
     }
     if (changed) writeConstitutionFile(cdir, gpath, `---\n${toBlockYaml(gd)}\n---\n${gbody}`);
   }
@@ -491,7 +488,6 @@ export function reconcile(inputRoot: string, opts: ReconcileOptions = {}): Recon
   const branch = git(root, ["rev-parse", "--abbrev-ref", "HEAD"]).trim();
   if (branch !== wanted) throw new Error(`reconcile runs on ${wanted}; current branch is ${branch}`);
   if (git(root, ["status", "--porcelain"]).trim()) throw new Error("working tree is not clean");
-  requireValidReconciliation(deriveObligations(current).findings);
   const head = git(root, ["rev-parse", "HEAD"]).trim();
   const temporary = mkdtempSync(join(tmpdir(), "constitution-reconcile-"));
   let result: ReconcileResult;
@@ -500,7 +496,7 @@ export function reconcile(inputRoot: string, opts: ReconcileOptions = {}): Recon
     const links = copyProposal(cdir, proposal);
     result = proposeReconciliation(root, proposal, opts);
     const publicationLinks = preparePublicationLinks(cdir, proposal, links);
-    requireValidReconciliation(runChecks(loadModel(root, { constitutionDir: proposal }), { schemas: new SchemaSet(resolve(import.meta.dir, "../../assets/schemas")) }));
+    requireValidReconciliation(runChecks(loadModel(root, { constitutionDir: proposal }), { schemas: new SchemaSet(resolve(import.meta.dir, "../../assets/schemas")), closingEpicIds: new Set(result.archived.map((id) => id.replace(/^EPIC-/, ""))) }));
     if (git(root, ["rev-parse", "HEAD"]).trim() !== head || git(root, ["rev-parse", "--abbrev-ref", "HEAD"]).trim() !== branch || git(root, ["status", "--porcelain"]).trim()) throw new Error("repository changed while preparing reconciliation; proposal was not applied");
     publishProposal(cdir, proposal, publicationLinks);
   } finally {

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { loadYamlFile } from "./lib/yaml.ts";
+import { loadYamlFile, toBlockYaml } from "./lib/yaml.ts";
 
 const CLI = resolve(import.meta.dir, "cli.ts");
 const FIXTURE = resolve(import.meta.dir, "../assets/fixtures/markdown");
@@ -27,6 +27,11 @@ function preservedDirectory(root: string): string {
   const directory = directories[0];
   if (!directory) throw new Error("Migration did not preserve its sources");
   return directory;
+}
+
+function record(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Expected a record");
+  return Object.fromEntries(Object.entries(value));
 }
 
 test("CLI migration imports table and bullet constraints while preserving every removed source for manual conservation review", () => withFixture((root) => {
@@ -89,6 +94,27 @@ test("CLI migration leaves sources intact when it cannot record the conservation
   expect(result.exitCode).not.toBe(0);
   expect(readFileSync(join(root, ".constitution", path))).toEqual(original);
   expect(readFileSync(join(root, preservedDirectory(root), path))).toEqual(original);
+}));
+
+test("CLI validation excludes preserved root recovery directories while checking similarly named source paths", () => withFixture((root) => {
+  const original = readFileSync(join(root, ".constitution/prd/glossary.md"));
+  expect(runMigration(root).exitCode).toBe(0);
+  const directory = preservedDirectory(root);
+  const configPath = join(root, ".constitution/constitution.yaml");
+  writeFileSync(configPath, toBlockYaml({ ...record(loadYamlFile(configPath)), surfaces: ["**/*.md"] }) + "\n");
+  const nested = "docs/.constitution-migration-sources-production/guide.md";
+  const rootFile = ".constitution-migration-sources-guide.md";
+  mkdirSync(join(root, "docs/.constitution-migration-sources-production"), { recursive: true });
+  for (const path of [nested, rootFile]) writeFileSync(join(root, path), "# Operator guide\n\nOpen a document.\n");
+  const result = Bun.spawnSync([process.execPath, "run", CLI, "validate", "--root", root, "--json"], { stdout: "pipe", stderr: "pipe" });
+  expect(result.stderr.toString()).toBe("");
+  const parsed: unknown = JSON.parse(result.stdout.toString());
+  if (!Array.isArray(parsed)) throw new Error("Expected validation findings");
+  const findings = parsed.map(record);
+  expect(findings.filter((finding) => typeof finding.file === "string" && finding.file.startsWith(`${directory}/`))).toEqual([]);
+  for (const path of [nested, rootFile]) expect(findings).toContainEqual(expect.objectContaining({ id: "GLS-001", severity: "error", file: path }));
+  expect(readFileSync(join(root, directory, "prd/glossary.md"))).toEqual(original);
+  expect(readFileSync(join(root, ".constitution-migration-report.md"), "utf8")).toContain(`${directory}/prd/glossary.md`);
 }));
 
 test("CLI migration accepts genuinely empty sources without an unsupported-record obligation", () => {

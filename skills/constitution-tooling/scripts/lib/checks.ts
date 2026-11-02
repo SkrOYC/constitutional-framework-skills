@@ -8,7 +8,11 @@ import { deriveObligations } from "./obligations.ts";
 import { commandResolves, lockfileVersions } from "./repo.ts";
 import type { SchemaSet } from "./schema.ts";
 
-type Ctx = { schemas: SchemaSet };
+interface Ctx {
+  schemas: SchemaSet;
+  /** Newly archived epics still require current closeout evidence and references. */
+  closingEpicIds?: ReadonlySet<string>;
+}
 type Check = (m: Model, ctx: Ctx) => Finding[];
 
 const f = (id: string, severity: Severity, file: string, message: string, pointer?: string): Finding => ({ id, severity, file, message, pointer });
@@ -294,7 +298,7 @@ const techSpecCheck: Check = (m) => {
   m.epics.filter((e) => e.active).forEach((e) => (e.data?.tickets ?? []).forEach((t: any) => activeTickets.add(t.id)));
   (g?.data?.verification_commands ?? []).forEach((vc: any, i: number) => {
     if (vc.exists === true && !commandResolves(m, vc.command)) out.push(f("TS-001", "error", g!.path, `verification command "${vc.command}" is marked as existing but does not resolve`, `/verification_commands/${i}`));
-    if (m.present.tasks && vc.exists === false && vc.owner && !activeTickets.has(vc.owner)) out.push(f("TS-002", "error", g!.path, `command "${vc.command}" is owned by ${vc.owner}, which is not an active ticket`, `/verification_commands/${i}`));
+    if (m.present.tasks && vc.exists === false && vc.owner && !activeTickets.has(vc.owner)) out.push(f("TS-002", "error", g!.path, `command "${vc.command}" is owned by ${vc.owner}, which is not an active ticket. Create the prerequisite or have Stage 3 reassign or remove its declaration before retrying reconciliation.`, `/verification_commands/${i}`));
     if (m.present.tasks && vc.exists === false && !vc.owner) out.push(f("TS-002", "error", g!.path, `command "${vc.command}" does not exist and has no owning ticket`, `/verification_commands/${i}`));
   });
   // Live-verification recipes follow the verification-command rules: commands of an existing recipe resolve,
@@ -306,7 +310,7 @@ const techSpecCheck: Check = (m) => {
     recipeNames.add(r.name);
     const commands = [["launch", r.launch], ["doctor", r.doctor], ...(r.drive_kind === "command" ? [["drive", r.drive]] : []), ...(r.cleanup ? [["cleanup", r.cleanup]] : [])].filter(([, c]) => typeof c === "string");
     if (r.exists === true) for (const [step, c] of commands) if (!commandResolves(m, c)) out.push(f("TS-001", "error", g!.path, `recipe ${r.name} is marked as existing but its ${step} command "${c}" does not resolve`, p));
-    if (m.present.tasks && r.exists === false && r.owner && !activeTickets.has(r.owner)) out.push(f("TS-002", "error", g!.path, `recipe ${r.name} is owned by ${r.owner}, which is not an active ticket`, p));
+    if (m.present.tasks && r.exists === false && r.owner && !activeTickets.has(r.owner)) out.push(f("TS-002", "error", g!.path, `recipe ${r.name} is owned by ${r.owner}, which is not an active ticket. Create the prerequisites or have Stage 3 reassign or remove its declaration before retrying reconciliation.`, p));
     if (m.present.tasks && r.exists === false && !r.owner) out.push(f("TS-002", "error", g!.path, `recipe ${r.name} does not exist yet and has no owning ticket`, p));
   });
   (g?.data?.layout ?? []).forEach((l: any, i: number) => { const there = exists(m, l.path); if (l.exists !== false && !there) out.push(f("TS-003", "warning", g!.path, `layout path ${l.path} does not exist yet; mark exists: false or create it`, `/layout/${i}`)); });
@@ -408,7 +412,7 @@ export function estimateLooksBackfilled(d: any): boolean {
   const actual = d?.closeout?.actuals?.diff_lines;
   return source === "planned" && typeof d?.estimated_diff_lines === "number" && typeof actual === "number" && d.estimated_diff_lines === actual;
 }
-const tasksCheck: Check = (m) => {
+const tasksCheck: Check = (m, { closingEpicIds }) => {
   const out: Finding[] = [];
   const acr = m.constitution?.data?.acronym;
   const guidelinesCmds = new Set((m.guidelines?.data?.verification_commands ?? []).map((v: any) => v.command));
@@ -425,6 +429,7 @@ const tasksCheck: Check = (m) => {
   let total8 = 0, totalTickets = 0;
   for (const e of m.epics) {
     const d = e.data ?? {}; const tickets: any[] = d.tickets ?? [];
+    const validateAsActive = e.active || closingEpicIds?.has(d.id) === true;
     (d.depends_on ?? []).forEach((dep: string) => { if (!allEpicIds.has(dep)) out.push(f("TSK-003", "error", e.path, `depends on unknown epic ${dep}`, "/depends_on")); });
     (d.capabilities ?? []).forEach((c: string) => { if (!capIds.has(c)) out.push(f("TSK-003", "error", e.path, `cites unknown capability ${c}`, "/capabilities")); });
     if (d.kind === "out_of_band" && !d.source) out.push(f("TSK-013", "error", e.path, "out_of_band epic needs a source (issue or report)"));
@@ -443,7 +448,7 @@ const tasksCheck: Check = (m) => {
       if (t.verification?.command && guidelinesCmds.size && !guidelinesCmds.has(t.verification.command)) out.push(f("TSK-005", "error", e.path, `${t.id} verification command "${t.verification.command}" is not quoted from guidelines`, `${p}/verification`));
       if (t.type === "Spike") {
         if (!t.spike) out.push(f("TSK-006", "error", e.path, `${t.id} is a Spike without a spike id`, p));
-        else if (!m.spikes.includes(`${t.spike}.md`)) out.push(f("TSK-006", e.active ? "error" : "warning", e.path, `${t.id} points at ${t.spike}.md, which is missing under spikes/`, p));
+        else if (!m.spikes.includes(`${t.spike}.md`)) out.push(f("TSK-006", validateAsActive ? "error" : "warning", e.path, `${t.id} points at ${t.spike}.md, which is missing under spikes/`, p));
         if (t.closes_decision && !ods.some((o) => o.id === t.closes_decision)) out.push(f("TSK-006", "error", e.path, `${t.id} closes ${t.closes_decision}, which is not in the register`, p));
       } else if (t.spike) out.push(f("TSK-006", "error", e.path, `${t.id} is not a Spike but carries a spike id`, p));
       if (t.spike && /^SPK-[A-Z]{2,6}-OD[0-9]{3}$/.test(t.spike)) out.push(f("TSK-006", "error", e.path, `${t.id} carries ${t.spike}, a decision-owned spike id that no ticket may own`, p));
@@ -459,14 +464,14 @@ const tasksCheck: Check = (m) => {
         // A ticket owns a manifest that names it as owner or in covers, and the manifests in
         // evidence/<ticket>/ and evidence/<ticket>-live/.
         const owned = m.evidence.filter((ev) => ev.manifest && (ev.manifest.data?.owner === t.id || (Array.isArray(ev.manifest.data?.covers) && ev.manifest.data.covers.includes(t.id)) || [t.id, `${t.id}-live`].includes(basename(ev.dir))));
-        const sev: Severity = e.active ? "error" : "warning";
+        const sev: Severity = validateAsActive ? "error" : "warning";
         for (const ev of owned) {
           const r = ev.manifest!.data;
           if (["fail", "not_met"].includes(r?.result)) out.push(f("TSK-018", sev, e.path, `${t.id} is done, but its evidence at ${ev.dir} records result ${r.result}; defer the ticket or produce passing evidence`, `${p}/status`));
           else if (r?.result === "owed" && e.data.closeout && !(Array.isArray(e.data.closeout.follow_ups) ? e.data.closeout.follow_ups : []).some((s: unknown) => typeof s === "string" && s.includes(t.id))) out.push(f("TSK-018", sev, e.path, `${t.id} is done with owed evidence at ${ev.dir}, but no closeout follow_ups entry names ${t.id}; add one naming the owed check`, `${p}/status`));
         }
         // Once the closeout is written, a done live_probe ticket must carry its probe's evidence.
-        if (probes && e.active && e.data.closeout) {
+        if (probes && validateAsActive && e.data.closeout) {
           const live = owned.filter((ev) => ev.manifest!.data?.mode === "live_probe");
           if (!live.length) out.push(f("TSK-019", "error", e.path, `${t.id} is done and accepted by live_probe, but owns no live_probe evidence manifest; run its recipe or defer the ticket`, `${p}/status`));
           else if (live.every((ev) => ev.manifest!.data?.result === undefined)) out.push(f("TSK-019", "error", e.path, `${t.id} is done, but its live_probe evidence records no result`, `${p}/status`));
@@ -484,7 +489,7 @@ const tasksCheck: Check = (m) => {
       const sum = tickets.filter((t) => (d.closeout.tickets_completed ?? []).includes(t.id)).reduce((a, t) => a + (t.effort ?? 0), 0);
       if (sum !== d.closeout.points_completed) out.push(f("TSK-012", "error", e.path, `closeout says ${d.closeout.points_completed} points but completed tickets sum to ${sum}`, "/closeout/points_completed"));
       // Catch what reconcile would route after the merge while the branch can still fix it.
-      if (e.active) {
+      if (validateAsActive) {
         (d.closeout.settled ?? []).forEach((s: any, i: number) => { const why = s?.record ? recordProblem(m.cdir, s.record) : null; if (why) out.push(f("TSK-016", "error", e.path, `closeout settles ${s.record}, which reconcile cannot resolve: ${why}`, `/closeout/settled/${i}`)); });
         (d.closeout.spec_patches ?? []).forEach((sp: any, i: number) => { if (sp?.path && !exists(m, `.constitution/${String(sp.path).replace(/^\.constitution\//, "")}`) && !exists(m, sp.path)) out.push(f("TSK-016", "error", e.path, `closeout spec patch names ${sp.path}, which does not exist`, `/closeout/spec_patches/${i}`)); });
       }
@@ -518,7 +523,7 @@ const tasksCheck: Check = (m) => {
     const excluded = completed.length - usable.length;
     out.push(f("INFO-CAL", "info", ".constitution/tasks", usable.length ? `calibration: actual/estimate = ${(act / est).toFixed(2)} over ${usable.length} completed epics; ${excluded} excluded` : `calibration: no completed epic has a planned estimate and actuals; ${excluded} excluded`));
   }
-  out.push(...deriveObligations(m).findings);
+  out.push(...deriveObligations(m, { closingEpicIds }).findings);
   return out;
 };
 

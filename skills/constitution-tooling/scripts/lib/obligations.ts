@@ -61,6 +61,10 @@ interface ObligationResult {
   findings: Finding[];
 }
 
+interface ObligationContext {
+  closingEpicIds?: ReadonlySet<string>;
+}
+
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const EVIDENCE_KEYS = new Set(["kind", "ref", "date", "version", "note"]);
 const COMMIT_ID = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
@@ -108,7 +112,7 @@ function historicalRepositoryProof(m: Model, proof: ObligationEvidence, cache: M
 }
 
 /** Derives ownership and terminal evidence without treating ticket status or archival as delivery. */
-export function deriveObligations(m: Model): ObligationResult {
+export function deriveObligations(m: Model, context: ObligationContext = {}): ObligationResult {
   const findings: Finding[] = [];
   const sources = new Map<string, ObligationSource>();
   const tickets = new Map<string, TicketOwner[]>();
@@ -176,7 +180,7 @@ export function deriveObligations(m: Model): ObligationResult {
       if (proof.kind === "repository") missing = !exists(m, proof.ref);
       else if (proof.kind === "spike") missing = !m.spikes.includes(`${proof.ref}.md`);
       else if (proof.kind === "measurement") missing = !m.evidence.some((entry) => entry.dir === proof.ref || entry.dir.endsWith(`/${proof.ref}`));
-      const proofState = !missing ? "available" : historicalRepositoryProof(m, proof, historicalArtifacts) ? "historical" : doc.active ? "missing" : "unverified_historical";
+      const proofState = !missing ? "available" : historicalRepositoryProof(m, proof, historicalArtifacts) ? "historical" : (doc.active || context.closingEpicIds?.has(epicId)) ? "missing" : "unverified_historical";
       const claims = resolutions.get(item.source) ?? [];
       claims.push({ source: item.source, outcome: item.outcome, evidence: proof, reason, doc, pointer, proofState });
       resolutions.set(item.source, claims);
@@ -200,6 +204,19 @@ export function deriveObligations(m: Model): ObligationResult {
     invalidSources.add(id);
     for (const owner of owners) report(owner.doc, owner.pointer, `${id} has multiple ticket records; obligation ownership is ambiguous`);
   }
+
+  const integrityIssues = (id: string, path: string[], seen: Set<string>): string[] => {
+    if (path.includes(id)) return [`replacement cycle: ${[...path.slice(path.indexOf(id)), id].join(" → ")}`];
+    if (seen.has(id)) return [];
+    seen.add(id);
+    const issues: string[] = [];
+    if (invalidSources.has(id)) issues.push(`${id} has conflicting source records`);
+    const records = resolutions.get(id) ?? [];
+    if (records.some((claim) => claim.proofState === "missing")) issues.push(`${id} has an unverified resolution claim without available or verified historical evidence`);
+    if (new Set(records.map((claim) => claim.outcome)).size > 1) issues.push(`${id} has conflicting delivery and retirement records`);
+    for (const owner of replacements.get(id) ?? []) issues.push(...integrityIssues(owner.id, [...path, id], seen));
+    return issues;
+  };
 
   const leavesById = new Map<string, ObligationLeaf[]>();
   const walk = (id: string, path: string[]): ObligationLeaf[] => {
@@ -225,7 +242,7 @@ export function deriveObligations(m: Model): ObligationResult {
   const result: ObligationResult = { outstanding: [], resolved: [], findings };
   for (const source of sources.values()) {
     const leaves = walk(source.id, []);
-    const issues = [...new Set(leaves.flatMap((leaf) => leaf.issues))];
+    const issues = [...new Set([...integrityIssues(source.id, [], new Set()), ...leaves.flatMap((leaf) => leaf.issues)])];
     if (leaves.length > 1) issues.push(`multiple replacement owners: ${leaves.map((leaf) => leaf.id).join(", ")}; link the replacement chain or resolve the source explicitly`);
     for (const issue of issues) report(source.doc, source.pointer, `${source.id}: ${issue}`);
     const claims = leaves.flatMap((leaf) => leaf.resolutions);
