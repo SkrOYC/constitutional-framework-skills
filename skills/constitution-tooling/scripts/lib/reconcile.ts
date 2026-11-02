@@ -1,11 +1,15 @@
 // Applies closeout deltas after the pull requests merged. Deterministic: it records facts and routes judgment.
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { constants, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, readlinkSync, realpathSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
+import { runChecks } from "./checks.ts";
 import { globToRegExp, overlaps } from "./glob.ts";
 import { commandResolves } from "./repo.ts";
-import { RECORD_LIST_KEYS, certaintyRecord, loadModel, recordPath, recordProblem, type Model } from "./model.ts";
+import { RECORD_LIST_KEYS, certaintyRecord, loadModel, recordPath, recordProblem, repositoryPath, type Finding, type Model } from "./model.ts";
+import { deriveObligations } from "./obligations.ts";
 import { renderCriticalPath } from "./render.ts";
+import { SchemaSet } from "./schema.ts";
 import { loadFrontMatter, loadYamlFile, prependChangelogEntry, toBlockYaml } from "./yaml.ts";
 
 export type FastLaneOutcome = { commit: string; subject: string; status: "applied" | "routed"; settled: string[]; reason?: string; overlap?: string };
@@ -22,8 +26,146 @@ interface DecisionRecord {
   proposed_by?: string;
 }
 
+interface ReconcileOptions {
+  date?: string;
+  commit?: boolean;
+  epics?: string[];
+}
+
+interface ProposalLink {
+  original: string;
+  proposed: string;
+  location: string;
+  existed: boolean;
+}
+
+interface PublicationLink {
+  validated: string;
+  published: string;
+}
+
+const COPY_OPTIONS = { recursive: true, verbatimSymlinks: true, mode: constants.COPYFILE_FICLONE };
+
+function inside(root: string, path: string): boolean {
+  const rel = relative(root, path).split("\\").join("/");
+  return rel !== ".." && !rel.startsWith("../") && !isAbsolute(rel);
+}
+
+function nearestExisting(path: string): string {
+  try { lstatSync(path); return path; }
+  catch (error: unknown) {
+    if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT" || dirname(path) === path) throw error;
+    return nearestExisting(dirname(path));
+  }
+}
+
+function writablePath(cdir: string, path: string): void {
+  if (!inside(cdir, path) || !inside(realpathSync(cdir), realpathSync(nearestExisting(path)))) throw new Error(`reconciliation cannot write outside .constitution/: ${relative(cdir, path)}`);
+}
+
+function writeConstitutionFile(cdir: string, path: string, text: string): void {
+  writablePath(cdir, path);
+  writeFileSync(path, text);
+}
+
+function visitLinks(dir: string, visit: (path: string) => void): void {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isSymbolicLink()) visit(path);
+    else if (entry.isDirectory()) visitLinks(path, visit);
+  }
+}
+
+function linkIdentity(path: string): string {
+  const stat = lstatSync(path, { bigint: true, throwIfNoEntry: true });
+  return `${stat.dev}:${stat.ino}`;
+}
+
+function isolateLinkTarget(source: string, proposal: string, resolved: string): string {
+  let sourceTarget = resolved;
+  if (!inside(source, sourceTarget)) {
+    try { sourceTarget = realpathSync(sourceTarget); }
+    catch { sourceTarget = resolved; }
+  }
+  return inside(source, sourceTarget) ? join(proposal, relative(source, sourceTarget)) : resolved;
+}
+
+function copyProposal(source: string, target: string): Map<string, ProposalLink> {
+  const sourceDir = realpathSync(source);
+  cpSync(sourceDir, target, COPY_OPTIONS);
+  const links = new Map<string, ProposalLink>();
+  visitLinks(target, (path) => {
+    const rel = relative(target, path);
+    const original = readlinkSync(path);
+    const resolved = resolve(dirname(join(sourceDir, rel)), original);
+    const proposed = isolateLinkTarget(sourceDir, target, resolved);
+    const existed = existsSync(join(sourceDir, rel));
+    if (proposed !== original) {
+      unlinkSync(path);
+      symlinkSync(proposed, path);
+    }
+    const identity = linkIdentity(path);
+    if (links.has(identity)) throw new Error("cannot distinguish proposal symlinks on this filesystem; proposal was not applied");
+    links.set(identity, { original, proposed, location: rel, existed });
+  });
+  return links;
+}
+
+function preparePublicationLinks(cdir: string, proposal: string, links: Map<string, ProposalLink>): Map<string, PublicationLink> {
+  const sourceDir = realpathSync(cdir);
+  const publication = new Map<string, PublicationLink>();
+  visitLinks(proposal, (path) => {
+    const link = links.get(linkIdentity(path));
+    if (!link || readlinkSync(path) !== link.proposed) throw new Error("proposal symlink changed unexpectedly; proposal was not applied");
+    const rel = relative(proposal, path);
+    const originalTarget = resolve(dirname(join(sourceDir, link.location)), link.original);
+    const published = isAbsolute(link.original) || rel === link.location ? link.original : relative(dirname(join(sourceDir, rel)), originalTarget);
+    const isolated = isolateLinkTarget(sourceDir, proposal, resolve(dirname(join(sourceDir, rel)), published));
+    const validated = !isAbsolute(published) && inside(proposal, isolated) ? relative(dirname(path), isolated) : isolated;
+    unlinkSync(path);
+    symlinkSync(validated, path);
+    publication.set(rel, { validated, published });
+    if (link.existed && !existsSync(path)) throw new Error(`reconciliation would leave dangling symlink .constitution/${rel}; proposal was not applied`);
+  });
+  return publication;
+}
+
+function publishProposal(cdir: string, proposal: string, links: Map<string, PublicationLink>): void {
+  const target = realpathSync(cdir);
+  const transaction = mkdtempSync(join(dirname(target), ".constitution-reconcile-"));
+  const ready = join(transaction, "proposed");
+  const backup = join(transaction, "original");
+  let retainBackup = false;
+  try {
+    cpSync(proposal, ready, COPY_OPTIONS);
+    visitLinks(ready, (path) => {
+      const link = links.get(relative(ready, path));
+      if (!link || readlinkSync(path) !== link.validated) throw new Error("validated proposal symlink changed; proposal was not applied");
+      unlinkSync(path);
+      symlinkSync(link.published, path);
+    });
+    renameSync(target, backup);
+    try { renameSync(ready, target); }
+    catch (error: unknown) {
+      try { renameSync(backup, target); }
+      catch (recoveryError: unknown) {
+        retainBackup = true;
+        throw new AggregateError([error, recoveryError], `could not publish or restore reconciliation; original constitution preserved at ${backup}`);
+      }
+      throw error;
+    }
+  } finally {
+    if (!retainBackup) rmSync(transaction, { recursive: true, force: true });
+  }
+}
+
+function requireValidReconciliation(findings: Finding[]): void {
+  const errors = findings.filter((finding) => finding.severity === "error");
+  if (errors.length) throw new Error(`proposed reconciliation is invalid; original files, index, and commits are unchanged:\n${errors.map((finding) => `${finding.id} ${finding.file}${finding.pointer ? `#${finding.pointer}` : ""}: ${finding.message}`).join("\n")}`);
+}
+
 function git(root: string, args: string[]): string {
-  const r = Bun.spawnSync(["git", ...args], { cwd: root, stdout: "pipe", stderr: "pipe" });
+  const r = Bun.spawnSync(["git", "--no-optional-locks", ...args], { cwd: root, stdout: "pipe", stderr: "pipe" });
   if (r.exitCode !== 0) throw new Error(`git ${args.join(" ")} failed: ${r.stderr.toString().trim()}`);
   return r.stdout.toString();
 }
@@ -34,13 +176,13 @@ function bump(version: string, level: "patch" | "minor" = "patch"): string {
 }
 
 /** Adds a changelog entry without re-emitting older ones; a missing file is created from the seeded log. */
-function prependEntry(path: string, entry: unknown, seeded: { entries: unknown[] }): void {
-  if (!existsSync(path)) { seeded.entries.unshift(entry); writeYaml(path, seeded); return; }
-  writeFileSync(path, prependChangelogEntry(readFileSync(path, "utf8"), entry));
+function prependEntry(cdir: string, path: string, entry: unknown, seeded: { entries: unknown[] }): void {
+  if (!existsSync(path)) { seeded.entries.unshift(entry); writeYaml(cdir, path, seeded); return; }
+  writeConstitutionFile(cdir, path, prependChangelogEntry(readFileSync(path, "utf8"), entry));
 }
 
-function writeYaml(path: string, data: unknown): void {
-  writeFileSync(path, toBlockYaml(data) + "\n");
+function writeYaml(cdir: string, path: string, data: unknown): void {
+  writeConstitutionFile(cdir, path, toBlockYaml(data) + "\n");
 }
 
 function excluded(path: string, globs: string[]): boolean {
@@ -92,15 +234,15 @@ function settle(cdir: string, record: string, evidence: any): string | null {
     const rec = (data?.[key] ?? []).find((r: any) => r.id === id || r.name === id);
     if (!rec) return `${rel} has no record ${id}`;
     apply(rec);
-    writeYaml(path, data);
+    writeYaml(cdir, path, data);
     return null;
   }
-  if (path.endsWith(".yaml")) { const data: any = loadYamlFile(path); apply(data); writeYaml(path, data); return null; }
+  if (path.endsWith(".yaml")) { const data: any = loadYamlFile(path); apply(data); writeYaml(cdir, path, data); return null; }
   const { data, body } = loadFrontMatter(path);
   const rec = data && certaintyRecord(data, id);
   if (!rec) return `${rel} has no certainty-bearing record${id ? " " + id : ""}`;
   apply(rec);
-  writeFileSync(path, `---\n${toBlockYaml(data)}\n---\n${body}`);
+  writeConstitutionFile(cdir, path, `---\n${toBlockYaml(data)}\n---\n${body}`);
   return null;
 }
 
@@ -160,15 +302,10 @@ function evidenceProblem(root: string, c: FastLaneCommit): string | null {
   return null;
 }
 
-export function reconcile(root: string, opts: { date?: string; commit?: boolean; epics?: string[] } = {}): ReconcileResult {
+function proposeReconciliation(root: string, cdir: string, opts: ReconcileOptions): ReconcileResult {
   const date = opts.date ?? new Date().toISOString().slice(0, 10);
-  const cdir = join(root, ".constitution");
-  const m: Model = loadModel(root);
+  const m: Model = loadModel(root, { constitutionDir: cdir });
   const cfg = m.constitution?.data ?? {};
-  const branch = git(root, ["rev-parse", "--abbrev-ref", "HEAD"]).trim();
-  const wanted = cfg.default_branch ?? "main";
-  if (branch !== wanted) throw new Error(`reconcile runs on ${wanted}; current branch is ${branch}`);
-  if (git(root, ["status", "--porcelain"]).trim()) throw new Error("working tree is not clean");
   const head = git(root, ["rev-parse", "--short", "HEAD"]).trim();
   const exclusions: string[] = cfg.diff_exclusions ?? [];
   const result: ReconcileResult = { archived: [], applied: [], settled: [], refusedSettles: [], proposed: [], routed: [], versions: {}, staleOwners: [], fastLane: [], commit: null, report: null };
@@ -206,6 +343,7 @@ export function reconcile(root: string, opts: { date?: string; commit?: boolean;
       result.routed.push({ stage: "tech-spec", item: `could not settle ${s.record}: ${why}`, from: id });
       result.refusedSettles.push({ file: e.path, epic: `EPIC-${id}`, settles: String(s.record), reason: why });
     }
+    co.settled = (co.settled ?? []).filter((s: { record: string }) => !result.refusedSettles.some((refused) => refused.file === e.path && refused.settles === String(s.record)));
     // 3. proposed decisions and rulings already approved during execution
     const decisions: DecisionRecord[] = d.decisions ?? [];
     for (const dec of decisions) {
@@ -246,10 +384,11 @@ export function reconcile(root: string, opts: { date?: string; commit?: boolean;
     for (const df of co.tickets_deferred ?? []) tasksEntry.changed.push(`${df.id} deferred to ${df.route}: ${df.reason}`);
     // 5. archive when nothing is left open
     const open = tickets.filter((t) => !["done", "deferred"].includes(t.status));
-    const src = join(root, e.path);
-    writeYaml(src, d);
+    const src = repositoryPath(m, e.path);
+    writeYaml(cdir, src, d);
     if (!open.length) {
       const dst = join(cdir, "tasks/completed", basename(e.path));
+      writablePath(cdir, dst);
       mkdirSync(join(cdir, "tasks/completed"), { recursive: true });
       renameSync(src, dst);
       result.archived.push(`EPIC-${id}`);
@@ -310,9 +449,9 @@ export function reconcile(root: string, opts: { date?: string; commit?: boolean;
       if (!unresolved.length) { r.exists = true; delete r.owner; changed = true; (techEntry.added ??= []).push(`Live-verification recipe ${r.name} now runs`); techTouched = true; }
       else result.routed.push({ stage: "tech-spec", item: `live-verification recipe ${r.name} is owned by archived ticket ${r.owner} and still does not resolve: ${unresolved.join("; ")}`, from: candidates.find((e) => (e.data.tickets ?? []).some((t: any) => t.id === r.owner))?.data.id ?? r.owner });
     }
-    if (changed) writeFileSync(gpath, `---\n${toBlockYaml(gd)}\n---\n${gbody}`);
+    if (changed) writeConstitutionFile(cdir, gpath, `---\n${toBlockYaml(gd)}\n---\n${gbody}`);
   }
-  const walk = (dir: string) => { for (const n of readdirSync(dir, { withFileTypes: true })) { const p = join(dir, n.name); if (n.isDirectory()) { if (n.name !== "completed") walk(p); } else if (/\.(md|yaml)$/.test(n.name)) { const text = readFileSync(p, "utf8"); for (const id of archivedIds) if (new RegExp(`owner[^\\n]{0,40}\\b${id}\\b`, "i").test(text)) result.staleOwners.push(`${p.slice(root.length + 1)}: ${id}`); } } };
+  const walk = (dir: string) => { for (const n of readdirSync(dir, { withFileTypes: true })) { const p = join(dir, n.name); if (n.isDirectory()) { if (n.name !== "completed") walk(p); } else if (/\.(md|yaml)$/.test(n.name)) { const text = readFileSync(p, "utf8"); for (const id of archivedIds) if (new RegExp(`owner[^\\n]{0,40}\\b${id}\\b`, "i").test(text)) result.staleOwners.push(`.constitution/${relative(cdir, p)}: ${id}`); } } };
   walk(cdir);
 
   // 6. changelogs
@@ -325,26 +464,51 @@ export function reconcile(root: string, opts: { date?: string; commit?: boolean;
   if (techTouched) {
     const techLog: any = m.changelogs["tech-spec"]?.data ?? { entries: [{ version: "v0.0.1", date, added: ["Initial"], by: "init" }] };
     techEntry.version = bump(techLog.entries[0].version);
-    prependEntry(join(cdir, "tech-spec/changelog.yaml"), techEntry, techLog);
+    prependEntry(cdir, join(cdir, "tech-spec/changelog.yaml"), techEntry, techLog);
     result.versions["tech-spec"] = techEntry.version;
     tasksEntry.upstream["tech-spec"] = techEntry.version;
   }
-  prependEntry(join(cdir, "tasks/changelog.yaml"), tasksEntry, tasksLog);
+  prependEntry(cdir, join(cdir, "tasks/changelog.yaml"), tasksEntry, tasksLog);
   result.versions.tasks = tasksEntry.version;
-  writeYaml(join(cdir, "reports/open-decisions.yaml"), register);
+  writeYaml(cdir, join(cdir, "reports/open-decisions.yaml"), register);
 
   // 8. routing report when anything needs a decision
   if (result.routed.length || result.refusedSettles.length || result.proposed.length || candidateTerms.length || result.staleOwners.length) {
     const reportPath = join(cdir, "reports", nextReconciliationReport(cdir, date));
-    writeYaml(reportPath, { date, commit: head, epics: candidates.map((e) => e.data.id), routed: result.routed, ...(result.refusedSettles.length ? { refused_settles: result.refusedSettles } : {}), proposed_decisions: result.proposed, candidate_terms: candidateTerms, ...(result.staleOwners.length ? { stale_owners: result.staleOwners } : {}), ...(result.fastLane.length ? { fast_lane: result.fastLane } : {}) });
-    result.report = reportPath.slice(root.length + 1);
+    writeYaml(cdir, reportPath, { date, commit: head, epics: candidates.map((e) => e.data.id), routed: result.routed, ...(result.refusedSettles.length ? { refused_settles: result.refusedSettles } : {}), proposed_decisions: result.proposed, candidate_terms: candidateTerms, ...(result.staleOwners.length ? { stale_owners: result.staleOwners } : {}), ...(result.fastLane.length ? { fast_lane: result.fastLane } : {}) });
+    result.report = `.constitution/reports/${basename(reportPath)}`;
   }
 
-  // 9. render and commit
-  writeFileSync(join(cdir, "tasks/critical-path.md"), renderCriticalPath(loadModel(root)));
+  writeConstitutionFile(cdir, join(cdir, "tasks/critical-path.md"), renderCriticalPath(loadModel(root, { constitutionDir: cdir })));
+  return result;
+}
+
+export function reconcile(inputRoot: string, opts: ReconcileOptions = {}): ReconcileResult {
+  const root = resolve(inputRoot);
+  const cdir = join(root, ".constitution");
+  const current = loadModel(root);
+  const wanted = current.constitution?.data?.default_branch ?? "main";
+  const branch = git(root, ["rev-parse", "--abbrev-ref", "HEAD"]).trim();
+  if (branch !== wanted) throw new Error(`reconcile runs on ${wanted}; current branch is ${branch}`);
+  if (git(root, ["status", "--porcelain"]).trim()) throw new Error("working tree is not clean");
+  requireValidReconciliation(deriveObligations(current).findings);
+  const head = git(root, ["rev-parse", "HEAD"]).trim();
+  const temporary = mkdtempSync(join(tmpdir(), "constitution-reconcile-"));
+  let result: ReconcileResult;
+  try {
+    const proposal = join(temporary, ".constitution");
+    const links = copyProposal(cdir, proposal);
+    result = proposeReconciliation(root, proposal, opts);
+    const publicationLinks = preparePublicationLinks(cdir, proposal, links);
+    requireValidReconciliation(runChecks(loadModel(root, { constitutionDir: proposal }), { schemas: new SchemaSet(resolve(import.meta.dir, "../../assets/schemas")) }));
+    if (git(root, ["rev-parse", "HEAD"]).trim() !== head || git(root, ["rev-parse", "--abbrev-ref", "HEAD"]).trim() !== branch || git(root, ["status", "--porcelain"]).trim()) throw new Error("repository changed while preparing reconciliation; proposal was not applied");
+    publishProposal(cdir, proposal, publicationLinks);
+  } finally {
+    rmSync(temporary, { recursive: true, force: true });
+  }
   if (opts.commit !== false) {
     git(root, ["add", ".constitution"]);
-    const after = [...candidates.map((e) => `EPIC-${e.data.id}`), ...(fastCommits.length ? [`${fastCommits.length} fast-lane commit(s)`] : [])];
+    const after = [...result.applied, ...(result.fastLane.length ? [`${result.fastLane.length} fast-lane commit(s)`] : [])];
     const subject = `Reconcile constitution after ${after.join(", ")}`;
     const body = [`tasks ${result.versions.tasks}` + (result.versions["tech-spec"] ? `, tech-spec ${result.versions["tech-spec"]}` : ""), result.archived.length ? `Archived: ${result.archived.join(", ")}` : "", result.settled.length ? `Settled: ${result.settled.join(", ")}` : "", result.proposed.length ? `Proposed decisions: ${result.proposed.join(", ")}` : "", result.fastLane.length ? `Fast lane: ${result.fastLane.map((c) => `${c.commit} ${c.status}`).join(", ")}` : "", result.routed.length ? `Routed: ${result.routed.map((r) => `${r.stage}: ${r.item}`).join("; ")}` : ""].filter(Boolean).join("\n");
     git(root, ["commit", "-q", "-m", subject, "-m", body]);

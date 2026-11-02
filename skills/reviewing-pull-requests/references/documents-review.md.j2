@@ -1,34 +1,42 @@
 # Documents review
 
-Review a constitution-only pull request: one pipeline stage's output under `.constitution/`, or an interview record, register, or patch-lane change. The goal is a review that converges in one pass. Report what a reader of the next stage would trip on, not everything that could be phrased better.
+Review a constitution-only PR for contradictions, stage authority, broken handoffs, and claims the next stage would rely on. Apply the router's evidence, candidate, verification, and completion rules. Keep wording preferences non-blocking.
 
-## Step 1: Identify the PR and the stage
+## Identify the candidate and owning stages
 
-1. Resolve the PR with `gh pr view <number> --json title,body,baseRefName,headRefName,files` and read `gh pr diff <number>`.
-2. Confirm every changed path is under `.constitution/`. If code changed too, stop and say the PR needs `mode: "full"` instead; review code and spec commits under their respective rules.
-3. Name the stage whose directory the PR writes (`prd/`, `architecture/`, `tech-spec/`, `tasks/`, or `reports/` for an interview). A PR that writes two stage directories is itself a finding: file a `P1` asking for one PR per stage.
+Use the supplied complete offline snapshot, or capture the PR context, exact base/head, full diff and inventory, and referenced issues through `gh`. Confirm every changed path is under `.constitution/`. If code changed too, report that the PR needs full review with each surface judged by its own rules.
 
-## Step 2: Run the machine checks first
+Identify each owning stage: `prd/`, `architecture/`, `tech-spec/`, `tasks/`, or the interview/register/report workflow. Small related stage changes and patches can share a coherent PR. Multiple stage directories alone are not a finding. Check the sequence and authorized ownership of each decision, plus the combined downstream result.
 
-Use the caller-supplied checkout and confirm its HEAD matches the PR's captured head. Keep the review read-only: do not switch branches or create review worktrees. If the matching revision is unavailable, report the limitation or request a matching checkout from the caller.
+## Inspect machine-check results
 
-Inspect the existing `validate` result for the same validation inputs, or run `bun run ~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/scripts/cli.ts validate --root <checkout>` when no valid result exists. Every error is a `P1` with its check id; do not manually repeat schema, file-existence, or digest checks already established by validation. For a `tech-spec/` PR, use or obtain a read-only `derive` result and report unapplied drift as `P2`.
+Use the caller's matching checkout without switching branches or creating worktrees. Inspect a valid `validate` result for the candidate's validation inputs. If none exists, run this read-only command when permitted:
 
-## Step 3: Walk the stage's checklist
+```sh
+bun run ~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/scripts/cli.ts validate --root <checkout>
+```
 
-Open the stage skill's `SKILL.md` and walk its **Validation checklist** item by item against the PR: `defining-product-requirements`, `designing-solution-architecture`, `specifying-technical-implementation`, or `planning-engineering-execution`. Each item that fails is a finding, citing the item and the file. This checklist is the review; don't invent criteria beyond it and the framework overview.
+Report each validation error as a `P1` with its check id. Do not manually repeat schema, digest, or file-existence checks already established by valid results. For a TechSpec change, inspect a read-only `derive` result when relevant; report concrete unapplied drift at the severity its effect warrants. Do not write derived changes during review.
 
-Then check what the checklist and the validator can't see:
+## Check meaning and handoffs
 
-- **Layer.** The stage decides only what it owns and doesn't repair an upstream directory. A scope change inside `architecture/` or a boundary change inside `tech-spec/` is a `P1`.
-- **Contradictions.** Two records in the PR, or a record and its upstream, say incompatible things.
-- **Downstream staleness.** A directory the change makes stale is either updated in a later stage's PR or flagged in the changelog entry.
-- **Raw artifacts.** In a `tech-spec/` PR, a raw contract or data-model artifact under `.constitution/` is a `P1`; it belongs in the code at the sidecar's `artifact_path`.
+Read the relevant stage skill's validation checklist: `defining-product-requirements`, `designing-solution-architecture`, `specifying-technical-implementation`, or `planning-engineering-execution`. Use its actual requirements, not invented criteria or unit-test quotas.
 
-## Step 4: Classify, and name the check that should exist
+Then investigate what validation cannot decide:
 
-Use the smallest honest label, in the output format of `full-review.md`. Wording, tone, and structure preferences are `General feedback` at most. A cross-reference, count, id, or version mismatch that a program could have caught is still reported at its severity, and the comment ends with one line naming the validator check that would catch it mechanically (for example "a check that every `ADR-NNNN` mentioned in prose resolves"), so the loop can file it as a tooling follow-up instead of catching it by hand next time.
+- *Authority:* Each stage decides what it owns. An upstream repair uses that stage's authorized route; a physical patch cannot silently move a logical boundary or product priority.
+- *Consistency:* Touched records agree with each other, upstream constraints, and applicable accepted decisions. Required versions, changelogs, ids, counts, and references are coherent.
+- *Downstream effects:* Affected downstream work is updated through its owner in this PR or identified as stale with a concrete continuation. Separate PRs per stage are not mandatory.
+- *Artifacts:* Raw contracts and data models belong at their code `artifact_path` with TechSpec sidecars. A legitimate `.constitution/` patch does not embed implementation artifacts there.
+- *Deferred obligations:* Consult active and archived work and explicit ownership, replacement, delivery, or retirement evidence. Do not close an obligation speculatively or re-file an already owned preference.
+- *Final claims:* Completed tickets, decisions, and evidence describe what the candidate actually establishes. Historical verified-at evidence remains historical; missing or failed proof required for a completion claim is a defect.
 
-## Scoped verification rounds
+Use a source trace or focused scenario when it decides a disputed instruction or handoff. A comment explaining intent cannot prove the instruction works. State execution limits without suppressing a demonstrable defect.
 
-When the prompt names a `since` commit, review only the diff from that commit to the head plus the records it touches, and confirm each listed prior finding is resolved. Report unresolved prior findings at their original severity and new findings as usual.
+## Return findings and verification
+
+Use the full-review severity and bug/flag format. Keep tone and structure preferences in General feedback. For a program-detectable mismatch, append the smallest useful validator check as a tooling follow-up; do not expand this review into a tooling implementation project.
+
+For `since` verification, inspect the exact delta, affected records and dependencies, and each prior accepted repair. Do not reopen unchanged reasoned dismissals. A substantive final edit needs scoped independent verification; a round limit cannot make an unresolved document defect clean.
+
+Return reviewed base/head and optional `since`, coverage and gaps, findings or an explicit statement that there are none, and verification results inspected or run. Keep review completeness, acceptance status, and merge authorization separate.

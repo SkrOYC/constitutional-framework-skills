@@ -22,8 +22,18 @@ Read the archetype in `constitution.yaml` and the operator preferences in `prd/v
 | :--- | :--- | :--- |
 | Decisions | Before Stage 4, and in Evolution when a decision changes | Stack pins, ADRs, guidelines, sidecars with planned artifact paths, pinned cross-epic contracts |
 | Alignment | After a wave merges and `reconcile` runs, in Brownfield mode | Guidelines and ADR updates for the code decisions the user adopts, sidecars pointed at real artifacts, records settled by repository evidence |
+| Execution patch | An epic lead invokes `pass: execution-patch` for authorized physical drift | Only the exact tech-spec files the caller authorizes within the epic's patchable scope |
 
 Identify the pass before you start. The alignment pass never reopens a decision the decisions pass settled by ruling unless the user asks.
+
+## Bounded execution patch
+
+For `pass: execution-patch`, follow this procedure and return to the epic lead. The full-pass survey, artifact creation, designer and research delegation, changelog/version, commit, and PR requirements below apply to Decisions and Alignment passes. Layer boundaries, applicable schemas, certainty, and evidence requirements still bind the patch.
+
+1. Read the caller identity, source revision, drift report, exact authorized files, constraints, and scoped checks. Read their schemas and only the upstream records or repository evidence needed to assess the drift. Confirm that the repair is physical and authorized; a logical change, pinned-contract change, new unresolved decision, or file outside the caller's authority returns as a blocker.
+2. Patch only those named files. Don't write code, changelogs, task files, or the decision register. Respect the caller's narrower constraints. Don't commit, open a PR, bump versions, or dispatch nested agents. Reuse supplied evidence and perform bounded direct verification when needed; if the repair needs broader research or a ruling, return that need to the lead.
+3. Check the diff against the allowed paths, run applicable schema validation and focused checks, and report unavailable verification or unrelated baseline failures precisely. Don't expand the repair to clear unrelated findings.
+4. Return the changed paths, the repair and its evidence, check results, and unresolved issues. The epic lead owns the separate specification commit, independent milestone review, and `spec_patches` record. Reconciliation records the execution patch in the shared changelog and version bookkeeping; this worker doesn't run full-pass closeout.
 
 ## Inputs
 
@@ -45,7 +55,7 @@ Don't rewrite product scope, redesign logical boundaries, or generate task lists
 - Migration and compatibility policies
 - The concrete directory structure of the repository
 - ADRs for expensive-to-reverse choices
-- Coding standards, linting, formatting, commit conventions, test-coverage rules, the verification commands Stage 4 will quote, and the live-verification recipes that prove behavior on the running system
+- Coding standards, linting, formatting, commit conventions, the owner's verification and delivery policy, the commands Stage 4 will quote, and recipes that prove behavior through real interfaces
 - Vendor-specific guidance only after that vendor is chosen
 
 ### Forbidden decisions
@@ -76,9 +86,21 @@ The body holds coding standards, observability hooks, deployment and migration r
 
 The validator resolves every command marked as existing and errors on one that does not. Once `tasks/` is present, it also errors on a missing command with no owning ticket. Stage 4 may quote only commands listed here.
 
+#### Development and verification policy
+
+Record the actual development and contribution model, the owner's policy, and its source in the guidelines body. Repository visibility alone doesn't establish whether outside contributions are accepted. Carry forward explicit owner requirements and required project gates.
+
+Use almost no ordinary code comments. Express meaning through names, types, structure, and invariants. TSDoc-style API contracts and license headers are exempt; retain a rare comment for an essential external constraint the code cannot express.
+
+Use almost no isolated unit tests. Prefer behavior verification through real public interfaces and reuse meaningful coverage. Add a unit test only for a rare, high-value gap. Don't impose a test per ticket, blanket test-driven development, or coverage quotas. Required acceptance evidence remains binding.
+
+For private projects, run verification locally by default. CI/CD focuses on secure authentication, signing, artifact publishing, deployment, and release; remote tests require an owner need or opt-in. For open-source projects accepting outside contributions, contribution CI behavior checks are appropriate by default. Keep test workflows or actions separate from release execution. Don't invent test-to-release coupling or gates; record any coupling the owner actually requires.
+
 #### Live-verification recipes
 
-Tests prove the code; a recipe proves the running system. Declare one recipe per shipped surface a user or client touches: `name`, `surface`, `launch` (start the system locally), `doctor` (a readiness probe that fails fast), `drive` with `drive_kind` (a command, a named tool such as a browser or terminal controller, or a manual procedure), `evidence` (the kind and where it lands: a screenshot, a log line, an HTTP response, a file), `cleanup`, and `exists` with an owning ticket while it doesn't exist yet. Stage 4 cites a recipe from a ticket's `live_probe` acceptance when the ticket's tests can't exercise that surface faithfully, and the epic lead runs it once per epic, after the last milestone and before the closeout. A surface nobody can drive locally says so in the guidelines body with the reason, instead of declaring a recipe that can't run. Each recipe states the acceptance gap it covers and the minimal observations needed. Reuse existing test drivers when they faithfully exercise the surface. Keep startup/readiness and owned-resource cleanup explicit. Retain a concise result and selected proof; full successful build/server logs and intermediate captures remain run artifacts, not constitutional records.
+Declare a recipe when verification leaves a gap on a shipped surface a user or client touches. Coverage that faithfully drives that interface needs no duplicate recipe. Each recipe has `name`, `surface`, `launch` (start the system locally), `doctor` (a readiness probe that fails fast), `drive` with `drive_kind` (a command, named tool, or manual procedure), `evidence` (a screenshot, log line, HTTP response, or file), `cleanup`, and `exists` with an owning ticket while it doesn't exist yet. Stage 4 cites it from `live_probe` acceptance, and the epic lead runs it after the last relevant milestone and before closeout, reusing valid results. When a surface can't be driven locally, state the reason and the remaining acceptance gap in the guidelines body.
+
+State the gap each recipe covers and the minimal observations needed. Reuse interface drivers; keep startup, readiness, seed state, and owned-resource cleanup explicit. Retain a concise result and selected proof. Full successful logs and intermediate captures remain run artifacts.
 
 ### `tech-spec/adrs/ADR-<NNNN>-<slug>.md`, front matter schema `adr.schema.json`
 
@@ -97,10 +119,10 @@ Screen both candidates against the Depth Standard and the Deletion Test, and aga
 Every durable shape the system owns and every shipped or integration surface gets a sidecar, schema `meta.schema.json`. The sidecar names the surface kind, the flows it serves, the boundaries it belongs to, an optional validation command, and certainty, and it sets `artifact_path` to the repository-relative path of the artifact in the code: the migrations directory, the OpenAPI file the server or client generator reads, the `.proto` package, the public header. The artifact itself is never under `.constitution/`.
 
 - **Planned artifacts.** In greenfield the artifact doesn't exist yet. The sidecar is `assumed` and states `settles_when`. Leave `owner` empty: tickets don't exist yet, and Stage 4 links the artifact to its creating ticket by putting the `artifact_path` in that ticket's scope. Once `tasks/` exists, the validator accepts a missing path only when an active ticket creates it that way.
-- **Pinned contracts.** When two epics that can run in the same wave depend on one shape (an identifier, an event, an error model, a table both write), mark its sidecar `pinned: true` and write the shape at the level of entities and fields in the companion markdown: what each field means and which values are allowed, not the full artifact. Stage 4 plans the artifact into the foundation epic, and the validator errors when a pinned contract is neither settled nor present while epics are active. Everything else is left to the epic that owns it.
+- **Pinned contracts.** When two epics that can run in the same wave depend on one shape (an identifier, an event, an error model, a table both write), mark its sidecar `pinned: true`. Write only the entities, fields, meanings, and allowed values the dependent work needs in companion markdown. Stage 4 plans the artifact and its cheapest decisive interface verification before those epics; a missing artifact needs an active creating ticket. Leave speculative fields and operations to their owner when needed.
 - **Companion markdown.** Purpose and invariants a reader needs and the artifact can't state, in `tech-spec/contracts/` or `tech-spec/data-models/` next to the sidecar, with the same stem (`orders.md` next to `orders.meta.yaml`), and named in the sidecar's `companion` field.
 
-A contract settles when tests exercise it, which execution reports and reconcile applies; write `settles_when` so the lead knows what counts.
+A contract settles when behavior verification exercises its artifact through the public interface, which execution reports and reconcile applies. Write `settles_when` with the decisive observation; meaningful coverage or a focused executable probe can supply it.
 
 Selection algorithm: list surfaces from the boundaries and the P0 flows, pick the ecosystem-native artifact kind, decide where it lives in the layout, and emit sidecars only for surfaces that exist.
 
@@ -136,21 +158,23 @@ Run it after a wave's pull requests merge and `reconcile` has run, or when the r
 
 1. Run `derive` and `validate`. Mechanical drift (pins, layout flags) is fixed with `derive --write`; don't hand-edit it.
 2. Read the reconciliation report's `code_decisions`: dependencies, patterns, conventions, and contract shapes execution introduced without a Stage 3 record. For each, present what the code did, where, and your recommendation: adopt it into the guidelines or an ADR, or treat it as a defect and route it to Stage 4 as a follow-up. The user rules; an adopted decision is `settled` by `ruling` plus `repository` evidence.
-3. Point every sidecar whose artifact now exists at its real path, and settle it with the test evidence the closeouts cite.
+3. Point every sidecar whose artifact now exists at its real path, and settle it with the behavior evidence the closeouts cite.
 4. Leave the ADRs' decisions alone; update their consequences with what was observed.
 5. Add the changelog entry and run `validate`.
 
-## Closing with a scaffold spike
+## Early executable grounding
 
-When no code exists yet, close the decisions pass by recommending a scaffold spike: create the empty layout from guidelines, including the locations sidecars point at, compile it, wire the verification commands so they pass on nothing, check that each live-verification recipe's `launch` and `doctor` run, and report every contradiction. That is the cheapest way to turn unknown knowns into settled facts before Stage 4 plans against them. Stage 4 plans it as the tooling epic's first ticket; Stage 3 does not write code.
+For a contract, dependency, runtime, or operational assumption that could change the plan, identify the cheapest executable pilot or probe before dependent implementation. Name the question, public interface, expected observation, and work it holds. Reuse evidence that already answers it. Hold only dependent work; unrelated lanes can proceed.
+
+When no code exists, distinguish setup checks from behavior evidence. A scaffold can verify pins, layout, compilation, launch, and readiness. A thin path through the primary interface verifies the risky integration; commands passing on an empty suite don't settle behavior. Stage 4 schedules the missing setup and decisive pilot before their dependents. Stage 3 records the decision and verification need; it doesn't write code or exhaustive speculative contracts.
 
 ## Certainty in Stage 3
 
-A stack pin settles by `repository` evidence when the lockfile agrees. An ADR's decision settles by `ruling`. A contract or data model settles only when tests exercise its artifact, so in greenfield every sidecar is `assumed` with `settles_when` stated. External evidence, pinned to a version, may settle claims about the world such as a library's capability or a protocol's field, never a claim about this system. Delegate that grounding to subagents with web tools, in one parallel batch, naming the model on each dispatch. Each returns the source URL, the version it checked, and the date. On a stack pin, `version` is the package version and the document revision or fetch date goes in `note`, because the validator compares `version` to the pin. Check any claim you rely on before you pin it.
+A stack pin settles by `repository` evidence when the lockfile agrees. An ADR's decision settles by `ruling`. A contract or data model settles only when behavior verification exercises its artifact, so in greenfield every sidecar is `assumed` with `settles_when` stated. External evidence, pinned to a version, may settle claims about the world such as a library's capability or a protocol's field, never a claim about this system. Delegate that grounding to subagents with web tools, in one parallel batch, naming the model on each dispatch. Each returns the source URL, the version it checked, and the date. On a stack pin, `version` is the package version and the document revision or fetch date goes in `note`, because the validator compares `version` to the pin. Check any claim you rely on before you pin it.
 
 ## Close the pass
 
-Open one pull request for this stage's constitution commit, separate from any other stage, and have it reviewed with `pr-review-fix-loop` in `documents` mode. A single-stage PR converges; a PR carrying the whole pipeline does not.
+Put this pass in an identifiable constitution commit. Small related stage passes or patches can share one coherent pull request. Preserve stage ownership and upstream ordering, and keep code and specification changes in separate commits. Run `pr-review-fix-loop` in `documents` mode for a constitution-only PR, or full review when it includes implementation. Split unrelated or unwieldy work when that improves review.
 
 ## Validation checklist
 
@@ -161,13 +185,15 @@ Open one pull request for this stage's constitution commit, separate from any ot
 - [ ] Every shipped surface has a sidecar whose artifact family matches the surface and whose `artifact_path` points into the code; no default OpenAPI on non-HTTP systems.
 - [ ] No raw contract or data-model artifact was written under `.constitution/`.
 - [ ] Every planned artifact's sidecar is `assumed` with `settles_when`.
-- [ ] Every shape two concurrent epics depend on is a `pinned` sidecar with its entities and fields written down.
+- [ ] Every shape two concurrent epics depend on is `pinned`, with the needed entities and fields and decisive verification identified.
 - [ ] When an HTTP API exists, it defines an explicit error model.
 - [ ] Native, mobile, and OS integration contracts match the declared platform targets.
 - [ ] Durable shapes have sidecars; ephemeral-only systems declare `no_durable_state`.
 - [ ] Compatibility and migration policies cover any schema or contract change that could break running clients or stored history.
 - [ ] Every verification command and live-verification recipe is listed with `exists` and an owner when it does not exist yet.
-- [ ] Every shipped surface a user or client touches has a live-verification recipe, or the guidelines say why it can't be driven locally.
+- [ ] Every shipped surface has meaningful interface coverage, a gap-focused recipe, or an explicit local-verification limitation.
+- [ ] Guidelines record the sourced development model and owner policy for comments, verification, remote tests, contribution CI, and release execution.
+- [ ] Decision-changing assumptions have early executable grounding planned before dependent work, without speculative contract expansion.
 - [ ] No product-scope change or boundary redesign leaked in, including one implied by a stack choice.
 - [ ] Every flow maps to a contract and, when relevant, a data model, through the sidecars' `flows` fields.
 - [ ] The layout is a designed target, with `exists: false` on paths not yet created.

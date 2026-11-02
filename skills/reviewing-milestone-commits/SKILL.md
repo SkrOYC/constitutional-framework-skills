@@ -7,251 +7,164 @@ metadata:
   artifact: {{ metadata.artifact | yaml_str }}
 ---
 
-# Reviewing Milestone Commits
+# Reviewing milestone commits
 
-Review a committed milestone as a concrete change to a real codebase, with the same seriousness as a PR review but a narrower target: the milestone commit.
+Independently review one committed, coherent milestone during epic execution. The source can be one commit, an explicit base/head range, or an explicit coherent commit set that includes incidental implementation and repair commits. Review the exact combined milestone delta and its interactions. Do not group separate milestones or infer a larger range.
 
-## Trigger Boundary
+This review assesses local implementation and milestone acceptance. PR review separately assesses cumulative integration, cross-milestone assumptions, and final claims. A clean milestone review does not prove the whole PR or grant merge authority.
 
-Use this skill when the epic lead asks for review of a committed milestone during epic execution.
+## Inputs and stance
 
-The primary input is a commit SHA. The prompt may also include the epic file path, ticket ids, the acceptance mode and evidence body, the validation command to run, and for a spec-patch milestone the drift report it answers. The constitution is structured YAML; read `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/references/layout.md` once if the layout is unfamiliar, and inspect a successful `validate` result for the committed validation inputs, running `bun run ~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/scripts/cli.ts validate --root .` when no valid result exists: an error it reports on the committed tree is a `P1` finding with the check id.
+The caller supplies the exact source identity, matching checkout, milestone/ticket ids or lane claim, governing epic or issue, acceptance modes and evidence, relevant plan constraints, and verification references. A spec-patch review also needs its drift report. If source identity is missing or ambiguous, return an incomplete-review report.
 
-Do not use it for:
-- code generation
-- implementation help
-- pull request reviews
-- repo-wide audits
-- review of loose snippets or uncommitted diffs
-- generalized architecture feedback unrelated to the committed milestone
+Read unfamiliar constitution layout from `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/references/layout.md`. Use the active epic, TechSpec contracts and actual artifacts, architecture boundaries, PRD constraints, and applicable authorized decisions. In Issue mode, use the issue and passed acceptance criteria. If requirements are unavailable, review the source but state the acceptance limit.
 
-## Operating Stance
+Treat implementation notes and earlier checks as evidence to inspect, not proof to accept uncritically. Ground findings in the source, affected code paths, acceptance criteria, contracts, or binding conventions. Cite and quote requirements when a finding depends on them. A concrete source trace can prove a defect without runtime execution; unavailable execution must be disclosed separately.
 
-Review the milestone commit independently. Do not rely on the epic lead's confidence, plan, or implementation notes as proof that the change is correct. The lead did not write the code; a fresh worker did, and the lead verified and committed it. Treat both as untrusted for the purpose of this review.
+Use this skill for committed milestone review, including spec patches and spikes. It is not for implementation help, uncommitted diffs, PR review, or a repository-wide audit.
 
-Every finding must trace to a rule, boundary, contract, or glossary entry under `.constitution/`, to the acceptance criteria passed in, or to a convention visible in nearby repository code; cite the file and quote the requirement when a finding rests on one. A finding that rests on a requirement you invented is not a finding.
+## Establish the exact delta
 
-Priorities:
-1. correctness and acceptance-criteria fit
-2. contract, schema, migration, and architecture drift
-3. tests, validation quality, compatibility, security, observability, and maintainability
-4. non-blocking feedback that is still grounded in the committed change
+Confirm the requested commit or base/head and the checkout's head. Keep tracked files clean and the checkout at the supplied revision. Do not create review worktrees, switch branches, alter shared runtime state, or launch competing verification jobs.
 
-Be balanced, but block when warranted. The purpose is to prevent errors from compounding before the next milestone begins.
+For a single commit, inspect its metadata, changed files, and diff:
 
-Do not:
-- rely on the diff alone when surrounding code is needed
-- comment on untouched code unless there is concrete interaction risk
-- invent repo conventions; infer them from nearby code
-- escalate weak guesses into bugs
-- file speculative concerns as bugs
-- review the whole epic unless broader context is needed to judge this milestone
-
-## Required Workflow
-
-### Step 1 - Identify The Commit
-
-Confirm the commit SHA from the prompt. If no commit SHA is provided, stop and say so.
-
-Collect, at minimum:
-- commit subject and body
-- changed files
-- raw diff
-- touched tests or validation artifacts
-
-Typical command sequence:
-
-```bash
+```sh
 git show --stat --summary <commit>
 git show --find-renames --find-copies <commit>
 ```
 
-If the prompt gives a commit range instead of a single commit, inspect the range with:
+For an explicit base/head range, the base is excluded and the head included:
 
-```bash
-git diff --stat <range>
-git diff --find-renames --find-copies <range>
+```sh
+git log --reverse --format=fuller <base>..<head>
+git diff --stat <base> <head>
+git diff --find-renames --find-copies <base> <head>
 ```
 
-### Step 2 - Match The Review To What Changed
+Inspect each constituent commit as well as the combined delta. For an explicit commit set, retain that exact list and inspect its individual changes and affected final state. Do not silently include intervening milestones. If the set cannot be attributed coherently, report the scope ambiguity before claiming complete coverage.
 
-Classify the changed files before choosing what to check: application code, tests, configuration and tooling, `.constitution/` documents, other documentation. Review what the milestone actually touches.
+Capture touched tests, contracts, validation artifacts, and evidence. For a broad delta, investigate coherent batches ordered by risk and finish with their interactions. File and line counts are guides, not reasons to require a separate PR or larger panel. State any unreviewed surfaces.
 
-**Write-authority check first.** The framework's two-commit rule says a commit that changes code never changes `.constitution/prd/`, `.constitution/architecture/`, or `.constitution/tech-spec/`, and a commit that changes those never changes code. The epic's own file under `.constitution/tasks/epics/`, a spike file under `.constitution/spikes/`, and evidence under `.constitution/evidence/` are exempt bookkeeping. A commit that breaks this rule gets a `P1` finding naming the offending paths, regardless of the content's quality, because the mix defeats this review: the code would be judged against a spec rewritten in the same commit.
+## Check commit authority and change type
 
-- **Spec-patch milestone.** The commit touches only `.constitution/tech-spec/` files, and the prompt carries the drift report it answers. Check that the patch changes exactly what the drift report needed and nothing more; that the touched files are ones the epic declared it may patch (the epic file's `scope.tech_spec_patchable` list); that the change is physical, not logical: no boundary, communication style, trust boundary, scope, or priority moved, since those must route upstream instead; that contracts and schemas still validate with their tooling; and that no changelog entry was added, since reconciliation writes it. Skip the code categories in Step 7.
-- **Spike milestone.** The commit adds or edits only `.constitution/spikes/SPK-*.md`. Check it follows the Stage 4 spike template, answers one concrete question, states its effort budget, names what it unblocks (tickets, a register entry, or both), and edits no active spec. A recommendation that requires a spec change must say which stage owns it. Skip the code categories in Step 7.
-- **Other `.constitution/`-only milestone** (a reconciliation commit, or a stage skill's output): this is a document review against the framework rules: each directory decides only what its stage owns and never repairs an upstream directory; naming uses the glossary's canonical terms; versions, counts, ticket IDs, and cross-references agree across files; Mermaid diagrams and links resolve; and any downstream directory the change makes stale is either updated or explicitly flagged. Skip the code categories in Step 7 and skip code verification. Verification here means confirming that referenced paths exist and diagrams parse.
-- **Other docs-only milestone** (README, guides, comments): check accuracy against the code, stale commands, and dead links or paths. Skip the code categories in Step 7 and skip code verification.
-- **Fast-lane milestone.** The prompt carries a lane claim instead of ticket ids, and the commits carry `Constitution-Lane: fast` trailers. Check the claim before anything else: the change stays in code, touches no artifact a sidecar points at with a published surface kind, no `pinned` contract, no boundary, and sits inside one active epic's owned paths or paths no active epic owns. A change that reaches past the lane is a `P1`. Check that any `Settles:` trailer names a real record and that its `Evidence:` path is a test that exercises it. Then review it as a code milestone.
-- **Code milestone.** Run the full workflow. Edits to the epic's own file (ticket status, deviations, decisions, closeout) are reviewed for accuracy against the diff, not as spec changes. An `evidence/<ticket>/manifest.yaml` must pass `validate`.
-- **Mixed milestone.** Only code plus the epic's own file or a spike file is a legitimate mix. Any other mix is the `P1` above.
+Apply code/spec separation to each commit, not to the aggregate range. A code commit cannot also change `.constitution/prd/`, `.constitution/architecture/`, or `.constitution/tech-spec/`. The epic's own task bookkeeping, `.constitution/spikes/`, and `.constitution/evidence/` are exempt bookkeeping. An actual code/spec mix in one commit is a `P1` with the offending paths.
 
-Findings for documents use the same classification and format as code findings, with `path:line-range` pointing into the document.
+A coherent milestone range can include separately authorized spec and implementation commits. Inspect their order and ownership. Judge code against the applicable authorized spec state; do not treat an upstream rewrite in the same code commit as permission. A shared range or PR does not transfer stage authority.
 
-### Step 3 - Read The Milestone Contract
+Choose the checks suited to the changed surfaces:
 
-Use the repo's `.constitution/` directories as the source of truth:
-- `.constitution/tasks/epics/EPIC-*.yaml` for ticket ids, dependency order, scope, acceptance mode and evidence, flows, and certainty
-- `.constitution/tech-spec/` for the stack, guidelines, verification commands and live-verification recipes, ADRs, and the sidecars that point at contract and data-model artifacts in the code (`artifact_path`, `pinned`)
-- `.constitution/architecture/` for logical boundaries and critical flows
-- `.constitution/prd/` for scope, capability intent, glossary, and non-functional constraints
+- *Spec patch:* Match the drift report, declared `scope.tech_spec_patchable` paths, and authorized physical decision. Logical boundaries, communication style, trust, scope, and priority changes route through their owning stage. Validate affected artifacts. Reconciliation owns the stage changelog entry for an execution patch.
+- *Spike:* Check the Stage 4 spike template, concrete question, effort budget, evidence, and what it unblocks. An active-spec recommendation identifies its owning stage; the spike does not silently edit that spec.
+- *Other constitution documents:* Check owning-stage authority, canonical terms, contradictions, required versions and references, and explicit downstream repair or staleness. Related stage changes can share a coherent PR through authorized routes.
+- *Other documents:* Verify code accuracy, commands, paths, diagrams, and claimed behavior. Run code checks only when they decide an affected claim.
+- *Fast lane:* Confirm the lane claim and `Constitution-Lane: fast` trailers. Stay within permitted code paths, with no published sidecar artifact, `pinned` contract, or boundary change. Check `Settles:` names a real record and `Evidence:` exercises it. A change outside the lane is a `P1`.
+- *Code:* Inspect the implementation and relevant acceptance. Review ticket status, deviations, decisions, and evidence for accuracy against the actual delta.
 
-If the repo has no `.constitution/` (GitHub Issue mode without a constitution), use the issue and the acceptance criteria the epic lead passed in. If neither can be found, proceed with commit and code review but report the confidence limit.
+## Read contracts and surrounding code
 
-Verify that the milestone change satisfies the relevant ticket acceptance criteria.
+Use `.constitution/tasks/epics/EPIC-*.yaml` for scope, dependencies, acceptance modes, and outcomes. Use TechSpec verification recipes, compatibility ADRs, sidecars, actual `artifact_path` artifacts, and `pinned` shapes. Use architecture and PRD records for boundaries, capability intent, constraints, and domain language.
 
-**Scope Verification Protocol (Epic mode):**
-- Identify the ticket's `scope.in` and `scope.out` from the epic file.
-- Cross-reference the files modified in the commit diff against these scope boundaries.
-- If any file outside the `Scope (In-Scope Files)` (or explicitly listed under `Scope (Out-of-Scope Files)`) was touched, check the ticket's `deviations` list.
-- If a justification is present, review it. If it is reasonable and correct, accept it and list it under `General feedback`.
-- If no justification is documented for the extra touched files, raise a `P1` finding requiring the epic lead to document the deviation inside the ticket before proceeding. It is `P1`, not `P2`, because the lead only blocks on `P0` and `P1`, and an undocumented scope drift compounds with every later milestone.
+Compare the changed behavior and paths with the approved envelope and recorded deviations. Routine regrouping, incidental corrections, and implementation adaptations inside that envelope do not need a wave amendment. Distinguish those from a changed outcome, contract, dependency, shared resource, or out-of-authority scope. Flag unexplained material drift at the severity its consequence warrants; do not invent a blocker for every incidental file.
 
-In Issue mode there is no ticket scope list: compare the touched files against the files the issue implies and note unexplained additions as `General feedback`.
+Read relevant surrounding code, callers, callees, interfaces, configuration, tests, migrations, and operational paths. Identify the safety assumptions most likely to fail. Choose the cheapest decisive source trace or focused observation for each material assumption.
 
-### Step 4 - Read More Than The Diff
+Match proof to the change type:
 
-For each materially changed file:
-- read the diff
-- read surrounding code needed to understand behavior
-- inspect callers, callees, tests, interfaces, config, migrations, and docs when they matter
-- compare the change against nearby repository patterns
-
-The commit is the entry point, not the whole context. Read enough of the codebase to judge whether the milestone works and fits.
-
-### Step 5 - Scope Management For Large Commits
-
-For a large milestone (roughly 30+ files or 1500+ lines of diff), review in batches ordered by risk — core logic and data paths before tests, config, and generated files — and keep track of interactions between batches, since a schema change in one can invalidate assumptions in another, and finish with a short pass over the whole change for gaps between batches. If you cannot finish every batch, say which files you reviewed and which remain, so the epic lead knows what still needs eyes.
-
-### Step 6 - Run Local Verification When Feasible
-
-Inspect the implementation's recorded verification: candidate identity, commands, exit status, relevant environment, and coverage. Reuse results for unchanged inputs. Run focused checks when the result is absent or unreliable, the changed code exposes an uncovered risk, or the project requires independent execution. Do not repeat the complete gate set merely because the role changed. State which results you inspected, which commands you ran, and any confidence limits.
-
-Keep the review in the supplied checkout at the committed revision. Do not create a review worktree, mutate shared runtime state, or launch competing verification jobs.
-**Verify by acceptance mode.** Each ticket carries one primary mode from Stage 4. The mode decides what proof you look for; Gherkin is one mode among nine, not the default.
-
-| Mode | What you verify |
+| Change | Evidence to inspect |
 | :--- | :--- |
-| `gherkin` | A test exists per scenario, each maps to its `Given` / `When` / `Then` steps, and passing results cover the committed behavior |
-| `contract_test` | Assertions run against the artifact at the sidecar's `artifact_path`, not against a copy, and pass |
-| `benchmark` | The harness exists, the threshold matches the evidence body and the PRD meter it cites, and a valid recorded run for the same inputs and relevant environment meets it; rerun only when inputs changed, the result is unreliable, risk is uncovered, or the project requires independent measurement |
-| `stat_threshold` | The evaluation command, the named split, and the threshold match the evidence; the recorded metric meets it; the split was not changed to make it pass |
-| `invariant` | The checker, property test, fuzz target, or proof encodes the stated invariant rather than a weaker one, and runs clean for the stated corpus or budget |
-| `hitl_sil` | The procedure and pass/fail criteria are committed; the log meets them, or the hardware step is explicitly deferred to the user rather than silently skipped |
-| `visual_regression` | The baseline is committed, the threshold matches the evidence, and the diff run is under it |
-| `runbook_probe` | The apply, plan, and probe commands match the evidence, and the recorded end state matches the expected one |
-| `live_probe` | The tests the mode requires pass, and the recipe named in `recipe` is the one `guidelines.md` declares. The evidence is captured once, after the last milestone, so its absence at a milestone is not a finding, and the ticket's status stays `in_progress` until then, which is not a finding either; when it is present, it shows the state the ticket's scenario expects, not just a process that started |
+| Behavior or repair | Real public-interface outcomes, the failing case, and relevant error and boundary states. |
+| Refactor | Preserved interfaces, state transitions, failure semantics, and existing behavioral coverage. |
+| Migration or contract | Actual artifacts, representative prior data/clients, compatibility, rollout, and recovery invariants. |
+| Concurrency or lifecycle | Ownership, ordering, retry, cancellation, and cleanup; targeted schedules or traces when needed. |
+| Performance | Comparable workload, baseline, environment, and measurements against the stated meter. |
+| Documents | Valid records, references, scenario or command accuracy, and downstream meaning. |
 
-A ticket whose proof is missing, or whose proof was produced by loosening the threshold, corpus, split, or baseline, fails acceptance and is a `P1`.
+Code smells prompt investigation; they are not findings or canned refactor instructions. Explain a concrete consequence before proposing extraction, new types, or a different abstraction. Names, types, structure, and invariants carry intent. Ordinary code comments are rare; TSDoc-style contracts and license headers are exempt. Comments never establish safety or replace acceptance proof.
 
-Manifest validation establishes file existence and declared digests. Inspect the observations needed to assess the acceptance claim; do not manually recalculate every hash or demand whole logs. Missing, contradictory, or failed proof remains an acceptance defect.
+## Inspect verification and acceptance
 
-### Step 7 - Review Categories
+Inspect recorded command results by candidate and input identity, environment, exit status, observed outcome, and coverage. Reuse valid evidence. Run focused checks only for missing, invalidated, unreliable, uncovered, or explicitly required proof. Do not repeat the full gate set because the role changed.
 
-Check every category that applies to what changed (Step 2):
+Inspect a successful framework `validate` result for the committed validation inputs. If none exists and execution is permitted, run:
 
-#### Acceptance Criteria And Correctness
-- Does the committed behavior satisfy the milestone tickets?
-- Are edge cases, partial failures, retries, and null or empty states handled?
-- Are affected call sites and interfaces updated coherently?
+```sh
+bun run ~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/scripts/cli.ts validate --root <checkout>
+```
 
-#### Upstream Fit
-- When the milestone changed an artifact a sidecar points at: does the change still fit the sidecar and any `pinned` shape? When the sidecar's surface is published (an HTTP API, events, a CLI, a library, an SDK), is the change compatible under the compatibility ADR? A breaking change the ADR doesn't allow is a `P1`, and a change to a `pinned` contract is a `P1` unless the plan's amendments record it. The lead passes the plan file path so you can check.
-- Did the milestone introduce a dependency, pattern, convention, or contract shape that no Stage 3 record names? If the epic file's closeout draft doesn't list it under `code_decisions`, file `Investigate` naming it, so the lead records it for the Stage 3 alignment pass.
-- When the milestone adopted an interim assumption, is it written in the epic's `decisions` list with the places it was applied, and does the code match what the entry says?
-- When the milestone touched a contract, schema, boundary, or capability whose certainty is `assumed`, did its tests exercise it so the closeout can list it under `settled`? If the tests could have settled it and the lead did not note it, file `General feedback`; if the milestone builds on an assumed record without exercising it at all, file `Investigate`.
-- Does the milestone stay within `.constitution/prd/`, `.constitution/architecture/`, `.constitution/tech-spec/`, and the active epic under `.constitution/tasks/`?
-- Does it invent missing contracts or change boundaries that should have been routed upstream?
-- Does it preserve ticket IDs, capability mappings, and Brownfield continuity when present?
-- When the repo defines a glossary (`.constitution/prd/glossary.yaml`), does new naming use its canonical terms rather than banned synonyms? Grep the diff for every banned synonym. A banned synonym replacing its canonical term on a domain-facing surface (contracts, schemas, migrations, UI copy, public API naming) is a `P1`; in internal locals or comments it is `General feedback`. A new domain concept introduced without a glossary entry is `Investigate`, with a note that the epic lead must list it under candidate glossary terms in the closeout delta so reconciliation routes it to Stage 1. Technical vocabulary (pool, worker, cache, handler) is not glossary material. Never require the commit to edit the glossary or `prd/changelog.md`; that would break the two-commit rule.
+A validation error on the reviewed tree is a `P1` with its check id. Manifest validation establishes declared file existence and digests; inspect the observations that substantiate behavior without manually repeating every hash.
 
-#### Tests, Lint, And CI
-- Are relevant tests present for behavior changes?
-- Do tests assert behavior independently, rather than mirroring the implementation? Audit test assertions to make sure they are checking actual behavior and outcomes—verify they are not "gaming the verification" with dummy checks or empty mocks.
-- Were relevant tests, lint, typechecks, or builds run locally? Confirm the recorded results cover the ticket's verification command (Epic mode) or the command the lead named (Issue mode); run missing or invalidated checks, then apply the mode table in Step 6.
-- Is missing coverage likely to hide regressions?
+Use the ticket's declared acceptance mode, not a universal Gherkin or unit-test requirement:
 
-#### Security And Permissions
-- Are authn and authz expectations preserved?
-- Is untrusted input validated or encoded correctly?
-- Are secrets, private data, or risky logs exposed?
+| Mode | What to verify |
+| :--- | :--- |
+| `gherkin` | Observable checks cover the stated Given/When/Then behavior. Scenarios can share meaningful public-interface coverage. |
+| `contract_test` | Assertions exercise the actual `artifact_path` contract rather than a copied shape. |
+| `benchmark` | Workload, environment, baseline, and threshold support the ticket's performance claim. |
+| `stat_threshold` | Named split, evaluation command, metric, and threshold match; the split was not weakened to pass. |
+| `invariant` | The checker, property/fuzz run, or proof encodes the stated invariant and covers the declared corpus or budget. |
+| `hitl_sil` | Procedure and pass/fail criteria are committed; observations meet them, or an owner-authorized hardware deferral is explicit. |
+| `visual_regression` | Baseline, comparison, and threshold support the claimed visual outcome. |
+| `runbook_probe` | The stated apply/plan/probe procedure reaches the required end state. |
+| `live_probe` | Required behavior checks cover the ticket and the recipe matches TechSpec. Final runtime evidence is captured after the last milestone. Its absence before then, with the ticket kept `in_progress`, is not a finding. |
 
-#### Data, Migrations, And Compatibility
-- Does the change alter schemas, contracts, messages, or stored data?
-- Could migrations, rollouts, or old clients break?
-- Are rollback assumptions sane?
+Prefer useful existing coverage and real public-interface behavior checks. Pure unit tests are rare high-value exceptions. Missing unit tests alone is not a finding, and there is no test-per-ticket or test-per-scenario quota. A proof gap matters when required acceptance or a concrete material regression risk lacks coverage.
 
-#### Performance And Resource Behavior
-- Does this add expensive loops, queries, allocations, or network chatter?
-- Is there N+1 risk, retry amplification, lock contention, or cache churn?
+Do not accept proof obtained by loosening the required threshold, baseline, corpus, or split. Missing or failed proof due at this milestone is a `P1`; evidence not yet due is not. A `done` ticket with absent or failed required results, a false pass, contradictory observations, or invalid evidence is a `P1`. Historical verified-at SHAs are not pins to update automatically.
 
-#### Observability And Operability
-- Will operators have enough signal to debug failures?
-- Are metrics, logs, traces, or alerts materially affected?
+## Investigate relevant risks
 
-#### Maintainability And Local Consistency
-- Does the change fit nearby code patterns unless deviation is justified?
-- Is the code understandable and locally coherent?
-- Is the complexity justified by the milestone?
+- *Correctness:* Acceptance fit, affected callers, boundaries, partial failure, retries, and empty or invalid state.
+- *Contracts and authority:* Published compatibility, `pinned` shapes, declared boundaries, and authorized amendments. Record a new physical code decision for Stage 3 alignment through closeout; do not demand an upstream edit in the code commit.
+- *Assumptions:* Interim decisions name where they apply. If changed behavior depends on an assumed contract or boundary, inspect evidence that can settle it; an unsupported material assumption is a grounded Investigate concern.
+- *Security:* Authentication, authorization, ownership, untrusted input, secrets, and sensitive data.
+- *Data and lifecycle:* Representative stored data, concurrent ownership, transactions, cleanup, rollout, and recovery.
+- *Performance and operability:* Actual workload effects and required diagnostic signals; do not invent a telemetry project.
+- *Verification quality:* Assertions observe real outcomes and meaningful interfaces, rather than merely mirroring implementation or using empty mocks.
+- *Language:* Canonical glossary terms apply to their intended domain concepts. A banned synonym replacing its canonical term on a binding domain-facing surface is a `P1`; internal naming feedback is non-blocking. A real new concept routes through candidate glossary terms in closeout. Technical vocabulary alone is not glossary material.
 
-Only raise findings grounded in the commit, surrounding code, validation output, or framework artifacts.
+Apply the owner's required gates. Private projects verify locally by default; remote tests require an owner need. Open-source projects accepting outside contributions use contribution CI behavior checks by default. Visibility alone does not establish that model. Keep test workflows/actions separate from authentication, signing, publishing, deployment, and release execution. Add a dependency between them only when the owner requires it. Arbitrary CI green is not a milestone-review condition.
 
-### Step 8 - Classify Findings
+## Classify and return the review
 
-Use the smallest label that honestly matches the issue.
+Use the smallest supported severity:
 
-- `P0`: severe correctness, security, data-loss, or production-breakage risk that must block continuation
-- `P1`: meaningful bug or gap likely to cause incorrect behavior, broken acceptance criteria, or serious operational pain
-- `P2`: smaller but real bug, quality gap, missing validation, or maintainability risk worth fixing before the epic compounds around it
-- `Investigate`: grounded concern that needs confirmation
-- `General feedback`: non-blocking useful feedback tied to the committed change
+- `P0`: Severe correctness, security, data-loss, or production-breakage risk that blocks continuation.
+- `P1`: Meaningful incorrect behavior, broken acceptance, contract violation, or serious operational risk.
+- `P2`: A smaller concrete correctness, quality, user-facing, or maintenance defect.
+- `Investigate`: A grounded unresolved question and the evidence needed to decide it.
+- `General feedback`: Useful non-blocking feedback tied to the milestone.
 
-Severity discipline:
-- do not use `P0`, `P1`, or `P2` for style nitpicks
-- do not file speculative concerns as bugs
-- do not expand scope to untouched code unless the milestone materially depends on it
-- `P2` means a real correctness, quality, user-visible, or future-maintenance gap, not "could be cleaner"
-- `Investigate` means a grounded concern that needs confirmation, not a design tradeoff already explained by code or artifacts
-- evidence bookkeeping is `General feedback`: manifest wording, a verified-at commit older than HEAD, a SHA a rebase rewrote, or `live_probe` evidence not captured yet. Missing run-mode evidence at the milestone that completes its ticket is missing proof, a `P1`, not bookkeeping. Evidence that claims a pass that didn't happen, contradicts the code's behavior, backs a `done` ticket whose `result` is `fail` or `not_met`, or fails `validate` is a `P1`
+Do not classify speculative concerns or preference-only refactors as bugs. Accepted governing tradeoffs resolve preference concerns; a comment does not dismiss a proven defect. Source-based findings state the trigger, path, and consequence even when execution is unavailable.
 
-### Step 9 - Return The Review
+Return the exact reviewed commit or base/head and commit set, coverage completed and gaps, findings or an explicit statement that there are none, and verification inspected or run. State acceptance status and limits separately from review completeness. Neither is merge authorization. A missing source, wrong revision, or incomplete review is not a clean result.
 
-Follow this exact section order. Omit empty subsections.
-
-<output_format>
+Keep findings in this order, omitting empty subsections:
 
 ```md
 ## Potential Bugs
 
 ### P0
 path:line-range
-Review comment in prose, optional suggestions/code block.
+Trigger, evidence, consequence, and applicable requirement.
 
 ### P1
 path:line-range
-Review comment in prose, optional suggestions/code block.
+Trigger, evidence, consequence, and applicable requirement.
 
 ### P2
 path:line-range
-Review comment in prose, optional suggestions/code block.
+Concrete defect, evidence, and consequence.
 
 ## Flags
 
 ### Investigate
 path:line-range
-Review comment in prose, optional suggestions/code block.
+Question and decisive evidence needed.
 
 ### General feedback
 path:line-range
-Review comment in prose, optional suggestions/code block.
+Useful non-blocking observation tied to the milestone.
 ```
 
-</output_format>
-
-Formatting rules:
-- include `path:line-range` for every comment when possible
-- keep comments concrete and prose-first
-- include suggestions or code blocks only when they materially help
-- mention verification commands you ran and blockers for any commands you could not run when relevant to the finding
-- do not add a separate summary, approval, or filler outside the required format
+After repair, independently verify the exact changed scope and its interactions. Every final behavioral edit needs that verification, including behavior outside live-probe coverage. Reuse unaffected evidence. If two related repairs fail under the same premise, state and test that premise before a third patch; follow the caller's approved nonconvergence policy rather than repeating a ritual or claiming unsupported acceptance.

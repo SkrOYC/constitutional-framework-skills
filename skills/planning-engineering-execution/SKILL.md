@@ -23,7 +23,7 @@ Schemas live in `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{%
 5. **Certainty upstream.** The assumed records in `tech-spec/` sidecars, `architecture/boundaries.yaml`, and `prd/capabilities.yaml` decide sequencing and estimates, below.
 6. **Actuals.** The `actuals` blocks of epics under `tasks/completed/`, and the `INFO-CAL` and `INFO-EST` lines from `validate`. `INFO-CAL` computes the actual-to-estimate ratio over epics whose estimate was planned independently; epics marked `estimate_source: migrated` or `backfilled` carry no forecast and don't count. State the project's observed diff lines per point and review rounds per point before estimating.
 7. **Audit findings.** When planning from an audit, read the newest `reports/audit-*.md`; each ticket planned from a finding carries the finding's category and cites its evidence.
-8. **Reconciliation follow-ups.** The newest `tasks/changelog.yaml` entry lists follow-ups and deferred tickets reconcile carried forward.
+8. **Deferred obligations.** Read the generated `Outstanding obligations` view in `tasks/critical-path.md` and its source records in active and archived epics. Check the newest `tasks/changelog.yaml` and the owners' rulings before carrying work forward. An obligation remains outstanding until explicit delivery or retirement evidence closes it.
 
 ## Layer boundaries
 
@@ -31,12 +31,12 @@ Stage 4 doesn't write schemas, define contracts, choose patterns, or redefine re
 
 ### Quote the stack, don't choose it
 
-Verification commands, live-verification recipes, and in-scope paths name real commands, declared recipes, and real paths, copied from `tech-spec/guidelines.md` front matter. The validator errors on a ticket whose command or recipe is not listed there. Contract and data-model artifacts live in the code at the `artifact_path` their sidecar names; a ticket that creates or changes one lists that path in its scope. Listing a planned artifact's `artifact_path` in a ticket's scope is what links the sidecar to the ticket that creates it; Stage 4 never edits the sidecar. When guidelines lack the command, the recipe, or the layout a ticket needs, or a surface has no sidecar, stop and trigger a Stage 3 pass.
+Verification commands, live-verification recipes, and in-scope paths come from `tech-spec/guidelines.md` front matter. The validator errors on an undeclared command or recipe. Follow the sourced owner policy in its body for local verification, remote tests, contribution CI, and release execution. Contract and data-model artifacts live in the code at their sidecar's `artifact_path`; a creating or changing ticket includes that path in its scope. This links a planned artifact to its creating ticket without Stage 4 editing the sidecar. When a required command, recipe, layout, or sidecar is missing, route the repair to Stage 3 through the authorized stage pass. Hold only work that depends on the repair.
 
 ### Allowed decisions
 
 - Epic boundaries, dependencies, owned paths (including the code paths of the artifacts the epic creates or changes), and patchable tech-spec files: sidecars, ADRs, `guidelines.md`, and `stack.yaml` only, never a raw artifact
-- Ticket granularity: one ticket is one reviewable change; `8` is the ceiling and a ticket that needs more is two tickets
+- Ticket granularity: one ticket is one reviewable outcome, forecast on the supported effort scale; split a larger forecast along meaningful outcomes
 - Effort on the Fibonacci scale `1, 2, 3, 5, 8`, measuring relative effort and uncertainty, never time
 - Where a `Spike` ticket must precede implementation
 - Mode-tagged acceptance evidence
@@ -56,23 +56,33 @@ Epics are the dependency nodes. Tickets depend only on tickets in the same epic;
 
 ### Cut vertical slices
 
-Every product epic delivers one or more capabilities end to end, through every boundary in `architecture/boundaries.yaml` that the capability's flow crosses, with tests. The boundary list makes the slice correct for the archetype by construction. Don't create horizontal layer epics such as "all repositories", "all drivers", or "all routes".
+Every product epic delivers one or more capabilities end to end, through every boundary its flows cross, with meaningful behavior verification. The boundary list makes the slice fit the archetype. Don't create horizontal layer epics such as "all repositories", "all drivers", or "all routes".
 
 ### Plan for execution
 
-Resolve prerequisites, public contracts, implementation seams, and operational readiness before scheduling dependent implementation. Every ticket is a coherent outcome with focused verification and only the supplementary proof its tests cannot provide. Group routine corrections with their owning work; do not create tickets or agent assignments for individual formatter, type, or assertion edits. Record exclusions so incidental cleanup cannot silently widen an epic. The execution plan assigns check ownership and final gates rather than repeating full suites at every handoff.
+Identify prerequisites, public contracts, implementation seams, and operational readiness before scheduling dependent implementation. Use the cheapest executable pilot or probe early when an uncertain prerequisite could change the plan. It holds only dependent work; unrelated lanes can proceed.
+
+Every ticket is a coherent outcome with focused verification. Prefer real public-interface behavior and meaningful coverage; a ticket doesn't require a new test. Isolated unit tests are rare high-value exceptions. Don't introduce test-per-ticket quotas, blanket test-driven development, coverage targets, or reassuring comments. Follow the guidelines' comment and owner verification policy, including required project gates.
+
+Group routine formatting, types, and focused checks with the owning worker assignment. Record exclusions so incidental cleanup cannot widen an epic. The execution plan names check ownership and final gates, and reuses results while their inputs, environment, and coverage remain valid. Independent milestone review and PR integration review remain distinct obligations.
+
+Use the smallest lead structure that fits: one epic can run directly under its epic lead, including the required merge and reconciliation duties. Within the approved outcomes, acceptance, scope, contracts, dependencies, resources, and authority, the lead can regroup or split milestones and reorder independent steps. A guide overrun doesn't require a wave amendment; escalate shared decisions or changes outside that envelope.
 
 ### Size and split
 
-Keep the merged diff of an epic near 10,000 to 15,000 lines; the reason is review cost, since a change in one area can expose a bug in another. Split an epic when the parts are scope-disjoint and the split either widens the wave the parts join or shortens the longest chain; `render` prints both numbers, so check them after splitting. A split that does neither is just more closeouts. Apply size guidance to the authored implementation reviewers must understand; retained logs and generated output do not justify artificial source milestones. Use declared `diff_exclusions` consistently for estimates and actuals, and disclose historical calibration that includes those artifacts rather than silently comparing unlike measures.
+Use 10,000 to 15,000 authored diff lines as an epic review guide. Before execution, aggregate the proposed work, apply `diff_exclusions` consistently, and account for worker context and actual resource constraints. Generated output and retained logs don't justify artificial source milestones. Disclose calibration measured with different exclusions.
 
-### Tooling first, then a serial foundation
+Split when scope-disjoint parts improve review or feasible concurrency, or shorten the longest chain; check `render` after changing the graph. Path-disjoint work still competes for slots, memory, devices, services, and budget. A numerical overrun alone doesn't justify late reslicing, another approval, or extra closeouts; preserve coherent outcomes and independent review.
 
-The first epic contains repository tooling only: workspace, package manager, lint and format, test runners, CI, the reproducible environment, and the scaffold spike Stage 3 recommended. It contains no product behavior. The second epic is the substrate every product epic would otherwise race on, plus one end-to-end path through the primary surface. Every `pinned` contract lands here as a real artifact at its `artifact_path`, with a test that settles it, because concurrent product epics build against it. What that substrate is follows the archetype; the table is examples, and the rule is the substrate:
+### Establish missing prerequisites first
+
+Plan missing repository tooling before work that needs it: workspace, package manager, lint and format, verification drivers, reproducible environment, and the scaffold checks Stage 3 identified. A tooling epic contains no product behavior. CI/CD work follows the recorded development model and owner policy; don't add remote tests or release gates by habit.
+
+When product epics share missing substrate, establish it in a serial foundation with one thin path through the primary interface. Every missing `pinned` contract lands at its `artifact_path` with decisive interface verification before concurrent consumers. Reuse substrate and evidence that already exist. The foundation fits the archetype:
 
 | Primary archetype | Foundation epic typically contains |
 | :--- | :--- |
-| Web/Cloud | The physical schema and migrations, identity context, generated clients, the shared UI kit, security test scaffolds |
+| Web/Cloud | The physical schema and migrations, identity context, generated clients, the shared UI kit, a security boundary probe |
 | CLI/Tooling | The command tree skeleton, argument parsing, output conventions, one working command |
 | Library/SDK | The public API skeleton, build and publish pipeline, one exported function with its contract test |
 | System/Native | Process and IPC scaffolding, platform entry points, one round trip; or a pure core when everything else depends on it |
@@ -89,11 +99,13 @@ Record the user's ordering rules from the interview and apply them. When the use
 
 ### Sequence and estimate against certainty
 
-A ticket is `settled` when every contract, schema, and boundary it touches is settled, and `assumed` otherwise. The tickets that first exercise an assumed contract come before the ones that build on it, so the thin slice falls out of the graph. An assumed ticket takes the next Fibonacci step up, or a preceding spike. When the observed ratio from actuals says assumed work costs more than settled work, say so in the changelog entry and estimate accordingly.
+A ticket is `settled` when every contract, schema, and boundary it touches is settled, and `assumed` otherwise. Put the cheapest decisive exercise of a risky assumed contract before its consumers. Adjust estimates using the uncertainty and observed actuals; don't inflate every assumed ticket mechanically. State any calibration used in the changelog entry.
 
 ### Spike instead of silent choice
 
-When the tech spec hasn't analysed a choice a ticket would otherwise make implicitly, or an open decision closes by spike, plan a `Spike` ticket ahead of the tickets it unblocks. Its `spike` field names `SPK-<ACRONYM>-<EPIC><NNN>` and, when it closes a register entry, `closes_decision` names it. An entry whose spike the interview already wrote and closed needs no ticket, and the validator rejects a ticket that carries an `OD` spike id or an active epic that takes `OD` as its id. A spike may recommend a contract change; the change goes through a Stage 3 pass and an ADR, never through the implementing ticket. The Spike template is at `assets/templates/spike.md`; the budget is the ticket's effort in points.
+When an unanswered choice could change implementation, use the cheapest decisive evidence. Plan a bounded `Spike` ticket before its dependents when execution is needed, or when an open decision specifies spike closure. Don't create a spike for a question existing evidence answers. Its `spike` field names `SPK-<ACRONYM>-<EPIC><NNN>`; `closes_decision` names a register entry it closes. An interview-owned spike already closed needs no ticket. The validator rejects a ticket with an `OD` spike id or an active epic with id `OD`.
+
+A spike may recommend a contract change. The owning stage makes that repair through the authorized route; Stage 4 and the implementing worker don't rewrite it. The template is `assets/templates/spike.md`, and the budget is the ticket's effort in points. Stop investigation when the decision has enough evidence.
 
 ## Output files
 
@@ -107,12 +119,13 @@ Header: id, name, kind (`tooling`, `foundation`, `product`, or `out_of_band` wit
 - **type**, **effort**, **depends_on** within the epic
 - **scope** with in-scope paths under the epic's owned paths and optional out-of-scope paths; a ticket that creates a contract or data-model artifact includes its `artifact_path`
 - **verification** quoting a guidelines command and the expected success signal
-- **stop_conditions**: "STOP if CONDITION occurs; don't improvise."
+- **stop_conditions** with concrete conditions outside the approved envelope, the affected work to hold, and its repair or escalation route
 - **description** at the behavioral level, no code
 - **acceptance** with one primary mode, an evidence body fit to it, supplementary modes when they add proof, the constraint meters a benchmark or stat_threshold cites, and `recipe` naming the live-verification recipe when `live_probe` is among the modes
 - **flows** the ticket implements, so flows have consumers
 - **certainty** and **status** `planned`
 - **category** only when planned from an audit finding
+- **replaces**, optionally, with the exact source references of deferred obligations this ticket takes over
 
 The epic file is also execution bookkeeping: the lead writes statuses, deviations, discovered decisions, and the closeout there. Leave those fields absent.
 
@@ -130,7 +143,11 @@ The epic file is also execution bookkeeping: the lead writes statuses, deviation
 | `runbook_probe` | Apply, plan, probe commands and the expected end state |
 | `live_probe` | The recipe named in `recipe`, the scenario it drives from the recipe's seed state, and the evidence that proves it: the screen state, log line, response, or file the user or client would see |
 
-Tests alone do not prove every shipped surface works. Add a live probe only for an acceptance gap the automated checks cannot establish. A ticket carries `live_probe`, as the primary mode or as a supplementary one next to the test-based mode, when its behavior depends on something its automated tests can't exercise faithfully: a served or built artifact, a device or runtime, a real external system, or interactive UI state. A ticket whose tests already drive the surface the user or client touches skips it: HTTP handler tests against the real router, CLI invocation tests, library contract tests. Tickets of one epic on the same surface share one probe scenario, and one manifest whose `covers` lists them. Plan the smallest observations that prove the scenario, not a transcript of every command. A probe manifest uses `mode: live_probe` even when the ticket's primary mode is test-based; measurement modes retain their own required comparison artifacts. The scenario must reach the state it names from the recipe's seed state on a fresh stack; a probe that can only pass on a prepared environment proves nothing. Gherkin is a poor fit for continuous-time properties; prefer benchmark, visual_regression, stat_threshold, or invariant there. Default primary mode by archetype: Web/Cloud and Mobile gherkin with contract_test on public contracts; CLI/Tooling gherkin or contract_test with benchmark when perf-constrained; Library/SDK contract_test; System/Native gherkin for discrete behavior and benchmark or visual_regression for loops and frames; ML/Data stat_threshold; Embedded/IoT hitl_sil or timing benchmark; Web3 invariant on-chain and gherkin off-chain; Game/Sim benchmark or visual_regression with gherkin for discrete flows; IaC/Platform runbook_probe.
+Acceptance modes specify proof, not a requirement to add a test. Match evidence to the claim and risk. Existing interface coverage can satisfy several tickets; source-based proof can establish a structural invariant when the mode permits it. Disclose unavailable execution and any remaining acceptance gap.
+
+Add `live_probe` only for a gap existing verification cannot establish faithfully: a served or built artifact, device, runtime, external system, or interactive UI state. Coverage that drives the real router, CLI invocation, or library public surface needs no duplicate probe. Tickets of one epic on the same surface can share one scenario and one manifest whose `covers` lists them. Plan the smallest observations that prove the scenario. The manifest uses `mode: live_probe` even when that mode is supplementary; measurement modes retain their comparison artifacts. The scenario must reach its named state from the recipe's seed state on a fresh stack.
+
+Gherkin fits discrete, deterministic behavior. Prefer benchmark, visual_regression, stat_threshold, or invariant for continuous properties. Defaults by archetype: Web/Cloud and Mobile gherkin with contract_test on public contracts; CLI/Tooling gherkin or contract_test with benchmark for performance constraints; Library/SDK contract_test; System/Native gherkin for discrete behavior and benchmark or visual_regression for loops and frames; ML/Data stat_threshold; Embedded/IoT hitl_sil or timing benchmark; Web3 invariant on-chain and gherkin off-chain; Game/Sim benchmark or visual_regression with gherkin for discrete flows; IaC/Platform runbook_probe.
 
 ### `constitution.yaml`, concurrency block
 
@@ -144,9 +161,15 @@ Generated. Run `render` after every change to the epic files and commit the resu
 
 Add this pass's entry with the SemVer bump, the upstream versions, and the observed calibration ratio you planned against.
 
+### Deferred obligations
+
+The generated view follows deferred tickets, `closeout.tickets_deferred`, and `closeout.follow_ups` through active and archived epics. To take over work, set a replacement ticket's `replaces` to the exact source references from that view: an original ticket id, or `EPIC-A#follow-up:<digest>`, where `<digest>` is the first 12 lowercase hexadecimal characters of the exact follow-up text's UTF-8 SHA-256 hash. Copy the generated reference; reordering or archiving doesn't change it.
+
+Replacement ownership doesn't prove delivery. Execution records terminal closure in `closeout.obligation_resolutions`: `source`, `outcome: delivered` or `retired`, and common-schema `evidence`; retirement also requires `reason`. Don't infer closure from a done status, similar work, or an unsupported claim. Preserve existing owners and rulings, and route upstream policy changes to their owning stage. Don't create a separate manual obligation ledger.
+
 ## Out-of-band epics from issues
 
-When `execute-epic-end-to-end` dispatches a planning pass for a GitHub issue, plan one epic with `kind: out_of_band` and `source: github#<n>`: derive tickets from the issue body and comments, assign modes and certainty, declare owned paths and patchable files, estimate. No wave placement and no dependencies on the critical path. `render` reports its conflicts with the running wave; whether it waits was decided in the epic lead's step-0 plan, so the pass records the conflict and doesn't ask.
+When `execute-epic-end-to-end` dispatches a planning pass for a GitHub issue, plan one epic with `kind: out_of_band` and `source: github#<n>`. Derive tickets from the issue, assign modes and certainty, declare scope, and estimate. It stays outside automatic waves but honors every actual prerequisite, including in-band epics. An unfinished out-of-band prerequisite holds its in-band dependents and their transitive dependents; unrelated work can proceed. `render` also reports path conflicts. Apply the epic lead's approved policy to those conflicts without another routine approval.
 
 ## Brownfield maintenance audit
 
@@ -154,25 +177,27 @@ Before reshaping active work in a Brownfield repository: completed epics sit in 
 
 ## Close the pass
 
-Open one pull request for this stage's constitution commit, separate from any other stage, and have it reviewed with `pr-review-fix-loop` in `documents` mode. A single-stage PR converges; a PR carrying the whole pipeline does not.
+Put this pass in an identifiable constitution commit. Small related stage passes or patches can share one coherent pull request. Preserve stage ownership and upstream ordering, and keep code and specification changes in separate commits. Run `pr-review-fix-loop` in `documents` mode for a constitution-only PR, or full review when it includes implementation. Split unrelated or unwieldy work when that improves review.
 
 ## Validation checklist
 
 - [ ] `validate` reports no errors and `render` has been run; warnings and the `INFO-EST` line are in your closing report.
-- [ ] Every ticket is one reviewable change, estimated at 8 or less, and reasonably satisfies INVEST.
-- [ ] Every dependency is explicit, inside its epic, and acyclic; the epic graph is acyclic.
+- [ ] Every ticket is one reviewable outcome, uses the supported effort scale, and reasonably satisfies INVEST.
+- [ ] Ticket dependencies stay inside their epic; both ticket and epic dependencies are explicit and acyclic.
 - [ ] Every ticket has a primary mode with mode-valid evidence, and benchmark or statistical modes cite PRD meters.
 - [ ] Every ticket names the flows it implements, and every flow has at least one consumer.
 - [ ] Every ticket-owned spike is a `Spike` ticket with a spike id, and every open decision with spike closure has its spike planned ahead of what it blocks unless the interview already wrote and closed it.
 - [ ] No ticket invents an upstream contract, schema, or API; every command and path traces to guidelines.
 - [ ] No ticket reintroduces an out-of-scope decision.
-- [ ] Every product epic is a vertical slice through the boundaries its capabilities cross, with owned paths and patchable files declared, and its estimated diff lines near the range.
-- [ ] The tooling epic contains no product behavior and the foundation epic precedes every product epic.
-- [ ] Every `pinned` contract is created and settled in the foundation epic, and every planned artifact's `artifact_path` is in the scope of the ticket that creates it.
+- [ ] Every product epic is a vertical slice with declared scope; authored diff estimates, exclusions, and resource constraints support coherent execution.
+- [ ] Tooling contains no product behavior; missing tooling and shared foundation precede only the work that needs them.
+- [ ] Every missing `pinned` contract has a creating ticket and decisive interface verification before its consumers; planned artifacts appear in their creating tickets' scope.
 - [ ] No `tech_spec_patchable` entry names a raw artifact.
-- [ ] Every ticket whose behavior its tests can't exercise faithfully on a surface with a live-verification recipe carries `live_probe` with its `recipe`, and no ticket carries a probe that repeats its tests.
+- [ ] Acceptance uses meaningful interface coverage or focused proof, with `live_probe` and its `recipe` only for a real gap; no test-per-ticket quota was introduced.
 - [ ] Estimates cite the `INFO-CAL` ratio, or say there isn't one yet.
 - [ ] Concurrent epics are scope-disjoint; the rendered waves and longest chain were checked after any split.
 - [ ] Assumed tickets are sequenced after the tickets that settle what they depend on, and estimated accordingly.
+- [ ] Deferred obligations have explicit ownership or remain visibly outstanding; delivery and retirement claims have evidence.
+- [ ] Out-of-band prerequisites hold only their dependent work, including transitive dependents.
 - [ ] No ticket, epic, or spike carries a date, hour, day, or calendar commitment.
 - [ ] `tasks/changelog.yaml` has this pass's entry.

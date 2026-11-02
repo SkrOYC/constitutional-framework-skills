@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, readlinkSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 import { validate } from "./cli.ts";
 import { reconcile } from "./lib/reconcile.ts";
 import { loadYamlFile, toBlockYaml } from "./lib/yaml.ts";
@@ -21,17 +21,17 @@ function readDecisions(root: string): Record<string, unknown>[] {
 }
 
 function git(root: string, ...args: string[]): string {
-  const result = Bun.spawnSync(["git", "-c", "user.name=Test", "-c", "user.email=test@example.invalid", ...args], { cwd: root, stdout: "pipe", stderr: "pipe" });
+  const result = Bun.spawnSync(["git", "--no-optional-locks", "-c", "user.name=Test", "-c", "user.email=test@example.invalid", ...args], { cwd: root, stdout: "pipe", stderr: "pipe" });
   if (result.exitCode !== 0) throw new Error(result.stderr.toString());
   return result.stdout.toString().trim();
 }
 
-function closeout(root: string, id: string, decisions: unknown[]): void {
+function closeout(root: string, id: string, decisions: unknown[], settled: unknown[] = []): void {
   const template = readFileSync(join(FIXTURE, ".constitution/tasks/epics/EPIC-C-checking.yaml"), "utf8")
     .replace(/^id: C$/m, `id: ${id}`).replaceAll("FIX-C", `FIX-${id}`).replaceAll("status: planned", "status: done");
   writeFileSync(join(root, `.constitution/tasks/epics/EPIC-${id}-checking.yaml`), template + "\n" + toBlockYaml({
     decisions,
-    closeout: { tickets_completed: [`FIX-${id}001`, `FIX-${id}002`], tickets_deferred: [], points_completed: 5, spec_patches: [], changelog_entries: [], candidate_terms: [], routed_upstream: [], follow_ups: [], code_decisions: [], settled: [] },
+    closeout: { tickets_completed: [`FIX-${id}001`, `FIX-${id}002`], tickets_deferred: [], points_completed: 5, spec_patches: [], changelog_entries: [], candidate_terms: [], routed_upstream: [], follow_ups: [], code_decisions: [], settled },
   }) + "\n");
 }
 
@@ -39,6 +39,13 @@ function withFixture(run: (root: string, decision: Record<string, unknown>) => v
   const root = mkdtempSync(join(tmpdir(), "constitution-reconcile-decisions-"));
   try {
     cpSync(FIXTURE, root, { recursive: true });
+    const packagePath = join(root, "package.json");
+    const pkg = record(JSON.parse(readFileSync(packagePath, "utf8")));
+    writeFileSync(packagePath, JSON.stringify({ ...pkg, scripts: { ...record(pkg.scripts), build: "bun build ./src/cli/parse.ts", bench: "./scripts/bench.sh" } }, null, 2) + "\n");
+    for (const script of ["bench", "doctor", "drive-check", "clean"]) writeFileSync(join(root, `scripts/${script}.sh`), "#!/bin/sh\nexit 0\n");
+    writeFileSync(join(root, "docs/check-report.schema.json"), "{}\n");
+    const manifestPath = join(root, ".constitution/evidence/FIX-C001/manifest.yaml");
+    writeFileSync(manifestPath, toBlockYaml({ ...record(loadYamlFile(manifestPath)), mode: "live_probe", result: "pass" }) + "\n");
     const decision = readDecisions(root).find((entry) => entry.id === "OD-02");
     if (!decision) throw new Error("Fixture lacks OD-02");
     run(root, decision);
@@ -55,8 +62,8 @@ function apply(root: string) {
   git(root, "init", "-q", "-b", "main");
   git(root, "add", ".");
   git(root, "commit", "-q", "-m", "Closeout decisions");
-  const result = reconcile(root, { date: DATE });
-  const errors = validate(root).filter((finding) => finding.severity === "error" && (finding.id.startsWith("OD-") || finding.id.startsWith("SCH-")));
+  const result = reconcile(relative(process.cwd(), root), { date: DATE });
+  const errors = validate(root).filter((finding) => finding.severity === "error");
   expect(errors).toEqual([]);
   expect(git(root, "status", "--porcelain")).toBe("");
   return result;
@@ -126,4 +133,192 @@ describe("reconcile decision rulings", () => {
     expect(readDecisions(root).find((entry) => entry.id === "OD-02")).toEqual(decision);
     expect(readDecisions(root).find((entry) => entry.id === "OD-04")).toMatchObject({ question: "A different unresolved question?", status: "proposed" });
   }));
+});
+
+function snapshot(root: string) {
+  const files: Record<string, string> = {};
+  const walk = (dir: string, prefix: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === ".git") continue;
+      const path = join(dir, entry.name);
+      const rel = `${prefix}${entry.name}`;
+      if (entry.isDirectory()) walk(path, `${rel}/`);
+      else files[rel] = entry.isSymbolicLink() ? `link:${readlinkSync(path)}` : readFileSync(path).toString("base64");
+    }
+  };
+  walk(root, "");
+  return { files, index: readFileSync(join(root, git(root, "rev-parse", "--git-path", "index"))).toString("base64"), history: git(root, "log", "--format=%H"), status: git(root, "status", "--porcelain=v1") };
+}
+
+function initialize(root: string): void {
+  git(root, "init", "-q", "-b", "main");
+  git(root, "add", ".");
+  git(root, "commit", "-q", "-m", "Closeout ready for reconciliation");
+}
+
+function cli(root: string, ...args: string[]) {
+  return Bun.spawnSync(["bun", "run", resolve(import.meta.dir, "cli.ts"), "reconcile", "--root", root, "--date", DATE, "--json", ...args], {
+    stdout: "pipe", stderr: "pipe",
+    env: { ...process.env, GIT_AUTHOR_NAME: "Test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "Test", GIT_COMMITTER_EMAIL: "test@example.invalid" },
+  });
+}
+
+describe("reconcile proposed-result validation", () => {
+  test("rejects a rulerless proposed register entry before changing files, index, or commits", () => withFixture((root, decision) => {
+    const invalid: Record<string, unknown> = { ...decision, id: "OD-98", question: "Who approves external checks?", status: "proposed" };
+    delete invalid.ruler;
+    closeout(root, "C", [invalid]);
+    initialize(root);
+    expect(validate(root).filter((finding) => finding.severity === "error")).toEqual([]);
+    const before = snapshot(root);
+    for (const args of [[], ["--no-commit"]]) {
+      const result = cli(root, ...args);
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout.toString()).toBe("");
+      expect(snapshot(root)).toEqual(before);
+    }
+  }));
+
+  test("rejects schema-invalid generated dates and missing repository artifacts before publication", () => withFixture((root) => {
+    closeout(root, "C", []);
+    initialize(root);
+    const before = snapshot(root);
+    expect(() => reconcile(root, { date: "invalid", commit: false })).toThrow();
+    expect(snapshot(root)).toEqual(before);
+    git(root, "reset", "--hard", "HEAD");
+    const path = join(root, ".constitution/tasks/epics/EPIC-C-checking.yaml");
+    const epic = record(loadYamlFile(path));
+    if (!Array.isArray(epic.tickets)) throw new Error("Expected fixture tickets");
+    epic.tickets = epic.tickets.map((ticket) => ({ ...record(ticket), status: "planned" }));
+    epic.closeout = { ...record(epic.closeout), tickets_completed: [], points_completed: 0, settled: [{ record: "tech-spec/contracts/check-report.meta.yaml", evidence: { kind: "repository", ref: "src/core/render.ts", version: "0000000", date: DATE } }] };
+    writeFileSync(path, toBlockYaml(epic) + "\n");
+    rmSync(join(root, "docs/check-report.schema.json"));
+    git(root, "add", ".");
+    git(root, "commit", "-q", "-m", "Propose settling an artifact that has not landed");
+    expect(validate(root).filter((finding) => finding.severity === "error")).toEqual([]);
+    const repositoryBefore = snapshot(root);
+    expect(() => reconcile(root, { date: DATE })).toThrow();
+    expect(snapshot(root)).toEqual(repositoryBefore);
+  }));
+
+  test("rejects unsupported active obligation delivery before archival can make it historical", () => withFixture((root) => {
+    closeout(root, "C", []);
+    const path = join(root, ".constitution/tasks/epics/EPIC-C-checking.yaml");
+    const epic = record(loadYamlFile(path));
+    if (!Array.isArray(epic.tickets)) throw new Error("Expected fixture tickets");
+    epic.tickets = epic.tickets.map((ticket) => {
+      const entry = record(ticket);
+      return entry.id === "FIX-C002" ? { ...entry, status: "deferred", deferred_to: "Future release" } : entry;
+    });
+    epic.closeout = { ...record(epic.closeout), tickets_completed: ["FIX-C001"], points_completed: 3, tickets_deferred: [{ id: "FIX-C002", route: "Future release", reason: "Benchmark postponed" }], obligation_resolutions: [{ source: "FIX-C002", outcome: "delivered", evidence: { kind: "repository", ref: "docs/missing-proof.md", date: DATE } }] };
+    writeFileSync(path, toBlockYaml(epic) + "\n");
+    initialize(root);
+    const errors = validate(root).filter((finding) => finding.severity === "error");
+    expect([...new Set(errors.map((finding) => finding.id))]).toEqual(["TSK-020"]);
+    const before = snapshot(root);
+    for (const args of [[], ["--no-commit"]]) {
+      expect(cli(root, ...args).exitCode).toBe(2);
+      expect(snapshot(root)).toEqual(before);
+    }
+    epic.closeout = { ...record(epic.closeout), obligation_resolutions: [{ source: "FIX-C002", outcome: "delivered", evidence: { kind: "repository", ref: "src/core/render.ts", date: DATE } }] };
+    writeFileSync(path, toBlockYaml(epic) + "\n");
+    git(root, "add", ".");
+    git(root, "commit", "-q", "-m", "Attach available proof for deferred obligation delivery");
+    const accepted = cli(root, "--no-commit");
+    expect(accepted.exitCode).toBe(0);
+    expect(record(JSON.parse(accepted.stdout.toString())).archived).toEqual(["EPIC-C"]);
+    expect(validate(root).filter((finding) => finding.severity === "error")).toEqual([]);
+  }));
+
+  test("publishes a valid proposal with original repository evidence and leaves no-commit index and history unchanged", () => withFixture((root, decision) => {
+    closeout(root, "C", [ruled(decision)], [{ record: "prd/capabilities.yaml#CAP-003", evidence: { kind: "repository", ref: "src/core/render.ts", version: "0000000", date: DATE } }]);
+    const epicPath = join(root, ".constitution/tasks/epics/EPIC-C-checking.yaml");
+    initialize(root);
+    const before = snapshot(root);
+    const applied = cli(root, "--no-commit");
+    expect(applied.exitCode).toBe(0);
+    const result = record(JSON.parse(applied.stdout.toString()));
+    expect(result.archived).toEqual(["EPIC-C"]);
+    expect(result.settled).toEqual(["prd/capabilities.yaml#CAP-003"]);
+    expect(result.commit).toBeNull();
+    expect(existsSync(epicPath)).toBe(false);
+    expect(existsSync(join(root, ".constitution/tasks/completed/EPIC-C-checking.yaml"))).toBe(true);
+    const after = snapshot(root);
+    expect(after.history).toBe(before.history);
+    expect(after.index).toBe(before.index);
+    expect(after.files).not.toEqual(before.files);
+    expect(validate(root).filter((finding) => finding.severity === "error")).toEqual([]);
+    expect(validate(root).filter((finding) => finding.id === "CERT-002")).toEqual([]);
+  }));
+
+  test("preserves internal settlement symlinks and routes escaping ones without changing their targets", () => {
+    for (const internal of [true, false]) withFixture((root, decision) => {
+      const path = join(root, ".constitution/prd/capabilities.yaml");
+      const target = internal ? join(root, ".constitution/prd/capabilities-source.yaml") : join(root, "capabilities-source.yaml");
+      renameSync(path, target);
+      symlinkSync(target, path);
+      const before = readFileSync(target, "utf8");
+      closeout(root, "C", [ruled(decision)], [{ record: "prd/capabilities.yaml#CAP-003", evidence: { kind: "repository", ref: "src/core/render.ts", version: "0000000", date: DATE } }]);
+      initialize(root);
+      const result = reconcile(root, { date: DATE, commit: false });
+      expect(readlinkSync(path)).toBe(target);
+      expect(result.settled).toEqual(internal ? ["prd/capabilities.yaml#CAP-003"] : []);
+      expect(result.refusedSettles).toHaveLength(internal ? 0 : 1);
+      if (internal) expect(readFileSync(target, "utf8")).not.toBe(before);
+      else {
+        expect(readFileSync(target, "utf8")).toBe(before);
+        const archived = record(loadYamlFile(join(root, ".constitution/tasks/completed/EPIC-C-checking.yaml")));
+        expect(record(archived.closeout).settled).toEqual([]);
+        if (!result.report) throw new Error("Expected refused settlement report");
+        const report = record(loadYamlFile(join(root, result.report)));
+        expect(report.refused_settles).toEqual(result.refusedSettles);
+        expect(report.commit).toBe(git(root, "rev-parse", "--short", "HEAD"));
+      }
+      expect(validate(root).filter((finding) => finding.severity === "error")).toEqual([]);
+    });
+  });
+
+  test("archives relative and absolute epic symlinks without changing their targets or duplicate aliases", () => {
+    for (const absolute of [false, true]) withFixture((root, decision) => {
+      closeout(root, "C", [ruled(decision)]);
+      const source = join(root, ".constitution/tasks/epics/EPIC-C-checking.yaml");
+      const target = join(root, ".constitution/tasks/epics/epic-source.txt");
+      const duplicate = join(root, ".constitution/prd/duplicate-epic.txt");
+      const duplicateTarget = "../tasks/epics/epic-source.txt";
+      renameSync(source, target);
+      symlinkSync(absolute ? target : "epic-source.txt", source);
+      symlinkSync(duplicateTarget, duplicate);
+      initialize(root);
+      const validateCli = () => Bun.spawnSync(["bun", "run", resolve(import.meta.dir, "cli.ts"), "validate", "--root", root, "--json"], { stdout: "pipe", stderr: "pipe" });
+      expect(validateCli().exitCode).toBe(0);
+      const applied = cli(root);
+      expect(applied.exitCode).toBe(0);
+      expect(record(JSON.parse(applied.stdout.toString())).archived).toEqual(["EPIC-C"]);
+      const archived = join(root, ".constitution/tasks/completed/EPIC-C-checking.yaml");
+      expect(readlinkSync(archived)).toBe(absolute ? target : "../epics/epic-source.txt");
+      expect(realpathSync(archived)).toBe(target);
+      expect(readFileSync(archived, "utf8")).toBe(readFileSync(target, "utf8"));
+      expect(record(loadYamlFile(archived)).id).toBe("C");
+      expect(readlinkSync(duplicate)).toBe(duplicateTarget);
+      expect(realpathSync(duplicate)).toBe(target);
+      expect(validateCli().exitCode).toBe(0);
+      expect(git(root, "status", "--porcelain")).toBe("");
+    });
+  });
+
+  test("rejects newly dangling relative and absolute aliases before publishing an archive", () => {
+    for (const absolute of [false, true]) withFixture((root) => {
+      closeout(root, "C", []);
+      const source = join(root, ".constitution/tasks/epics/EPIC-C-checking.yaml");
+      const alias = join(root, ".constitution/prd/epic-alias.txt");
+      symlinkSync(absolute ? source : "../tasks/epics/EPIC-C-checking.yaml", alias);
+      initialize(root);
+      expect(validate(root).filter((finding) => finding.severity === "error")).toEqual([]);
+      const before = snapshot(root);
+      expect(cli(root).exitCode).toBe(2);
+      expect(snapshot(root)).toEqual(before);
+      expect(realpathSync(alias)).toBe(source);
+      expect(validate(root).filter((finding) => finding.severity === "error")).toEqual([]);
+    });
+  });
 });

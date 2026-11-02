@@ -1,3 +1,3 @@
 skillprism: '1'
 name: reviewing-pull-requests
-description: 'Review a GitHub pull request on request. Requires gh CLI access. Reads the PR, surrounding code, and referenced issues, then returns structured findings in the required bug-and-flag format. Runs the full review by default; a caller can pass mode: standards or spec for one axis, mode: documents for a constitution-only PR, or a since commit to scope a verification round. Not for code generation or repo-wide audits.'
+description: 'Review a GitHub PR using gh or a complete offline snapshot. Assess the full candidate and integration claims with risk-driven evidence and structured findings. Defaults to full review; supports standards, spec, documents, and scoped verification from a since commit. Not for implementation or repo-wide audits.'

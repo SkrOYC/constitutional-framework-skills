@@ -1,104 +1,82 @@
-# PR Review: Spec Axis
+# Spec review
 
-Review the pull request changes to ensure they faithfully implement Gherkin acceptance criteria, TechSpec contracts, correctness safeguards, and quality constraints without scope creep.
+Review whether the integrated PR satisfies its declared acceptance criteria, contracts, product constraints, and architectural boundaries. Apply the router's candidate, evidence, verification, and completion rules. This mode covers the spec axis; do not imply it proves all implementation correctness.
 
----
+## Read the applicable requirements
 
-## 1. Reference Sources
+Read the active epic tickets in `.constitution/tasks/epics/EPIC-*.yaml`, their acceptance modes and evidence bodies, and the relevant authorized plan. Read the TechSpec guidelines, verification recipes, compatibility ADR, contract and data-model sidecars, and their actual artifacts at `artifact_path`. Inspect any `pinned` shape.
 
-*   **Active Epic Tickets:** Read the ticket definitions (acceptance criteria, description) in `.constitution/tasks/epics/EPIC-*.yaml`.
-*   **TechSpec Contracts:** Read the sidecars under `.constitution/tech-spec/contracts/` and `.constitution/tech-spec/data-models/`, then the artifacts they point at in the code through `artifact_path` (legacy repositories may still keep the artifact next to its sidecar), plus any `pinned` shape and the compatibility ADR.
-*   **Architecture & Product Requirements:** Read `.constitution/architecture/` (logical boundaries, communication patterns, components) and `.constitution/prd/` (product rules, capabilities).
-*   **Ubiquitous Language:** Read `.constitution/prd/glossary.yaml`. Canonical terms are binding across code identifiers, contracts, migrations, UI copy, and docs; the "Do not use" column lists banned synonyms. A banned synonym is banned only as a replacement for its canonical term — the same word may legitimately name a distinct concept.
+Use `.constitution/architecture/` for boundaries and flows, `.constitution/prd/` for capability intent and constraints, and `glossary.yaml` for canonical domain terms. In a repository without a constitution, use the referenced issues and owner requirements. State missing requirements as a confidence limit; do not invent them.
 
-### Constitutional Grounding Protocol
-Every finding must trace to a rule, boundary, contract, or glossary entry under `.constitution/` or to a convention visible in nearby repository code; a finding that rests on a requirement you invented is not a finding. Cite the specific `.constitution/` file path (for example `.constitution/architecture/boundaries.md`) and quote the requirement or contract being violated.
+Cite and quote the exact requirement when a finding depends on it. A concrete code defect can also be established by its source trace and affected contract; unavailable execution does not erase that proof.
 
----
+## Match the review to the delta
 
-## 2. Required Workflow
+Capture the full candidate through `gh` or the offline contract. Review all changed surfaces relevant to this axis:
 
-1.  **Extract Diff:** Use `gh pr view <number>` and `gh pr diff <number>` to get the PR changes.
-2.  **Match the Review to What Changed:**
+- *Constitution documents:* Check stage ownership, required versions and changelogs, contradictions, references, and downstream effects. Related stage changes can share a coherent PR when each stage uses its authorized route.
+- *Other documents:* Check accuracy against the actual code, commands, contracts, and claimed behavior.
+- *Code:* Compare integrated behavior with declared ticket outcomes, contracts, boundaries, and compatibility rules.
+- *Mixed changes:* Inspect separate code/spec commits and their sequence. The applicable authorized spec remains the basis for judging the code. A shared PR does not authorize a code commit to rewrite its own upstream requirements.
 
-    Classify the changed files before choosing what to check: application code, tests, configuration and tooling, `.constitution/` documents, other documentation. Review what the PR actually touches.
+For a broad delta, investigate coherent risk-based batches and then their interactions. Size thresholds are planning guides, not escalation or separate-PR requirements.
 
-    - **`.constitution/`-only PR.** This is a document review against the framework rules: each directory decides only what its stage owns and never repairs an upstream directory; naming uses the glossary's canonical terms; every touched directory gets a SemVer bump and a changelog entry; versions, counts, ticket IDs, and cross-references agree across files; Mermaid diagrams and links resolve; and any downstream directory the change makes stale is either updated or explicitly flagged. Skip the Section 3 categories and the Verification Command; check Gherkin criteria only when the PR changes tickets. Verification here means confirming that referenced paths exist and diagrams parse.
-    - **Other docs-only PR** (README, guides, comments): check accuracy against the code, stale commands, and dead links or paths. Skip the Section 3 categories and the Verification Command; check Gherkin criteria only when the PR changes tickets.
-    - **Code PR.** Run the full workflow.
-    - **Mixed PR.** Review each part by its own rules, and check that the code matches the constitution changes shipped with it.
+## Verify claims and evidence
 
-    Findings for documents use the same classification and format as code findings, with `path:line-range` pointing into the document.
+Map each claimed completed outcome to its implementation and proof. Check the ticket's declared acceptance mode; do not convert every criterion into Gherkin or require one unit test per scenario. Public-interface checks, contracts, benchmarks, invariants, visual comparisons, runbooks, hardware procedures, and live probes need evidence suited to their claims.
 
-3.  **Scope Management for Large PRs:** If the PR touches more than roughly 30 files or 1500 lines of diff, do not attempt to review everything in a single pass. Group changed files into logical batches (by module, concern, or database migrations) and review each batch sequentially.
-4.  **Ground and Match Specifications:** Verify that every Gherkin acceptance criteria defined for the Epic's active tickets has been implemented, and that the changes strictly align with `.constitution/prd/` capabilities and `.constitution/architecture/` logical boundaries. **For each finding, quote the exact Gherkin criteria line, Architecture rule, or TechSpec contract/PRD capability line.**
-5.  **Check Acknowledged Gaps:** Read the PR body and inline comments. Do **not** re-file findings that are explicitly documented as deferred scope (e.g. "follows in Epic Q") or accepted design tradeoffs documented in the PR or governing records. An explanation does not excuse a concrete correctness or acceptance defect.
-6.  **Check for Scope Creep:** Scan the diff for any behavior, endpoints, files, or state changes that were *not* requested by the active tickets or specifications. Highlight these as scope creep.
-7.  **Glossary Conformance Pass:** Check every new or renamed identifier, contract/schema field, migration object, UI string, and doc phrase in the diff against `.constitution/prd/glossary.yaml`. A banned synonym replacing its canonical term on a domain-facing surface (contracts, schemas, migrations, UI copy, public API naming) is a `P1`; in internal locals or comments it is `General feedback`. A new domain concept introduced without a matching glossary entry is `Investigate`: in an epic PR the lead lists it under candidate glossary terms in the closeout so reconcile routes it to Stage 1, since a code PR may not edit `prd/` (the two-commit rule).
-8.  **Audit Spec & Logic Categories:** Check the diff against the comprehensive correctness, security, performance, test, and data categories below.
-9.  **Verification:** Inspect the active tickets' recorded results for the candidate and relevant environment. Run only missing, invalidated, or risk-driven checks with the project's canonical commands. Keep the supplied checkout read-only and report results inspected and commands executed.
-10. **Audit Test Quality:** Read the newly added or modified test files. Verify that the assertions actually validate behaviors and are not dummy checks or empty mocks designed to bypass the gate. Ensure they check actual constitutional capabilities.
+Identify the load-bearing assumptions and decide them with the cheapest meaningful evidence. Inspect actual artifacts and retained observations, not just a manifest's pass label. Use the router's guidance for behavior changes, refactors, migrations, concurrency, and performance. Reuse results for unchanged inputs and environments; run only missing, invalidated, unreliable, risk-driven, or required checks.
 
----
+Review milestone evidence as scoped implementation proof. Independently examine cumulative interactions, integration with the captured base, compatibility, and final PR claims. Earlier clean milestones do not prove the whole PR.
 
-## 3. Spec & Logic Review Categories
+Compare requested outcomes with actual changes. Flag unauthorized capability or contract expansion, missing acceptance behavior, and boundary changes. Routine execution regrouping or incidental corrections inside the approved envelope do not require a wave amendment. Review recorded scope deviations in context.
 
-### A. Correctness & Logic
-*   **Error Handling:** Check for swallowed exceptions, empty catch blocks, or missing error states in UI elements.
-*   **Async Hazards:** Unawaited promises, race conditions on shared state, or missing cancellation/cleanup (stale closures, listeners never removed).
-*   **Null/Undefined Flows:** Non-null assertions (`!`) on values that can be null, optional chaining hiding a value that must exist, or unchecked array indexing.
-*   **Concurrency:** Check-then-act on shared resources, missing transactions around multi-write operations, or webhook/queue retry idempotency.
-*   **Boundary Conditions:** Off-by-one, empty-collection handling, timezone/locale assumptions.
+Read accepted decisions, deferred obligations and their owners, and prior dismissals. Do not re-file an accepted preference. If a known gap causes a concrete defect outside the accepted ruling, explain the trigger and violated requirement. Comments can explain a decision but cannot establish its safety.
 
-### B. Security & Permissions
-*   **Access Control:** Ensure endpoints and server actions enforce authentication and authorization. Check for IDOR (object access by ID without ownership checks).
-*   **Input Validation:** Validate or encode untrusted input before crossing interpreter boundaries (SQLi, command injection, XSS, path traversal).
-*   **Data Minimization:** Ensure PII or sensitive operational data is not leaked in logs or error stack traces.
+## Check relevant contracts and invariants
 
-### C. Performance & Resource Behavior
-*   **N+1 Patterns:** Check for queries or fetches issued inside loops or list-row rendering.
-*   **Complexity:** Nested scans over collections where a Map lookup belongs.
-*   **Caching & Payload size:** Caching gaps on stable data, missing pagination on unbounded lists, or over-fetching columns (`select *`).
+- *Correctness:* Required state transitions, error outcomes, edge conditions, partial failures, retries, and issue closure behave as specified.
+- *Security:* Authentication, authorization, trust boundaries, input handling, and sensitive-data rules preserve the declared guarantees.
+- *Compatibility and data:* Published surfaces, `pinned` shapes, stored data, rollout, and recovery remain consistent with the compatibility ADR and approved amendments.
+- *Concurrency and resources:* Ownership, ordering, cancellation, transactions, idempotency, and cleanup preserve the relevant invariants.
+- *Performance:* Comparable measurements support stated thresholds; a smell such as a loop or cache miss is not itself proof of a regression.
+- *Verification quality:* Assertions check meaningful outcomes through real interfaces. Missing unit tests alone is not a finding; a false pass or materially unsupported acceptance claim is.
+- *Domain language:* Canonical terms apply on the intended domain surfaces. A banned synonym is banned only when replacing its canonical concept. A real new concept needs routing to the owning stage, not an unauthorized glossary edit in a code commit. Technical words such as pool, worker, or cache do not automatically need glossary entries.
 
-### D. Data, Migrations & Compatibility
-*   **Schema Modifications:** If schemas/contracts change, ensure old running clients don't break and migrations have safe rollback logic.
-*   **State Invariants:** Ensure state transitions respect database invariants.
+## Return findings
 
----
+Use the smallest supported severity:
 
-## 4. Findings & Classifications
+- `P0`: A severe contract or correctness defect with security, data-loss, or production risk.
+- `P1`: Meaningful unmet acceptance, a contract/boundary violation, or a domain-facing naming violation with a binding requirement.
+- `P2`: A smaller concrete spec, logic, scope, compatibility, or verification defect.
+- `Investigate`: A grounded possible deviation with a concrete evidence path.
+- `General feedback`: Useful non-blocking spec-alignment feedback.
 
-Classify and return findings in this exact format:
-- `P0`: Severe contract/spec violations, security vulnerabilities, or logic bugs.
-- `P1`: Meaningful missing Gherkin specs, API contract deviations, or ubiquitous-language violations on domain-facing surfaces.
-- `P2`: Scope creep, minor logic gaps, or performance/verification issues.
-- `Investigate`: Potential contract deviations requiring confirmation.
-- `General feedback`: General implementation notes on spec alignment.
+Historical verified-at SHAs are not pins to keep current. A `done` ticket with failed or absent required proof, a false pass, contradictory evidence, or invalid framework data is an acceptance defect. Apply the execution stage's evidence timing: proof not yet due is not missing proof.
 
-<output_format>
+Return the router's completion fields and findings in this format, omitting empty subsections:
 
-```markdown
+```md
 ## Spec Findings
 
 ### P0
 path:line-range
-[Description of severe spec violation or logic bug, quoting the spec line]
+Trigger, evidence, severe consequence, and applicable requirement.
 
 ### P1
 path:line-range
-[Description of missing Gherkin criteria or contract deviation, quoting the spec line]
+Trigger, evidence, consequence, and applicable requirement.
 
 ### P2
 path:line-range
-[Description of logic gaps, performance issues, or unauthorized scope edits]
+Concrete deviation, evidence, and consequence.
 
 ### Investigate
 path:line-range
-[Description of the potential spec deviation requiring confirmation]
+Question and evidence needed to decide it.
 
 ### General feedback
 path:line-range
-[General notes on spec alignment]
+Non-blocking spec-alignment observation.
 ```
-
-</output_format>

@@ -1,229 +1,108 @@
-# Reviewing Pull Requests (full review)
+# Full PR review
 
-Review an actual GitHub pull request with a balanced posture that can still block when warranted.
+Review the complete GitHub PR as a change to a real codebase. Apply the router's evidence, revision, verification, and authority rules. This workflow is for a PR review, not implementation, loose snippets, or a repository-wide audit.
 
-## Trigger boundary
+## Capture the candidate
 
-Use this skill when the user asks to review, check, look at, or give feedback on a pull request.
+Use `gh` unless the caller supplied a verified offline snapshot. Collect the core metadata and diff:
 
-Do not use it for:
-- code generation
-- implementation help
-- repo-wide audits
-- review of a loose snippet or diff that is not being treated as a PR
-- generalized architecture feedback unrelated to a PR
+```sh
+gh pr view <number> --json number,url,title,body,author,baseRefName,headRefName,baseRefOid,headRefOid,changedFiles,files,commits,comments,reviews,closingIssuesReferences
+gh pr diff <number>
+gh pr view <number> --json statusCheckRollup
+```
 
-## Operating stance
+Read every explicitly referenced issue, including its comments, using `gh issue view <number-or-url> --json number,url,title,body,state,comments`. An unavailable required issue or incomplete diff blocks full coverage. Optional check metadata can be unavailable; disclose that limit.
 
-Review the PR as a concrete change to a real codebase, not as an isolated patch. The review runs inside a checkout of the repository, so read files and run commands directly. Adapt review emphasis to the repo's primary language, framework, and toolchain — a Go service, a TypeScript monorepo, and a Python ML pipeline have different review surfaces.
+Confirm the checkout's HEAD equals the captured head and tracked files are clean. Compute the merge base from the captured base/head. Verify the inventory against the complete local delta. If the hosting API truncates the diff, use `git diff <merge-base> <head>` when the captured objects are available and record the source. The caller must supply missing objects before review; do not substitute a nearby revision.
 
-Priorities:
-1. correctness and risk first
-2. then security, compatibility, observability, tests, and maintainability
-3. then non-blocking feedback that is still grounded in the changed code
+Recheck base/head after collection and before accepting the review. Changed revisions invalidate affected evidence. Retain source and metadata capture identities so the reviewed candidate is clear.
 
-Be balanced, but block when warranted.
+## Match the review to the change
 
-Do not:
-- rely on the diff alone when surrounding code is needed
-- comment on untouched code unless there is concrete interaction risk
-- comment on lockfiles unless the lockfile itself is central to the PR
-- invent repo conventions; infer them from nearby code
-- escalate weak guesses into bugs
-- file speculative concerns as bugs
+Classify the changed surfaces and choose applicable checks:
 
-## Required workflow
+- *Constitution only:* Follow the documents workflow. Related stage changes can share a coherent PR. Each stage retains decision ownership, and upstream repairs use the authorized owning-stage route.
+- *Other documents:* Verify accuracy against code, command signatures, paths, diagrams, and claimed behavior. Code execution is needed only when it settles an affected claim.
+- *Code:* Follow this workflow with relevant acceptance and operational evidence.
+- *Mixed:* Review each surface by its rules and check their combined behavior. Code and spec changes can share a PR in separate commits. Inspect the sequence so code is judged against the applicable authorized spec, rather than excused by a rewritten requirement in the same commit.
 
-### Step 1 — Load the PR through `gh`
+Inspect commit and milestone evidence as useful inputs. Still account for the full cumulative delta, integration with the captured base, cross-milestone interactions, and the final PR description. No changed surface is exempt merely because a milestone reviewer saw it earlier.
 
-Use `gh` CLI as the source of truth for the review.
+## Establish claims and risk
 
-Collect, at minimum:
-- PR number, title, and body
-- base and head branches
-- changed files
-- raw diff
-- checks / CI status when available
-- referenced issues when present
+Read the PR, issues, active tickets, relevant contracts, and governing decisions. If the PR claims issue closure, verify the complete requested behavior and any assumption required for closure.
 
-Typical command sequence:
+Identify the safety assumptions most likely to fail. Trace surrounding code, callers, callees, interfaces, configuration, migrations, and retained observations far enough to decide them. A one-line interface change can require more investigation than a larger isolated utility. Follow lockfile or generated changes when they affect the claim; do not produce nits about generated formatting.
 
-1. Identify and inspect the PR. Start with the core fields, then enrich if available.
-   ```bash
-   # core — should always work
-   gh pr view <number> --json number,title,body,author,baseRefName,headRefName,files,commits
+For a broad delta, investigate coherent batches ordered by risk and finish with an integration pass over their interactions. File counts and line counts are planning guides, not escalation triggers. If coverage is incomplete, name the unreviewed surfaces and the resulting limit.
 
-   # enrichment — may fail on older gh versions or repos without checks; ignore errors
-   gh pr view <number> --json statusCheckRollup 2>/dev/null
-   ```
-2. Inspect the raw diff.
-   - `gh pr diff <number>`
-3. Read explicitly referenced issues.
-   - `gh issue view <number>` for each issue the PR body references
-4. Read surrounding code in the checkout or working tree.
+## Assess evidence and acknowledged decisions
 
-If the PR cannot be identified or accessed, stop and say so. If an enrichment call fails, continue with what you have — do not halt the review over optional metadata.
+Inspect recorded verification by candidate and input identity, command, environment, outcome, and coverage. Use the change-type proof guidance in the router. Run the narrowest meaningful check for absent, invalidated, unreliable, uncovered, or required proof. Do not rerun every check because the reviewer changed. Coordinate runtime use with its owner and keep the supplied checkout read-only.
 
-### Step 2 — Match the review to what changed
+For ticket acceptance, read its declared mode and evidence body. Gherkin is one mode, not a universal test requirement. Inspect observations that substantiate the claim; manifest validation establishes declared file existence and digests, not behavior. A false pass, contradictory result, or required failed/missing proof remains an acceptance defect. Older verified-at evidence is historical; evaluate whether its inputs cover this candidate.
 
-Classify the changed files before choosing what to check: application code, tests, configuration and tooling, `.constitution/` documents, other documentation. Review what the PR actually touches.
+Read deferred scope, accepted tradeoffs, existing obligation owners, and reasoned dismissals before filing findings. Do not re-file an accepted preference as a defect. If a deferral leaves a concrete correctness or acceptance defect, explain the affected behavior and why the accepted ruling does not cover it. A nearby comment can identify intent, but cannot prove the safety assumption.
 
-- **`.constitution/`-only PR.** This is a document review against the framework rules: each directory decides only what its stage owns and never repairs an upstream directory; naming uses the glossary's canonical terms; every touched directory gets a SemVer bump and a changelog entry; versions, counts, ticket IDs, and cross-references agree across files; Mermaid diagrams and links resolve; and any downstream directory the change makes stale is either updated or explicitly flagged. Skip the code categories in Step 8 and skip code verification. Verification here means confirming that referenced paths exist and diagrams parse.
-- **Other docs-only PR** (README, guides, comments): check accuracy against the code, stale commands, and dead links or paths. Skip the code categories in Step 8 and skip code verification.
-- **Code PR.** Run the full workflow.
-- **Mixed PR.** Review each part by its own rules, and check that the code matches the constitution changes shipped with it.
+Compare the cumulative change with ticket scope, owned paths, contracts, and authorized deviations. Routine implementation adaptations within the approved envelope do not require a new wave amendment. Flag real scope expansion or out-of-authority changes with their consequence, rather than treating every incidental file as a blocker.
 
-Findings for documents use the same classification and format as code findings, with `path:line-range` pointing into the document.
+## Investigate applicable categories
 
-### Step 3 — Read issue context and success criteria
+Use these questions to direct investigation, not as a quota or automatic refactor list:
 
-If the PR references a GitHub issue, read it.
+- *Correctness and closure:* Does the integrated behavior satisfy the PR, issue, and acceptance claims? Check relevant boundaries, empty states, partial failures, retries, and call-site compatibility.
+- *Security and permissions:* Are authentication, authorization, trust boundaries, and ownership preserved? Can untrusted input cross an interpreter boundary or expose sensitive data?
+- *Data and compatibility:* Does the actual contract artifact remain compatible? Can representative stored data, clients, rollouts, and recovery paths preserve required invariants?
+- *Concurrency and lifecycle:* What owns shared state and resources? Check ordering, transactions, cancellation, idempotency, cleanup, and competing execution.
+- *Performance:* Is there a demonstrated workload, complexity, query, allocation, payload, or contention regression? A pattern such as nested loops or missing caching needs an actual consequence.
+- *Verification:* Do assertions observe meaningful public behavior? Does existing coverage address the important regression risk? Missing isolated unit tests alone is not a finding.
+- *Operability:* Can required failure states be diagnosed with the project's logs, metrics, traces, or runbooks? Do not invent a telemetry project.
+- *Maintainability and standards:* Is the changed code locally coherent and compliant with project rules? Investigate smells before recommending abstraction or comments.
+- *Domain language:* Use canonical glossary terms where applicable. Route a real new domain concept to its owning stage through the closeout; do not demand an unauthorized code-commit edit to `prd/`.
 
-Treat issue closure as a real requirement:
-- if the PR claims to close or address an issue, verify that the changes can coherently do so
-- if closure only works under an issue-level assumption, require that assumption to be explicit
-- if the issue asks for a behavior change, verify the PR actually implements that behavior rather than a nearby approximation
+Apply the owner's required gates and contribution policy. Treat failing checks as evidence to investigate, not a substitute for code analysis. Do not invent remote tests or arbitrary CI green as universal review conditions.
 
-Also treat project checks seriously:
-- if tests or lint are configured, failing checks are real review signal
-- missing or obviously insufficient coverage for a behavior change is review signal
+## Classify and return findings
 
-### Step 4 — Assess verification and resolve gaps
+Use the smallest supported severity:
 
-Inspect the candidate's recorded results: source identity, commands, exit status, relevant environment, and coverage. Reuse valid results for unchanged inputs. Run the narrowest meaningful check when evidence is absent or unreliable, the diff exposes an uncovered risk, or a project rule requires independent execution. Broaden only when the affected surface requires it; a new reviewer is not itself a reason to repeat the full suite.
+- `P0`: Severe correctness, security, data-loss, or production-breakage risk.
+- `P1`: A meaningful bug, broken acceptance or issue closure, or serious operational risk.
+- `P2`: A smaller concrete correctness, quality, user-facing, or maintenance defect.
+- `Investigate`: A grounded unresolved question with a concrete evidence path.
+- `General feedback`: Useful non-blocking feedback tied to the change.
 
-Use the project's canonical commands and the supplied checkout at the captured PR head. Do not create a review worktree or mutate shared runtime state. Coordinate any required runtime check with its owner. Report results inspected, commands executed, and verification limits. Automated manifest validation handles declared hashes and file existence; inspect the retained observations that substantiate acceptance.
+Do not classify preference-only refactors or style nits as bugs. Source-based proof can establish a bug without executing it; state the trigger, path, and consequence. Missing runtime access limits acceptance evidence, not the validity of a decisive source trace.
 
-### Step 5 — Check what the PR already acknowledges
+A stale evidence label is bookkeeping. A `done` ticket with failed or absent required proof, a `live_probe` acceptance claim without its required manifest/result, a false pass, contradictory observations, or invalid framework data is a `P1`. Evidence not yet required by the execution stage is not missing acceptance proof.
 
-Before filing findings, read the PR body carefully for explicitly deferred items, known-gaps sections, migration inventory references, or "intentional non-fix" notes. Also, map the PR's changed files to the corresponding Epic ticket `Scope (In-Scope Files)` in `.constitution/tasks/epics/`.
-
-- Do **not** re-file a finding that the PR body already documents as deferred scope (e.g., "follows in Epic Q," "deferred until first publish cycle").
-- Do **not** file an `Investigate` flag for a design choice that already has an explanatory inline comment in the code. The comment resolves the concern — note it as acknowledged, not as a gap.
-- **Scope Verification:** Check if any changed files fall outside the cumulative `Scope (In-Scope Files)` of the PR's Epic tickets. If they do, verify if there is an accompanying justification entry under `##### [TICKET_ID] Deviations & Justifications` in the active Epic task files or in the PR body. If no justification exists, flag it as an unexplained scope deviation (P2).
-- If something is explicitly deferred but you believe the deferral is wrong or the risk is higher than acknowledged, file it as a `P2` with reasoning, not as a flag or fresh finding as if it had never been considered.
-
-### Step 6 — Read more than the diff
-
-Do not review the diff in isolation.
-
-For each materially changed file:
-- read the diff
-- read surrounding code needed to understand behavior — follow the chain as far as needed to judge correctness
-- inspect callers, callees, tests, interfaces, config, and migrations when they matter
-- compare the change against nearby repository patterns
-
-The PR is the entry point, not the whole context. Read enough of the codebase to judge whether the change fits, works, and can close the issue it claims to solve. Trust your judgment on how deep to go — a one-line change to a function signature may require reading every call site, while a new utility file may only need its immediate consumers. The goal is confident findings, not exhaustive coverage.
-
-Flag when something falls outside the local pattern radius without clear justification.
-
-### Step 7 — Scope management for large PRs
-
-For a large PR (roughly 30+ files or 1500+ lines of diff), review in batches ordered by risk — core logic and data paths before tests, config, and generated files — and keep track of interactions between batches, since a schema change in one can invalidate assumptions in another, and finish with a short pass over the whole change for gaps between batches. If you cannot finish every batch, say which files you reviewed and which remain, so the user knows what still needs eyes.
-
-### Step 8 — Review categories
-
-Check every category that applies to what changed (Step 2):
-
-#### Correctness and logic
-- Does the changed behavior do what the PR and issue claim?
-- Are edge cases, partial failures, retries, and null or empty states handled?
-- Are affected call sites and interfaces updated coherently?
-
-#### Issue closure coherence
-- If an issue is referenced, do the changes really resolve it?
-- Does closure depend on a hidden assumption?
-- If so, is that assumption explicit?
-
-#### Tests, lint, and CI
-- Are relevant tests present for behavior changes?
-- Do tests assert behavior independently, rather than mirroring the implementation? Audit test assertions to make sure they check actual outcomes—verify they are not "gaming the verification" with empty mocks or dummy checks.
-- Were relevant tests, lint, typechecks, or builds actually run locally? Inspect its result and execute only missing, invalidated, or risk-driven checks.
-- If not, is the blocker explicit and does it reduce confidence in the review?
-- If project checks exist, are failures meaningful here?
-- Is missing coverage likely to hide regressions?
-
-#### Security and permissions
-- Are authn and authz expectations preserved?
-- Is untrusted input validated or encoded correctly?
-- Are secrets, private data, or risky logs exposed?
-
-#### Data, migrations, and compatibility
-- Does the change alter schemas, contracts, messages, or stored data?
-- Could migrations, rollouts, or old clients break?
-- Are rollback assumptions sane?
-
-#### Performance and resource behavior
-- Does this add expensive loops, queries, allocations, or network chatter?
-- Is there N+1 risk, retry amplification, lock contention, or cache churn?
-
-#### Observability and operability
-- Will operators have enough signal to debug failures?
-- Are metrics, logs, traces, or alerts materially affected?
-
-#### Maintainability and local consistency
-- Does the change fit nearby code patterns unless deviation is justified?
-- Is the code understandable and locally coherent?
-- Is the complexity justified?
-- When the repo defines a glossary or ubiquitous-language document (e.g. `.constitution/prd/glossary.md`), does new naming use its canonical terms rather than banned synonyms, and are newly introduced domain concepts added to it?
-
-Only raise findings grounded in the PR, the surrounding code, or the referenced issue context.
-
-### Step 9 — Classify findings
-
-Use the smallest label that honestly matches the issue.
-
-- `P0`: severe correctness, security, data-loss, or production-breakage risk that should block merge
-- `P1`: meaningful bug or gap likely to cause incorrect behavior, broken issue closure, or serious operational pain
-- `P2`: smaller but real bug, quality gap, or maintainability risk worth fixing
-- `Investigate`: grounded concern that needs confirmation
-- `General feedback`: non-blocking useful feedback tied to changed code
-
-Severity discipline:
-- do not use `P0`, `P1`, or `P2` for style nitpicks
-- do not file speculative concerns as bugs
-- do not expand scope to untouched code unless the change materially depends on it
-- `P2` means a real correctness, quality, or user-visible gap — not "could be cleaner." Import ordering, assertion coverage breadth for already-passing tests, whitespace edge cases, and "slightly friendlier UX" improvements are `General feedback`, not `P2`.
-- Evidence bookkeeping under `.constitution/evidence/` is `General feedback`: manifest wording, a verified-at commit older than the head, a SHA a rebase rewrote. The verified-at commit is historical, not a pin to keep current. The epic lead captures `live_probe` evidence once, before the PR opens, so a `done` `live_probe` ticket with no evidence manifest or no `result` in the PR is a `P1`: an acceptance claim without its proof. Evidence that claims a pass that didn't happen, contradicts the code's behavior, backs a `done` ticket whose `result` is `fail` or `not_met`, or fails `validate` is a `P1`.
-- `Investigate` means you have a grounded concern that needs confirmation — not a design tradeoff already explained by a nearby comment. An accepted documented tradeoff resolves a preference concern; it does not excuse behavior that contradicts code, a contract, or acceptance criteria.
-
-### Step 10 — Return the review in the required format
-
-Follow this exact section order. Omit empty subsections.
-
-<output_format>
+Return findings in this order, omitting empty subsections:
 
 ```md
 ## Potential Bugs
 
 ### P0
 path:line-range
-Review comment in prose, optional suggestions/code block.
+Trigger, evidence, consequence, and relevant requirement.
 
 ### P1
 path:line-range
-Review comment in prose, optional suggestions/code block.
+Trigger, evidence, consequence, and relevant requirement.
 
 ### P2
 path:line-range
-Review comment in prose, optional suggestions/code block.
+Trigger, evidence, and consequence.
 
 ## Flags
 
 ### Investigate
 path:line-range
-Review comment in prose, optional suggestions/code block.
+Concrete question, evidence available, and the check that can decide it.
 
 ### General feedback
 path:line-range
-Review comment in prose, optional suggestions/code block.
+Useful non-blocking observation tied to the change.
 ```
 
-</output_format>
-
-Formatting rules:
-- include `path:line-range` for every comment when possible
-- keep comments concrete and prose-first
-- include suggestions or code blocks only when they materially help
-- when relevant, mention the verification commands you ran and the blockers for any commands you could not run
-- do not add a separate summary, approval, or filler outside the required format
+Include the router's completion fields: reviewed base/head and optional `since`, coverage and gaps, acceptance limits, and verification inspected or run. State explicitly when no findings remain. A review response is not merge authorization.

@@ -1,16 +1,22 @@
 # Constitutional Framework Skills
 
-One [skillprism](https://tuvren.github.io/skillprism/) source for the **AI Project Development Framework** skills, compiled to **Claude Code**, **Codex CLI**, and **Grok CLI**.
+One [skillprism](https://tuvren.github.io/skillprism/) source for the AI Project Development Framework skills, compiled to Claude Code, Codex CLI, Grok CLI, and Antigravity CLI.
 
 `skills/` is the only source of truth. Each harness gets its own rendered `SKILL.md` carrying that harness's delegation and plan-file mechanics, and its own rendered references where those differ. Editors and agents still read the same framework: a governed, directory-isolated artifact chain under `.constitution/`.
 
 ## Execution principles
 
 - Resolve scope, prerequisites, verification ownership, evidence needs, and available model fallbacks during planning.
-- Assign coherent milestones and repair batches. Keep routine corrections with their implementation owner.
+- Give each milestone a fresh worker and independent review. Keep routine corrections and focused verification in that worker's assignment.
+- Let epic leads adapt execution within approved outcomes and authority; wave leads own cross-epic decisions. A single epic needs no extra lead layer.
 - Reuse valid verification for unchanged inputs; rerun for changed inputs, uncovered risk, or a required project gate.
 - Review independently, with a panel sized to risk and capabilities available in the current harness.
 - Capture minimal acceptance evidence once after implementation freezes. Keep bulk run output outside the constitution.
+- Keep small related stage changes and patches in a coherent pull request, preserving stage ownership and separate code/spec commits.
+
+Write almost no ordinary code comments or isolated unit tests. Prefer clear names and types, public-interface behavior checks, and useful coverage. TSDoc-style contracts, licenses, and rare essential constraints remain appropriate.
+
+Private projects verify locally by default, with CI/CD focused on secure publishing, deployment, and release. Open-source projects accepting outside contributions use contribution CI behavior checks by default. Test workflows stay separate from release execution. Owner requirements and required project gates govern; repository visibility alone does not establish the contribution model.
 
 Harness adapters change tool usage, not these policies. Project instructions supply runtime limits, commands, and stronger requirements. No particular model vendor, application architecture, or deployment environment is required.
 
@@ -21,8 +27,9 @@ Harness adapters change tool usage, not these policies. Project instructions sup
 | `claude` (Claude Code) | skillprism built-in | `~/.claude/skills/` | `/skill-name` |
 | `codex` (Codex CLI) | skillprism built-in | `~/.codex/skills/` | `/skill-name` |
 | `grok` (Grok CLI) | custom, `harnesses/grok.yaml` | `~/.grok/skills/` | `/skill-name` |
+| `antigravity` (Antigravity CLI) | custom, `harnesses/antigravity.yaml` | `~/.gemini/antigravity-cli/skills/` | `/skill-name` |
 
-Grok is not one of skillprism's built-in harnesses, so `harnesses/grok.yaml` defines its id, capability flags, and directories. See [`harnesses/grok.yaml`](harnesses/grok.yaml).
+Grok and Antigravity use custom harness definitions for their ids, capability flags, and directories. See [`harnesses/grok.yaml`](harnesses/grok.yaml) and [`harnesses/antigravity.yaml`](harnesses/antigravity.yaml).
 
 ## Skills
 
@@ -45,7 +52,7 @@ Fourteen framework skills. `stage`/role comes from each `skill.yaml`'s `metadata
 | `upgrading-constitution-repos` | Companion | migrated `.constitution/` across reviewable phases |
 | `commit-push-open-pr` | Git workflow | git history, GitHub PR |
 
-`reviewing-pull-requests` and `reviewing-milestone-commits` are routers that load `standards`, `spec`, `full`, or `documents` workflows from their `references/`.
+`reviewing-pull-requests` routes to `standards`, `spec`, `full`, or `documents` workflows in its `references/`. `reviewing-milestone-commits` is self-contained.
 
 ## Usage
 
@@ -60,7 +67,7 @@ bunx skillprism@0.5.0 build --force # overwrite existing dist/ files non-interac
 
 # Install where an agent actually reads skills. `add` is separate from `build`.
 bunx skillprism@0.5.0 add . --target project
-bunx skillprism@0.5.0 add . --target user --harnesses claude,codex,grok
+bunx skillprism@0.5.0 add . --target user --harnesses claude,codex,grok,antigravity
 ```
 
 ## Project structure
@@ -73,20 +80,21 @@ skills/<name>/
   assets/               # same: *.j2 rendered, the rest copied
   scripts/              # same: *.j2 rendered, the rest copied
 harnesses/grok.yaml     # custom harness for Grok CLI
+harnesses/antigravity.yaml # custom harness for Antigravity CLI
 skillprism.yaml         # harnesses + skills_dir
 dist/<harness>/         # build output (gitignored)
 ```
 
 ## How harness differences are handled
 
-- **Tooling paths** use `~/.{{ harness.id }}/skills/...`, which resolves to `~/.claude`, `~/.codex`, or `~/.grok` because the harness ids match the directory names.
-- **`SKILL.md` conditionals**: native delegation, plan-mode constraints, and messaging are branched with `{% if harness.id == "claude" %} / {% elif harness.id == "codex" %} / {% else %}` (Grok). Only `execute-epic-end-to-end`, `execute-wave`, `interview`, `pr-review-fix-loop`, `specifying-technical-implementation`, and `upgrading-constitution-repos` diverge. A skill without such a branch is harness-neutral in `SKILL.md`, though tooling paths and shared references can still make its rendered output differ per harness.
+- **Tooling paths** use `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/...`, resolving to each harness's user skill root.
+- **`SKILL.md` conditionals**: native delegation, plan-mode constraints, and messaging use branches for Claude, Codex, and Antigravity, with Grok as `else`. Only `execute-epic-end-to-end`, `execute-wave`, `interview`, `pr-review-fix-loop`, `specifying-technical-implementation`, and `upgrading-constitution-repos` diverge. A skill without such a branch stays harness-neutral in `SKILL.md`, though tooling paths and references can differ per harness.
 - **Templated references**: any file named `*.j2` anywhere in a skill directory renders once per harness with the suffix stripped ([skillprism#46](https://github.com/Tuvren/skillprism/issues/46), fixed in v0.5.0). The harness-sensitive references are `.md.j2` templates and use the same `harness.*` context as `SKILL.md`. Everything else is copied verbatim, so non-templated references, assets, and scripts must stay harness-neutral.
 - **Descriptions are one short string for all harnesses.** Codex rejects a description over 500 bytes (Claude Code allows more, Grok none documented) and caps its initial skills list, so each description stays comfortably under 500 and prioritizes clarity over richness.
-- **Location-independent scripts.** `upgrading-constitution-repos/scripts/survey.ts` derives the `constitution-tooling` CLI from `import.meta.dir` and scans all three plan directories, so it works from any harness install.
+- **Location-independent scripts.** `upgrading-constitution-repos/scripts/survey.ts` derives the `constitution-tooling` CLI from `import.meta.dir` and scans `.claude`, `.codex`, `.grok`, and `.agents` plan directories.
 
 ## Notes
 
 - The hand-synced copies this replaces had drifted; the unified source uses the newest canonical content (from the `~/.claude/skills` repository) for every harness, so Codex and Grok pick up checks and wording their copies lacked.
-- `constitution-tooling`'s `epic-plan.schema.json` accepts every runtime (`claude`, `codex`, `grok`, `pi`, `pig`) so a plan written under one harness validates under the others.
+- `constitution-tooling`'s `epic-plan.schema.json` accepts every runtime (`claude`, `codex`, `grok`, `antigravity`, `pi`, `pig`) so a plan written under one harness validates under the others.
 - v0.5.0 is a breaking change for projects that shipped `*.j2` files expecting them to be copied unchanged: those files are now templates.

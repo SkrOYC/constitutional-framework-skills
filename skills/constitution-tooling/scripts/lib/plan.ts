@@ -86,7 +86,7 @@ function checkOnePlan(root: string, planPath: string, text: string, schemas: Sch
   if (kind === "epic" && data.epic_file === "none") err("PLAN-001", "a kind: epic plan names its epic file; epic_file: none is for fast_lane and no_constitution plans", "/epic_file");
 
   policyCoverage(data, schemas, err);
-  if (kind === "no_constitution") { selfPlannedChecks(data, err); return data; }
+  if (kind === "no_constitution") { invocationChecks(data, err); return data; }
   if (kind === "fast_lane" && !existsSync(join(root, ".constitution"))) err("PLAN-002", `${root} has no .constitution/; a plan with no constitution to check against is kind: no_constitution`, "/kind");
 
   const m = loadModel(root);
@@ -104,7 +104,7 @@ function checkOnePlan(root: string, planPath: string, text: string, schemas: Sch
   (Array.isArray(data.open_decisions) ? data.open_decisions : []).forEach((o: any, i: number) => { if (o?.id && !odIds.has(o.id)) err("PLAN-003", `open decision ${o.id} is not in reports/open-decisions.yaml`, `/open_decisions/${i}`); });
   const active = new Set(m.epics.filter((e) => e.active).map((e) => `EPIC-${e.data?.id}`));
   (Array.isArray(data.siblings) ? data.siblings : []).forEach((s: any, i: number) => { if (s?.epic && !active.has(s.epic)) err("PLAN-004", `sibling ${s.epic} is not an active epic`, `/siblings/${i}`); });
-  selfPlannedChecks(data, err);
+  invocationChecks(data, err);
   return data;
 }
 
@@ -122,7 +122,26 @@ function policyCoverage(data: any, schemas: SchemaSet, err: Err): void {
   if (duplicated.length) err("PLAN-006", `autonomy policy has more than one entry for ${duplicated.join(", ")}; every trigger needs exactly one action`, "/autonomy/policy");
 }
 
-// A standalone lead has no wave lead above it; its policy must resolve everything itself.
-function selfPlannedChecks(data: any, err: Err): void {
-  if (data.planned_by === "self") (Array.isArray(data.autonomy?.policy) ? data.autonomy.policy : []).forEach((p: any, i: number) => { if (p?.action === "escalate_wave_lead") err("PLAN-005", `trigger ${p.trigger} escalates to a wave lead, but a self-planned epic has none; pick an action the lead can take alone`, `/autonomy/policy/${i}`); });
+interface InvocationPlan {
+  planned_by?: unknown;
+  lanes_in_wave?: unknown;
+  invocation?: unknown;
+  autonomy?: unknown;
+}
+
+function invocationChecks(data: InvocationPlan, err: Err): void {
+  const invocation = data.invocation;
+  const mode = invocation && typeof invocation === "object" && "mode" in invocation ? invocation.mode : undefined;
+  if (mode === "standalone" && data.planned_by !== "self") err("PLAN-008", "standalone invocation must be self-planned", "/invocation/mode");
+  if ((mode === "orchestrated" || mode === "single_epic_wave") && data.planned_by !== "wave_lead") err("PLAN-008", `${mode} invocation must be wave-planned`, "/invocation/mode");
+  if (mode === "single_epic_wave" && data.lanes_in_wave !== 1) err("PLAN-008", "single_epic_wave invocation requires exactly one lane", "/lanes_in_wave");
+  if (data.planned_by !== "self" && mode !== "single_epic_wave") return;
+  const autonomy = data.autonomy;
+  if (!autonomy || typeof autonomy !== "object" || !("policy" in autonomy) || !Array.isArray(autonomy.policy)) return;
+  const policy: unknown[] = autonomy.policy;
+  for (const [index, entry] of policy.entries()) {
+    if (!entry || typeof entry !== "object" || !("action" in entry) || entry.action !== "escalate_wave_lead") continue;
+    const trigger = "trigger" in entry ? String(entry.trigger) : "unknown";
+    err("PLAN-005", `trigger ${trigger} escalates to a separate wave lead, but this invocation has none; pick an action the lead can take alone`, `/autonomy/policy/${index}`);
+  }
 }

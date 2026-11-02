@@ -1,6 +1,6 @@
 # Move map: where each legacy artifact goes
 
-The survey classifies every artifact that still sits next to its sidecar under `tech-spec/`. Decide each one with this table, write the decision into the move map in the plan, and ask the user only where the table says so.
+The survey classifies every artifact that still sits next to its sidecar under `tech-spec/`. Decide each one with this table, record the ruling and its source in the plan, and ask only for choices the user hasn't settled.
 
 | Survey kind | What it means | Default move | Ask the user when |
 | :--- | :--- | :--- | :--- |
@@ -25,4 +25,4 @@ The survey classifies every artifact that still sits next to its sidecar under `
 2. Constitution commit: `artifact_path` set, tech-spec copies deleted, companions named, guidelines commands and `surfaces` updated, tech-spec changelog entry. Nothing outside `.constitution/`.
 3. Constitution commit (Stage 4 patch): `tech_spec_patchable` and `scope.paths` in active epics, `render`, tasks changelog entry.
 
-Require a successful `validate` for each commit's validation inputs; reuse an unchanged result. Group by directory (`contracts/http`, `contracts/async`, `data-models`), so each group is one reviewable set of three commits.
+Require a successful `validate` for each commit's validation inputs; reuse an unchanged result. Group by directory (`contracts/http`, `contracts/async`, `data-models`) into reviewable changes. Keep code, Stage 3, and Stage 4 commits distinct under their owning stages; omit a commit with no changes. Small related groups and phases normally share one coherent PR. A commit boundary doesn't require another branch or PR.

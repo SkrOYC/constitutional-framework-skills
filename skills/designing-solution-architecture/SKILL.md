@@ -84,7 +84,7 @@ Cross-cutting logical design for security and identity, failure handling, teleme
 
 ### `architecture/risks.md`
 
-Structural risks and logical debt, each with a mitigation or follow-up. Call out sensitivity points where a small design change would swing a PRD meter. Add STRIDE threat notes when trust boundaries, multi-tenant data, money movement, or safety impact exist; depth scales with risk.
+Structural risks and logical debt, each with a mitigation or follow-up. Call out assumptions whose failure would change a boundary, flow, or PRD meter. For a decision-changing uncertainty, name the cheapest executable pilot or probe and the dependent work it holds. Route execution to the interview or Stage 3; don't expand speculative design to hide the uncertainty. Add STRIDE threat notes when trust boundaries, multi-tenant data, money movement, or safety impact exist; depth scales with risk.
 
 ### `architecture/changelog.yaml`, schema `changelog.schema.json`
 
@@ -92,11 +92,11 @@ Add this pass's entry with the SemVer bump and the `upstream` field naming the `
 
 ## Certainty in Stage 2
 
-Greenfield boundaries and flows are `assumed`. A boundary settles by `repository` evidence when the module, process, or partition exists in code. A flow settles when an integration test walks it, which execution reports in its closeout and reconcile applies; don't claim it here. A boundary waiting on an open decision is `open`.
+Greenfield boundaries and flows are `assumed`. A boundary settles by `repository` evidence when the module, process, or partition exists in code. A flow settles when behavior verification exercises it through real interfaces, which execution reports in its closeout and reconcile applies. Reuse meaningful coverage or a focused probe; don't require a new test for each flow. A boundary waiting on an open decision is `open`.
 
 ## Close the pass
 
-Open one pull request for this stage's constitution commit, separate from any other stage, and have it reviewed with `pr-review-fix-loop` in `documents` mode. A single-stage PR converges; a PR carrying the whole pipeline does not.
+Put this pass in an identifiable constitution commit. Small related stage passes or patches can share one coherent pull request. Preserve stage ownership and upstream ordering, and keep code and specification changes in separate commits. Run `pr-review-fix-loop` in `documents` mode for a constitution-only PR, or full review when it includes implementation. Split unrelated or unwieldy work when that improves review.
 
 ## Validation checklist
 

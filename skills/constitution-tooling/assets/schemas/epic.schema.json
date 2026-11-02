@@ -11,7 +11,7 @@
     "kind": {
       "type": "string",
       "enum": ["tooling", "foundation", "product", "out_of_band"],
-      "description": "out_of_band epics come from an issue, sit outside the critical path, and still obey every other rule"
+      "description": "out_of_band epics come from an issue and run outside wave scheduling; their dependencies and dependent epics remain part of dependency analysis"
     },
     "priority": { "type": "integer", "minimum": 1, "description": "Lower runs first when two epics could share a wave; defaults to file order" },
     "source": { "type": "string", "description": "Origin of an out_of_band epic, for example github#42 or an audit report path" },
@@ -46,6 +46,11 @@
     "closeout": { "$ref": "#/$defs/closeout" }
   },
   "$defs": {
+    "obligationSource": {
+      "type": "string",
+      "pattern": "^(?:[A-Z]{2,6}-[A-Z]{1,2}[0-9]{3}|EPIC-[A-Z]{1,2}#follow-up:[0-9a-f]{12})$",
+      "description": "Deferred ticket id, or epic-local follow-up reference printed by render: EPIC-<ID>#follow-up:<first 12 lowercase hex characters of SHA-256 of the exact UTF-8 follow-up text>"
+    },
     "ticket": {
       "type": "object",
       "additionalProperties": false,
@@ -95,6 +100,12 @@
         "certainty": { "$ref": "common.schema.json#/$defs/certainty", "description": "settled when every contract, schema, and boundary the ticket touches is settled; assumed otherwise" },
         "status": { "type": "string", "enum": ["planned", "in_progress", "done", "deferred", "blocked"] },
         "deferred_to": { "type": "string", "description": "Stage or work item a deferred ticket was routed to" },
+        "replaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/obligationSource" },
+          "uniqueItems": true,
+          "description": "Explicit deferred obligation sources or linked replacement tickets this ticket takes over. Ownership follows these links; done status alone does not prove delivery."
+        },
         "deviations": {
           "type": "array",
           "items": {
@@ -175,6 +186,21 @@
           }
         },
         "follow_ups": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "obligation_resolutions": {
+          "type": "array",
+          "description": "Explicit delivery or retirement proof for an exact obligation source or its linked replacement. Historical resolutions remain effective after archival or ticket-status changes.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source", "outcome", "evidence"],
+            "properties": {
+              "source": { "$ref": "#/$defs/obligationSource" },
+              "outcome": { "type": "string", "enum": ["delivered", "retired"] },
+              "evidence": { "$ref": "common.schema.json#/$defs/evidence" },
+              "reason": { "type": "string", "minLength": 1, "description": "Required for retired obligations; identifies why the obligation no longer applies and the cited approval or ruling" }
+            }
+          }
+        },
         "code_decisions": {
           "description": "Decisions the code made that tech-spec does not record yet: new dependencies, patterns, conventions, contract shapes. Reconcile routes each to Stage 3 for a ruling.",
           "type": "array",
