@@ -94,6 +94,47 @@ Then confirm:
 
 `bunx skillprism@0.5.0 init skill <name>`, or write `skills/<name>/skill.yaml` and `SKILL.md`. Keep the description short and comfortably under Codex's 500-byte cap, and use `{{ skill_name | yaml_str }}` and `{{ skill_description | yaml_str }}` in the frontmatter. For a reference that varies per harness, author `references/foo.md.j2` and use `harness.id`, the same skill variables, and the `yaml_str`/`tojson` filters.
 
+## Install from GitHub
+
+When the user asks to install this repository from GitHub into the four harnesses, run the commands in this section. Don't look up flags, docs, or the skillprism source.
+
+The source `SkrOYC/constitutional-framework-skills` is GitHub shorthand. skillprism clones the default branch, `master`, and renders all 14 skills. Grok and Antigravity come from `harnesses/` in that clone, so name them on `--harnesses`.
+
+Don't install `.` for this request. The README `add .` example installs the local checkout, not GitHub. `add .` records source `.` and ref `-`. `update` skips a local source, a missing ref, and a pinned commit, so that install can't be refreshed from GitHub.
+
+To install or replace the 14 framework skills in the user skill roots:
+
+```bash
+export SKILLPRISM_VERSION=0.5.0
+bunx skillprism@0.5.0 add SkrOYC/constitutional-framework-skills \
+  --target user \
+  --harnesses claude,codex,grok,antigravity \
+  --all \
+  --force
+```
+
+`--all` installs every skill in the source and skips prompts. `--force` overwrites files that already exist. `--yes` alone doesn't overwrite, and a non-interactive overwrite without `--force` exits 1.
+
+Leave every other skill in those directories alone. `add` writes only the skills from this source.
+
+To confirm, run:
+
+```bash
+export SKILLPRISM_VERSION=0.5.0
+bunx skillprism@0.5.0 list -g -H claude,codex,grok,antigravity
+```
+
+Each of the 14 skills must show source `SkrOYC/constitutional-framework-skills`, ref `master`, scope `user`, and harnesses `claude, codex, grok, antigravity`.
+
+When that record is already in place, refresh with `update` instead of `add`:
+
+```bash
+export SKILLPRISM_VERSION=0.5.0
+bunx skillprism@0.5.0 update -g -H claude,codex,grok,antigravity --force
+```
+
+If `list` shows source `.` or ref `-`, `update` skips those rows. Run the `add` command above.
+
 ## Do not touch user-level skills
 
-Unless explicitly asked, **never** run `skillprism add --target user`, edit anything under `~/.claude/skills`, `~/.codex/skills`, `~/.grok/skills`, or `~/.gemini/antigravity-cli/skills`, or run `git` commands that write there. `add --target project` is fine. This repo's `.claude/`, `.codex/`, `.grok/`, `.agents/`, and `dist/` are gitignored.
+Unless explicitly asked, **never** run `skillprism add --target user`, edit anything under `~/.claude/skills`, `~/.codex/skills`, `~/.grok/skills`, or `~/.gemini/antigravity-cli/skills`, or run `git` commands that write there. When the user does ask to install this repository from GitHub into the four harnesses, follow [Install from GitHub](#install-from-github). Don't rediscover the command. `add --target project` is fine. This repo's `.claude/`, `.codex/`, `.grok/`, `.agents/`, and `dist/` are gitignored.
