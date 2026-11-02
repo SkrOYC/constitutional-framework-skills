@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { validate } from "./cli.ts";
+import { toBlockYaml } from "./lib/yaml.ts";
 
 const FIX = resolve(import.meta.dir, "../assets/fixtures");
 
@@ -253,6 +254,22 @@ describe("migrate", () => {
 });
 
 describe("reconcile", () => {
+  function recordLiveProbe(root: string, commit: string): void {
+    const command = "./scripts/drive-check.sh tests/notes/broken.md";
+    const probe = Bun.spawnSync(["./scripts/drive-check.sh", "tests/notes/broken.md"], { cwd: root, stdout: "pipe", stderr: "pipe" });
+    expect(probe.exitCode).toBe(0);
+    expect(probe.stdout.toString()).toContain("missing: ");
+    const evidence = join(root, ".constitution/evidence/FIX-C001-live");
+    mkdirSync(evidence, { recursive: true });
+    writeFileSync(join(evidence, "probe.log"), probe.stdout);
+    writeFileSync(join(evidence, "manifest.yaml"), toBlockYaml({
+      owner: "FIX-C001", mode: "live_probe", result: "pass",
+      produced: { date: "2026-09-03", commit, command },
+      files: [{ path: "probe.log", bytes: probe.stdout.byteLength, role: "log" }],
+      pass_criteria: "The cli-check driver prints the missing Link.",
+    }) + "\n");
+  }
+
   test("applies a closeout: actuals, settling, proposed decision, changelog, archive, render, commit", async () => {
     const { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = await import("node:fs");
     const { tmpdir } = await import("node:os");
@@ -263,11 +280,12 @@ describe("reconcile", () => {
       cpSync(`${FIX}/valid`, dir, { recursive: true });
       g("init", "-q", "-b", "main"); g("add", "."); g("commit", "-q", "-m", "Plan");
       writeFileSync(`${dir}/src/core/links.ts`, "export const links = () => [];\n"); writeFileSync(`${dir}/docs/check-report.schema.json`, "{}\n");
-      for (const s of ["doctor", "drive-check", "clean"]) writeFileSync(`${dir}/scripts/${s}.sh`, "#!/usr/bin/env bash\nexit 0\n");
+      for (const s of ["doctor", "drive-check", "clean"]) writeFileSync(`${dir}/scripts/${s}.sh`, s === "drive-check" ? "#!/usr/bin/env sh\nprintf 'missing: target.md\\n'\n" : "#!/usr/bin/env bash\nexit 0\n", { mode: 0o755 });
       writeFileSync(`${dir}/package.json`, readFileSync(`${dir}/package.json`, "utf8").replace('"test": "bun test",', '"test": "bun test",\n    "build": "bun build src/cli/parse.ts --outdir dist",'));
       g("add", "."); g("commit", "-q", "-m", "FIX-C001 contract tests");
       writeFileSync(`${dir}/src/core/links.ts`, "export const links = (s: string) => s.split('\\n');\n"); g("add", "."); g("commit", "-q", "-m", "fix: address FIX-C001 milestone review");
       writeFileSync(`${dir}/scripts/bench.sh`, "#!/usr/bin/env bash\nexit 0\n"); writeFileSync(`${dir}/package.json`, readFileSync(`${dir}/package.json`, "utf8").replace('"typecheck": "tsc --noEmit"', '"typecheck": "tsc --noEmit",\n    "bench": "./scripts/bench.sh"')); g("add", "."); g("commit", "-q", "-m", "FIX-C002 bench command");
+      recordLiveProbe(dir, g("rev-parse", "HEAD").trim());
       const epicPath = `${dir}/.constitution/tasks/epics/EPIC-C-checking.yaml`;
       let epic = readFileSync(epicPath, "utf8").replace(/status: planned/g, "status: done");
       epic += `decisions:
@@ -340,11 +358,12 @@ closeout:
       const guidelines = `${dir}/.constitution/tech-spec/guidelines.md`;
       writeFileSync(guidelines, readFileSync(guidelines, "utf8").replace("command: bun run bench,", `command: '${benchCommand}',`));
       writeFileSync(`${dir}/docs/check-report.schema.json`, "{}\n");
-      for (const script of ["doctor", "drive-check", "clean"]) writeFileSync(`${dir}/scripts/${script}.sh`, "#!/usr/bin/env bash\nexit 0\n");
+      for (const script of ["doctor", "drive-check", "clean"]) writeFileSync(`${dir}/scripts/${script}.sh`, script === "drive-check" ? "#!/usr/bin/env sh\nprintf 'missing: target.md\\n'\n" : "#!/usr/bin/env bash\nexit 0\n", { mode: 0o755 });
       writeFileSync(`${dir}/package.json`, readFileSync(`${dir}/package.json`, "utf8").replace('"test": "bun test",', '"test": "bun test",\n    "build": "bun build src/cli/parse.ts --outdir dist",'));
       g("init", "-q", "-b", "main"); g("add", "."); g("commit", "-q", "-m", "Plan");
       // bench is owned by FIX-C002, the second of the epic's two tickets
       writeFileSync(`${dir}/scripts/bench.sh`, "#!/usr/bin/env bash\nexit 0\n"); writeFileSync(`${dir}/package.json`, readFileSync(`${dir}/package.json`, "utf8").replace('"typecheck": "tsc --noEmit"', '"typecheck": "tsc --noEmit",\n    "bench": "./scripts/bench.sh"')); g("add", "."); g("commit", "-q", "-m", "FIX-C002 bench command");
+      recordLiveProbe(dir, g("rev-parse", "HEAD").trim());
       const epicPath = `${dir}/.constitution/tasks/epics/EPIC-C-checking.yaml`;
       writeFileSync(epicPath, readFileSync(epicPath, "utf8").replace(/status: planned/g, "status: done") + `closeout:
   tickets_completed: [FIX-C001, FIX-C002]

@@ -33,6 +33,12 @@ function closeout(root: string, id: string, decisions: unknown[], settled: unkno
     decisions,
     closeout: { tickets_completed: [`FIX-${id}001`, `FIX-${id}002`], tickets_deferred: [], points_completed: 5, spec_patches: [], changelog_entries: [], candidate_terms: [], routed_upstream: [], follow_ups: [], code_decisions: [], settled },
   }) + "\n");
+  if (id !== "C") {
+    const evidence = join(root, `.constitution/evidence/FIX-${id}001`);
+    cpSync(join(root, ".constitution/evidence/FIX-C001"), evidence, { recursive: true });
+    const manifest = join(evidence, "manifest.yaml");
+    writeFileSync(manifest, toBlockYaml({ ...record(loadYamlFile(manifest)), owner: `FIX-${id}001` }) + "\n");
+  }
 }
 
 function withFixture(run: (root: string, decision: Record<string, unknown>) => void): void {
@@ -164,6 +170,113 @@ function cli(root: string, ...args: string[]) {
 }
 
 describe("reconcile proposed-result validation", () => {
+  test("refuses incomplete closeout evidence and references before archival without changing the repository", () => {
+    const evidencePath = ".constitution/evidence/FIX-C001/manifest.yaml";
+    const epicPath = ".constitution/tasks/epics/EPIC-C-checking.yaml";
+    const rewrite = (root: string, path: string, edit: (data: Record<string, unknown>) => void): void => {
+      const target = join(root, path);
+      const data = record(loadYamlFile(target));
+      edit(data);
+      writeFileSync(target, toBlockYaml(data) + "\n");
+    };
+    const defects = [
+      { rule: "TSK-018", prepare: (root: string) => rewrite(root, evidencePath, (data) => { data.result = "fail"; }) },
+      { rule: "TSK-018", prepare: (root: string) => rewrite(root, evidencePath, (data) => { data.result = "owed"; }) },
+      { rule: "TSK-019", prepare: (root: string) => rmSync(join(root, ".constitution/evidence/FIX-C001"), { recursive: true }) },
+      { rule: "TSK-019", prepare: (root: string) => rewrite(root, evidencePath, (data) => { delete data.result; }) },
+      { rule: "TSK-006", prepare: (root: string) => rewrite(root, epicPath, (data) => {
+        if (!Array.isArray(data.tickets)) throw new Error("Expected fixture tickets");
+        data.tickets = data.tickets.map((ticket) => {
+          const entry = record(ticket);
+          return entry.id === "FIX-C002" ? { ...entry, type: "Spike", spike: "SPK-FIX-C002" } : entry;
+        });
+      }) },
+      { rule: "TSK-016", prepare: (root: string) => rewrite(root, epicPath, (data) => {
+        data.closeout = { ...record(data.closeout), spec_patches: [{ path: "tech-spec/contracts/missing.meta.yaml", summary: "A patch that has not landed", commit: "0000000" }] };
+      }) },
+    ];
+    for (const defect of defects) withFixture((root) => {
+      closeout(root, "C", []);
+      defect.prepare(root);
+      initialize(root);
+      expect([...new Set(validate(root).filter((finding) => finding.severity === "error").map((finding) => finding.id))]).toEqual([defect.rule]);
+      const before = snapshot(root);
+      for (const args of [[], ["--no-commit"]]) {
+        const result = cli(root, ...args);
+        expect(result.exitCode).toBe(2);
+        expect(result.stderr.toString()).toContain(defect.rule);
+        expect(snapshot(root)).toEqual(before);
+      }
+    });
+  });
+
+  test("refuses to archive unresolved verification owners and succeeds after prerequisite repair", () => {
+    for (const prerequisite of ["command", "recipe"]) withFixture((root) => {
+      closeout(root, "C", []);
+      const path = join(root, ".constitution/tasks/epics/EPIC-C-checking.yaml");
+      const epic = record(loadYamlFile(path));
+      if (!Array.isArray(epic.tickets)) throw new Error("Expected fixture tickets");
+      const owner = prerequisite === "command" ? "FIX-C002" : "FIX-C001";
+      const tickets = epic.tickets.map(record);
+      epic.tickets = tickets.map((ticket) => ticket.id === owner ? { ...ticket, status: "deferred", deferred_to: "Future release" } : ticket);
+      epic.closeout = { ...record(epic.closeout), tickets_completed: tickets.filter((ticket) => ticket.id !== owner).map((ticket) => ticket.id), tickets_deferred: [{ id: owner, route: "tasks", reason: "Prerequisite postponed" }], points_completed: prerequisite === "command" ? 3 : 2 };
+      writeFileSync(path, toBlockYaml(epic) + "\n");
+      const packagePath = join(root, "package.json");
+      const pkg = record(JSON.parse(readFileSync(packagePath, "utf8")));
+      if (prerequisite === "command") {
+        const scripts = record(pkg.scripts);
+        delete scripts.bench;
+        writeFileSync(packagePath, JSON.stringify({ ...pkg, scripts }, null, 2) + "\n");
+      } else rmSync(join(root, "scripts/doctor.sh"));
+      initialize(root);
+      expect(validate(root).filter((finding) => finding.severity === "error")).toEqual([]);
+      const before = snapshot(root);
+      for (const args of [[], ["--no-commit"]]) {
+        const result = cli(root, ...args);
+        expect(result.exitCode).toBe(2);
+        expect(result.stderr.toString()).toContain(owner);
+        expect(result.stderr.toString()).toContain("Stage 3");
+        expect(snapshot(root)).toEqual(before);
+      }
+      if (prerequisite === "command") writeFileSync(packagePath, JSON.stringify(pkg, null, 2) + "\n");
+      else writeFileSync(join(root, "scripts/doctor.sh"), "#!/bin/sh\nexit 0\n");
+      git(root, "add", ".");
+      git(root, "commit", "-q", "-m", "Create the deferred verification prerequisite");
+      const accepted = cli(root);
+      expect(accepted.exitCode).toBe(0);
+      expect(record(JSON.parse(accepted.stdout.toString())).archived).toEqual(["EPIC-C"]);
+      expect(validate(root).filter((finding) => finding.severity === "error")).toEqual([]);
+      expect(git(root, "status", "--porcelain")).toBe("");
+    });
+  });
+
+  test("closes a valid epic without revalidating historical evidence and missing references as active work", () => withFixture((root) => {
+    closeout(root, "C", []);
+    closeout(root, "D", []);
+    const path = join(root, ".constitution/tasks/epics/EPIC-D-checking.yaml");
+    const epic = record(loadYamlFile(path));
+    if (!Array.isArray(epic.tickets)) throw new Error("Expected fixture tickets");
+    epic.tickets = epic.tickets.map((ticket) => {
+      const entry = record(ticket);
+      return entry.id === "FIX-D002" ? { ...entry, type: "Spike", spike: "SPK-FIX-D002" } : entry;
+    });
+    epic.closeout = { ...record(epic.closeout), spec_patches: [{ path: "tech-spec/contracts/historical.meta.yaml", summary: "Historical contract", commit: "0000000" }] };
+    const archivedPath = join(root, ".constitution/tasks/completed/EPIC-D-checking.yaml");
+    writeFileSync(path, toBlockYaml(epic) + "\n");
+    renameSync(path, archivedPath);
+    const manifestPath = join(root, ".constitution/evidence/FIX-D001/manifest.yaml");
+    writeFileSync(manifestPath, toBlockYaml({ ...record(loadYamlFile(manifestPath)), result: "fail" }) + "\n");
+    initialize(root);
+    const historical = readFileSync(archivedPath, "utf8");
+    expect(validate(root).filter((finding) => finding.severity === "error")).toEqual([]);
+    const result = cli(root);
+    expect(result.exitCode).toBe(0);
+    expect(record(JSON.parse(result.stdout.toString())).archived).toEqual(["EPIC-C"]);
+    expect(readFileSync(archivedPath, "utf8")).toBe(historical);
+    expect(validate(root).filter((finding) => finding.severity === "error")).toEqual([]);
+    expect(git(root, "status", "--porcelain")).toBe("");
+  }));
+
   test("rejects a rulerless proposed register entry before changing files, index, or commits", () => withFixture((root, decision) => {
     const invalid: Record<string, unknown> = { ...decision, id: "OD-98", question: "Who approves external checks?", status: "proposed" };
     delete invalid.ruler;
@@ -201,34 +314,44 @@ describe("reconcile proposed-result validation", () => {
     expect(snapshot(root)).toEqual(repositoryBefore);
   }));
 
-  test("rejects unsupported active obligation delivery before archival can make it historical", () => withFixture((root) => {
-    closeout(root, "C", []);
-    const path = join(root, ".constitution/tasks/epics/EPIC-C-checking.yaml");
-    const epic = record(loadYamlFile(path));
-    if (!Array.isArray(epic.tickets)) throw new Error("Expected fixture tickets");
-    epic.tickets = epic.tickets.map((ticket) => {
-      const entry = record(ticket);
-      return entry.id === "FIX-C002" ? { ...entry, status: "deferred", deferred_to: "Future release" } : entry;
+  test("rejects unsupported new obligation claims until proof or an explicit owner exception is supplied", () => {
+    for (const remedy of ["proof", "owner exception"]) withFixture((root) => {
+      closeout(root, "C", []);
+      const path = join(root, ".constitution/tasks/epics/EPIC-C-checking.yaml");
+      const epic = record(loadYamlFile(path));
+      if (!Array.isArray(epic.tickets)) throw new Error("Expected fixture tickets");
+      epic.tickets = epic.tickets.map((ticket) => {
+        const entry = record(ticket);
+        return entry.id === "FIX-C002" ? { ...entry, status: "deferred", deferred_to: "Future release" } : entry;
+      });
+      epic.closeout = { ...record(epic.closeout), tickets_completed: ["FIX-C001"], points_completed: 3, tickets_deferred: [{ id: "FIX-C002", route: "Future release", reason: "Benchmark postponed" }], obligation_resolutions: [{ source: "FIX-C002", outcome: "delivered", evidence: { kind: "repository", ref: "docs/missing-proof.md", date: DATE } }] };
+      writeFileSync(path, toBlockYaml(epic) + "\n");
+      initialize(root);
+      const errors = validate(root).filter((finding) => finding.severity === "error");
+      expect([...new Set(errors.map((finding) => finding.id))]).toEqual(["TSK-020"]);
+      const before = snapshot(root);
+      for (const args of [[], ["--no-commit"]]) {
+        expect(cli(root, ...args).exitCode).toBe(2);
+        expect(snapshot(root)).toEqual(before);
+      }
+      if (remedy === "proof") {
+        epic.closeout = { ...record(epic.closeout), obligation_resolutions: [{ source: "FIX-C002", outcome: "delivered", evidence: { kind: "repository", ref: "src/core/render.ts", date: DATE } }] };
+        writeFileSync(path, toBlockYaml(epic) + "\n");
+      } else {
+        const configPath = join(root, ".constitution/constitution.yaml");
+        writeFileSync(configPath, toBlockYaml({ ...record(loadYamlFile(configPath)), exceptions: [{ rule: "TSK-020", reason: "Project owner explicitly accepts this unavailable delivery proof" }] }) + "\n");
+        const findings = validate(root);
+        expect(findings.filter((finding) => finding.severity === "error")).toEqual([]);
+        expect(findings).toContainEqual(expect.objectContaining({ id: "TSK-020", severity: "info" }));
+      }
+      git(root, "add", ".");
+      git(root, "commit", "-q", "-m", `Supply ${remedy} for deferred obligation delivery`);
+      const accepted = cli(root, "--no-commit");
+      expect(accepted.exitCode).toBe(0);
+      expect(record(JSON.parse(accepted.stdout.toString())).archived).toEqual(["EPIC-C"]);
+      expect(validate(root).filter((finding) => finding.severity === "error")).toEqual([]);
     });
-    epic.closeout = { ...record(epic.closeout), tickets_completed: ["FIX-C001"], points_completed: 3, tickets_deferred: [{ id: "FIX-C002", route: "Future release", reason: "Benchmark postponed" }], obligation_resolutions: [{ source: "FIX-C002", outcome: "delivered", evidence: { kind: "repository", ref: "docs/missing-proof.md", date: DATE } }] };
-    writeFileSync(path, toBlockYaml(epic) + "\n");
-    initialize(root);
-    const errors = validate(root).filter((finding) => finding.severity === "error");
-    expect([...new Set(errors.map((finding) => finding.id))]).toEqual(["TSK-020"]);
-    const before = snapshot(root);
-    for (const args of [[], ["--no-commit"]]) {
-      expect(cli(root, ...args).exitCode).toBe(2);
-      expect(snapshot(root)).toEqual(before);
-    }
-    epic.closeout = { ...record(epic.closeout), obligation_resolutions: [{ source: "FIX-C002", outcome: "delivered", evidence: { kind: "repository", ref: "src/core/render.ts", date: DATE } }] };
-    writeFileSync(path, toBlockYaml(epic) + "\n");
-    git(root, "add", ".");
-    git(root, "commit", "-q", "-m", "Attach available proof for deferred obligation delivery");
-    const accepted = cli(root, "--no-commit");
-    expect(accepted.exitCode).toBe(0);
-    expect(record(JSON.parse(accepted.stdout.toString())).archived).toEqual(["EPIC-C"]);
-    expect(validate(root).filter((finding) => finding.severity === "error")).toEqual([]);
-  }));
+  });
 
   test("publishes a valid proposal with original repository evidence and leaves no-commit index and history unchanged", () => withFixture((root, decision) => {
     closeout(root, "C", [ruled(decision)], [{ record: "prd/capabilities.yaml#CAP-003", evidence: { kind: "repository", ref: "src/core/render.ts", version: "0000000", date: DATE } }]);

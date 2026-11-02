@@ -245,7 +245,11 @@ export function walkRepo(m: Model, opts: { includeConstitution: boolean }): stri
       const p = join(dir, n);
       let st; try { st = lstatSync(p); } catch { continue; }
       if (st.isSymbolicLink()) continue;
-      if (st.isDirectory()) { if (n === ".constitution" && !opts.includeConstitution) continue; walk(p); }
+      if (st.isDirectory()) {
+        if (dir === m.root && n.startsWith(".constitution-migration-sources-")) continue;
+        if (n === ".constitution" && !opts.includeConstitution) continue;
+        walk(p);
+      }
       else if (st.isFile() && st.size < 2_000_000) out.push(rel(m, p));
     }
   };

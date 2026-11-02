@@ -356,3 +356,108 @@ test("CLI refuses new missing-proof delivery and distinguishes an available hist
   expect(output).toContain("| delivered (unverified historical claim) |");
   expect(output).toContain("past existence unverified");
 }));
+
+test("CLI preserves explicit source closure while keeping reachable replacement defects outstanding", () => withFixture((root) => {
+  const source = epic("E");
+  ticket(source).status = "deferred";
+  source.closeout = closeout(source);
+  source.closeout.obligation_resolutions = [{ source: "FIX-E001", outcome: "delivered", evidence: { kind: "repository", ref: "src/core/render.ts", date: DATE } }];
+  writeEpic(root, source, false);
+  const first = epic("F");
+  ticket(first).status = "done";
+  ticket(first).replaces = ["FIX-E001"];
+  first.closeout = closeout(first);
+  first.closeout.obligation_resolutions = [{ source: "FIX-F001", outcome: "retired", evidence: { kind: "ruling", ref: "Owner scope ruling", date: DATE }, reason: "The replacement scope was removed after the original obligation was delivered." }];
+  writeEpic(root, first, false);
+  const second = epic("G");
+  ticket(second).replaces = ["FIX-E001"];
+  writeEpic(root, second);
+  expect(validation(root).exitCode).toBe(0);
+  expect(section(render(root), "Outstanding obligations")).toContain("| delivered |");
+
+  ticket(first).replaces = ["FIX-E001", "FIX-G001"];
+  ticket(second).replaces = ["FIX-F001"];
+  writeEpic(root, first, false);
+  writeEpic(root, second);
+  let result = validation(root);
+  expect(result.exitCode).toBe(1);
+  expect(result.findings.filter((finding) => finding.id === "SCH-001")).toEqual([]);
+  expect(result.findings.some((finding) => finding.id === "TSK-020" && finding.message.includes("replacement cycle"))).toBe(true);
+  let output = section(render(root), "Outstanding obligations");
+  expect(output).toContain("`FIX-E001`");
+  expect(output).not.toContain("### Delivery and retirement evidence");
+
+  ticket(first).replaces = ["FIX-E001"];
+  writeEpic(root, first, false);
+  const duplicate = join(root, ".constitution/tasks/completed/EPIC-F-duplicate.yaml");
+  writeFileSync(duplicate, toBlockYaml(first));
+  result = validation(root);
+  expect(result.exitCode).toBe(1);
+  expect(result.findings.filter((finding) => finding.id === "SCH-001")).toEqual([]);
+  expect(result.findings.some((finding) => finding.id === "TSK-020" && finding.message.includes("multiple ticket records"))).toBe(true);
+  output = section(render(root), "Outstanding obligations");
+  expect(output).toContain("`FIX-E001`");
+  expect(output).not.toContain("### Delivery and retirement evidence");
+  unlinkSync(duplicate);
+
+  first.closeout.obligation_resolutions.push({ source: "FIX-F001", outcome: "delivered", evidence: { kind: "repository", ref: "src/core/render.ts", date: DATE } });
+  writeEpic(root, first, false);
+  result = validation(root);
+  expect(result.exitCode).toBe(1);
+  expect(result.findings.filter((finding) => finding.id === "SCH-001")).toEqual([]);
+  expect(result.findings.some((finding) => finding.id === "TSK-020" && finding.message.includes("conflicting delivery and retirement"))).toBe(true);
+  expect(section(render(root), "Outstanding obligations")).not.toContain("### Delivery and retirement evidence");
+  first.closeout.obligation_resolutions.pop();
+  writeEpic(root, first, false);
+  expect(validation(root).exitCode).toBe(0);
+  expect(section(render(root), "Outstanding obligations")).toContain("| delivered |");
+}));
+
+test("CLI keeps active missing-proof claims outstanding despite valid source or replacement resolutions", () => withFixture((root) => {
+  const source = epic("E");
+  ticket(source).status = "deferred";
+  source.closeout = closeout(source);
+  writeEpic(root, source, false);
+  const first = epic("F");
+  ticket(first).status = "done";
+  ticket(first).replaces = ["FIX-E001"];
+  first.closeout = closeout(first);
+  const valid: FixtureResolution = { source: "FIX-E001", outcome: "delivered", evidence: { kind: "repository", ref: "src/core/render.ts", date: DATE } };
+  first.closeout.obligation_resolutions = [valid];
+  writeEpic(root, first);
+  const second = epic("G");
+  ticket(second).status = "done";
+  ticket(second).replaces = ["FIX-F001"];
+  second.closeout = closeout(second);
+  const missing: FixtureResolution = { source: "FIX-E001", outcome: "delivered", evidence: { kind: "repository", ref: "docs/late-proof.md", date: DATE } };
+  second.closeout.obligation_resolutions = [missing];
+  writeEpic(root, second);
+  const expectOutstanding = () => {
+    const result = validation(root);
+    expect(result.exitCode).toBe(1);
+    expect(result.findings.filter((finding) => finding.id === "SCH-001")).toEqual([]);
+    expect(result.findings.some((finding) => finding.id === "TSK-020" && finding.severity === "error" && finding.message.includes("unavailable evidence"))).toBe(true);
+    const output = section(render(root), "Outstanding obligations");
+    expect(output).toContain("`FIX-E001`");
+    expect(output).not.toContain("### Delivery and retirement evidence");
+  };
+  expectOutstanding();
+
+  valid.source = "FIX-F001";
+  writeEpic(root, first);
+  expectOutstanding();
+
+  source.closeout.obligation_resolutions = [{ ...valid, source: "FIX-E001" }];
+  writeEpic(root, source, false);
+  missing.source = "FIX-G001";
+  missing.outcome = "retired";
+  missing.reason = "The later replacement scope was removed by the owner.";
+  writeEpic(root, second);
+  expectOutstanding();
+
+  writeFileSync(join(root, "docs/late-proof.md"), "The owner approved retirement of the replacement scope.\n");
+  expect(validation(root).exitCode).toBe(0);
+  const output = section(render(root), "Outstanding obligations");
+  expect(output).toContain("\nNone.\n");
+  expect(output).toContain("| delivered |");
+}));
