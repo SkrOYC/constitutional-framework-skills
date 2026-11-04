@@ -1,12 +1,12 @@
 # Standards review
 
-Review the PR's conformance to binding project standards and the practical consequences of its structure. Apply the router's candidate, evidence, verification, and completion rules. This mode covers the standards axis; do not imply it establishes full PR correctness.
+Review the PR's conformance to binding project standards and the practical consequences of its structure, applying the router's candidate, evidence, verification, and completion rules. This mode covers the standards axis; do not imply it establishes full PR correctness.
 
 ## Read the governing standards
 
-Read relevant `.constitution/tech-spec/guidelines.md` rules, architecture boundaries, repository instructions, and nearby code conventions. Inspect the complete candidate, issue context, PR decisions, and authorized deviations through `gh` or the offline snapshot. Cite the actual rule when a finding depends on one. Do not invent a convention because a familiar pattern seems preferable.
+Read the relevant `.constitution/tech-spec/guidelines.md` rules, architecture boundaries, repository instructions, and nearby code conventions. Inspect the complete candidate, issue context, PR decisions, and authorized deviations through `gh` or the offline snapshot. Cite the actual rule a finding depends on, and do not invent a convention because a familiar pattern seems preferable.
 
-Match investigation to the changed surfaces. Documents need accurate instructions, stage ownership, canonical terms, valid references, and coherent downstream claims. Do not apply code smells to prose or run code gates without a relevant claim.
+Match investigation to the changed surfaces. Documents need accurate instructions, stage ownership, canonical terms, valid references, and coherent downstream claims; do not apply code smells to prose or run code gates without a relevant claim.
 
 ## Investigate structural signals
 
@@ -27,7 +27,7 @@ Fowler smell names describe questions, not defects or prescribed repairs. Skip m
 | Middle man | Does delegation preserve a boundary or obscure behavior and errors? |
 | Refused bequest | Does an implementation violate its substitutability or inherited contract? |
 
-Do not recommend extraction, polymorphism, a wrapper type, or composition merely because a smell name fits. Explain the failure or maintenance consequence and assess the cost of changing the design.
+Do not recommend extraction, polymorphism, a wrapper type, or composition merely because a smell name fits; explain the failure or maintenance consequence and assess the cost of changing the design.
 
 ## Check applicable standards
 
@@ -35,11 +35,11 @@ Do not recommend extraction, polymorphism, a wrapper type, or composition merely
 - *Patterns and interfaces:* Do error handling, state ownership, data access, and exported signatures match binding conventions or a justified deviation?
 - *Operability:* Do affected critical paths retain required diagnostic signals without leaking sensitive data? Do not demand unrelated logs or telemetry.
 - *Tooling:* Do types, generated artifacts, configuration, and checks preserve the project's workflow and supported environment?
-- *Comments and contracts:* Express intent through names, types, structure, and invariants. Ordinary comments are rare; TSDoc-style contracts and license headers are exempt. Do not request reassuring comments or treat a comment as proof of safety.
-- *Verification:* Prefer meaningful public-interface checks and reusable evidence. Missing unit tests alone is not a standards violation. Do not impose a test quota or repeat valid lint/type results because the reviewer changed.
+- *Comments and contracts:* Intent belongs in names, types, structure, and invariants; ordinary comments are rare, with TSDoc-style contracts and license headers exempt. Do not request reassuring comments.
+- *Verification:* Prefer meaningful public-interface checks and reusable evidence. Missing unit tests alone is not a standards violation; do not impose a test quota or repeat valid lint/type results because the reviewer changed.
 - *Scope:* Distinguish routine adaptations within the approved envelope from actual scope expansion or shared-contract changes that need owning authority.
 
-For a broad delta, investigate coherent batches and finish with their interactions. Size alone does not establish a defect or require more reviewers. Record uncovered scope honestly.
+For a broad delta, investigate coherent batches, then their interactions. Size alone does not establish a defect or require more reviewers. Record uncovered scope.
 
 ## Return findings
 
@@ -51,7 +51,7 @@ Use the smallest supported severity:
 - `Investigate`: A grounded standards question and the evidence needed to decide it.
 - `General feedback`: A non-blocking observation; a smell name alone is at most a prompt to investigate.
 
-Accepted style tradeoffs resolve preference concerns. They do not excuse a proven defect. A source trace can establish the consequence without runtime execution; disclose unavailable execution separately.
+Accepted style tradeoffs resolve preference concerns but do not excuse a proven defect.
 
 Return the router's completion fields and findings in this format, omitting empty subsections:
 

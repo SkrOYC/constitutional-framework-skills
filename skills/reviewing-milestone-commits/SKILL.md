@@ -9,14 +9,10 @@ metadata:
 
 # Reviewing milestone commits
 
-{% if harness.id == "codex" %}Independently review one committed, coherent milestone. An initial review covers the explicit
-commit, base/head range, or coherent commit set and its interactions. A repair verification
-with a prior reviewed head (`since`) covers only the repair delta and affected interactions,
-carrying forward unaffected coverage and dispositions. Do not group separate milestones or
-infer a larger range; new context alone does not restart a complete milestone review.
-{% else %}Independently review one committed, coherent milestone during epic execution. The source can be one commit, an explicit base/head range, or an explicit coherent commit set that includes incidental implementation and repair commits. Review the exact combined milestone delta and its interactions. Do not group separate milestones or infer a larger range.{% endif %}
+{% if harness.id == "codex" %}Independently review one committed, coherent milestone. An initial review covers the explicit commit, base/head range, or coherent commit set and its interactions. A repair verification from a prior reviewed head (`since`) covers only the repair delta and affected interactions, carrying forward unaffected coverage and dispositions. Do not group separate milestones or infer a larger range; new context alone does not restart a complete milestone review.
+{% else %}Independently review one committed, coherent milestone during epic execution: one commit, an explicit base/head range, or an explicit coherent commit set that includes incidental implementation and repair commits. Review the exact combined milestone delta and its interactions; do not group separate milestones or infer a larger range.{% endif %}
 
-This review assesses local implementation and milestone acceptance. PR review separately assesses cumulative integration, cross-milestone assumptions, and final claims. A clean milestone review does not prove the whole PR or grant merge authority.
+This review assesses local implementation and milestone acceptance; PR review separately assesses cumulative integration, cross-milestone assumptions, and final claims. A clean milestone review does not prove the whole PR or grant merge authority.
 
 {% if harness.id == "codex" %}For a Claude caller, read [Coordinate Codex and Claude](~/.codex/skills/constitution-tooling/references/codex-claude-bridge.md). Establish your inbox, send the review through the caller's confirmed address, and keep one blocking receive waiter active alongside sends while the assignment expects continuation. Preserve the review-only scope.
 
@@ -24,27 +20,19 @@ This review assesses local implementation and milestone acceptance. PR review se
 
 The caller supplies the exact source identity, matching checkout, milestone/ticket ids or lane claim, governing epic or issue, acceptance modes and evidence, relevant plan constraints, and verification references. A spec-patch review also needs its drift report. If source identity is missing or ambiguous, return an incomplete-review report.
 
-{% if harness.id == "codex" %}For repair verification, also obtain the prior reviewed head, findings and dispositions,
-and the exact repair range or commit set. If independent milestones landed in between,
-`since` records the earlier coverage baseline; it does not assign those milestones to this
-review. Inspect their interaction with the repair when relevant, preserving their separate
-review coverage. Ask for a precise repair scope if it cannot be established.
+{% if harness.id == "codex" %}For repair verification, also obtain the prior reviewed head, findings and dispositions, and the exact repair range or commit set; ask for a precise repair scope if it cannot be established. If independent milestones landed in between, `since` records the earlier coverage baseline without assigning those milestones to this review; inspect their interaction with the repair when relevant, preserving their separate review coverage.
 
-{% endif %}Read unfamiliar constitution layout from `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/references/layout.md`. Use the active epic, TechSpec contracts and actual artifacts, architecture boundaries, PRD constraints, and applicable authorized decisions. In Issue mode, use the issue and passed acceptance criteria. If requirements are unavailable, review the source but state the acceptance limit.
+{% endif %}Read unfamiliar constitution layout from `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/references/layout.md`. In Issue mode, use the issue and passed acceptance criteria. If requirements are unavailable, review the source but state the acceptance limit.
 
-Treat implementation notes and earlier checks as evidence to inspect, not proof to accept uncritically. Ground findings in the source, affected code paths, acceptance criteria, contracts, or binding conventions. Cite and quote requirements when a finding depends on them. A concrete source trace can prove a defect without runtime execution; unavailable execution must be disclosed separately.
+Treat implementation notes and earlier checks as evidence to inspect, not proof to accept uncritically. Ground findings in the source, affected code paths, acceptance criteria, contracts, or binding conventions, citing and quoting any requirement a finding depends on. A concrete source trace can prove a defect without runtime execution: a source-based finding states the trigger, path, and consequence, and discloses unavailable execution separately.
 
-{% if harness.id == "codex" %}Use practical consequence to judge materiality. Equivalent wording and reasonable local
-implementation choices need no repair when intent, behavior, and binding contracts agree.
-Do not grow them into an abstraction or a new requirement. Real correctness defects,
-false acceptance claims, and failed required gates still matter. A compatible interpretation
-can resolve a question without a code change.
+{% if harness.id == "codex" %}Judge materiality by practical consequence. Equivalent wording and reasonable local implementation choices need no repair, abstraction, or new requirement when intent, behavior, and binding contracts agree. Real correctness defects, false acceptance claims, and failed required gates still matter, and a compatible interpretation can resolve a question without a code change.
 
 {% endif %}Use this skill for committed milestone review, including spec patches and spikes. It is not for implementation help, uncommitted diffs, PR review, or a repository-wide audit.
 
 ## Establish the exact delta
 
-Confirm the requested commit or base/head and the checkout's head. Keep tracked files clean and the checkout at the supplied revision. Do not create review worktrees, switch branches, alter shared runtime state, or launch competing verification jobs.
+Confirm the requested commit or base/head and the checkout's head. Keep tracked files clean and the checkout at the supplied revision; do not create review worktrees, switch branches, alter shared runtime state, or launch competing verification jobs.
 
 For a single commit, inspect its metadata, changed files, and diff:
 
@@ -61,15 +49,15 @@ git diff --stat <base> <head>
 git diff --find-renames --find-copies <base> <head>
 ```
 
-Inspect each constituent commit as well as the combined delta. For an explicit commit set, retain that exact list and inspect its individual changes and affected final state. Do not silently include intervening milestones. If the set cannot be attributed coherently, report the scope ambiguity before claiming complete coverage.
+Inspect each constituent commit as well as the combined delta. For an explicit commit set, keep that exact list, inspect its individual changes and affected final state, and do not silently include intervening milestones. If the set cannot be attributed coherently, report the scope ambiguity before claiming complete coverage.
 
-Capture touched tests, contracts, validation artifacts, and evidence. For a broad delta, investigate coherent batches ordered by risk and finish with their interactions. File and line counts are guides, not reasons to require a separate PR or larger panel. State any unreviewed surfaces.
+Capture touched tests, contracts, validation artifacts, and evidence. For a broad delta, investigate coherent batches ordered by risk, then their interactions; file and line counts are guides, not reasons to require a separate PR or larger panel. State any unreviewed surfaces.
 
 ## Check commit authority and change type
 
-Apply code/spec separation to each commit, not to the aggregate range. A code commit cannot also change `.constitution/prd/`, `.constitution/architecture/`, or `.constitution/tech-spec/`. The epic's own task bookkeeping, `.constitution/spikes/`, and `.constitution/evidence/` are exempt bookkeeping. An actual code/spec mix in one commit is a `P1` with the offending paths.
+Apply code/spec separation to each commit, not to the aggregate range: a code commit cannot also change `.constitution/prd/`, `.constitution/architecture/`, or `.constitution/tech-spec/`. The epic's own task bookkeeping, `.constitution/spikes/`, and `.constitution/evidence/` are exempt bookkeeping. An actual code/spec mix in one commit is a `P1` with the offending paths.
 
-A coherent milestone range can include separately authorized spec and implementation commits. Inspect their order and ownership. Judge code against the applicable authorized spec state; do not treat an upstream rewrite in the same code commit as permission. A shared range or PR does not transfer stage authority.
+A coherent milestone range can include separately authorized spec and implementation commits; inspect their order and ownership. Judge code against the applicable authorized spec state, not an upstream rewrite in the same code commit. A shared range or PR does not transfer stage authority.
 
 Choose the checks suited to the changed surfaces:
 
@@ -82,11 +70,11 @@ Choose the checks suited to the changed surfaces:
 
 ## Read contracts and surrounding code
 
-Use `.constitution/tasks/epics/EPIC-*.yaml` for scope, dependencies, acceptance modes, and outcomes. Use TechSpec verification recipes, compatibility ADRs, sidecars, actual `artifact_path` artifacts, and `pinned` shapes. Use architecture and PRD records for boundaries, capability intent, constraints, and domain language.
+Use the active epic's `.constitution/tasks/epics/EPIC-*.yaml` for scope, dependencies, acceptance modes, and outcomes; TechSpec verification recipes, compatibility ADRs, sidecars, actual `artifact_path` artifacts, and `pinned` shapes for contracts; architecture and PRD records for boundaries, capability intent, constraints, and domain language; and applicable authorized decisions.
 
-Compare the changed behavior and paths with the approved envelope and recorded deviations. Routine regrouping, incidental corrections, and implementation adaptations inside that envelope do not need a wave amendment. Distinguish those from a changed outcome, contract, dependency, shared resource, or out-of-authority scope. Flag unexplained material drift at the severity its consequence warrants; do not invent a blocker for every incidental file.
+Compare the changed behavior and paths with the approved envelope and recorded deviations. Routine regrouping, incidental corrections, and implementation adaptations inside that envelope need no wave amendment; distinguish them from a changed outcome, contract, dependency, shared resource, or out-of-authority scope. Flag unexplained material drift at the severity its consequence warrants, without inventing a blocker for every incidental file.
 
-Read relevant surrounding code, callers, callees, interfaces, configuration, tests, migrations, and operational paths. Identify the safety assumptions most likely to fail. Choose the cheapest decisive source trace or focused observation for each material assumption.
+Read relevant surrounding code, callers, callees, interfaces, configuration, tests, migrations, and operational paths. Identify the safety assumptions most likely to fail, and choose the cheapest decisive source trace or focused observation for each material one.
 
 Match proof to the change type:
 
@@ -99,11 +87,11 @@ Match proof to the change type:
 | Performance | Comparable workload, baseline, environment, and measurements against the stated meter. |
 | Documents | Valid records, references, scenario or command accuracy, and downstream meaning. |
 
-Code smells prompt investigation; they are not findings or canned refactor instructions. Explain a concrete consequence before proposing extraction, new types, or a different abstraction. Names, types, structure, and invariants carry intent. Ordinary code comments are rare; TSDoc-style contracts and license headers are exempt. Comments never establish safety or replace acceptance proof.
+Code smells prompt investigation; they are not findings or canned refactor instructions, so explain a concrete consequence before proposing extraction, new types, or a different abstraction. Names, types, structure, and invariants carry intent. Ordinary code comments are rare, with TSDoc-style contracts and license headers exempt, and comments never establish safety or replace acceptance proof.
 
 ## Inspect verification and acceptance
 
-Inspect recorded command results by candidate and input identity, environment, exit status, observed outcome, and coverage. Reuse valid evidence. Run focused checks only for missing, invalidated, unreliable, uncovered, or explicitly required proof. Do not repeat the full gate set because the role changed.
+Inspect recorded command results by candidate and input identity, environment, exit status, observed outcome, and coverage, and reuse valid evidence. Run focused checks only for missing, invalidated, unreliable, uncovered, or explicitly required proof, not the full gate set because the role changed.
 
 Inspect a successful framework `validate` result for the committed validation inputs. If none exists and execution is permitted, run:
 
@@ -120,16 +108,16 @@ Use the ticket's declared acceptance mode, not a universal Gherkin or unit-test 
 | `gherkin` | Observable checks cover the stated Given/When/Then behavior. Scenarios can share meaningful public-interface coverage. |
 | `contract_test` | Assertions exercise the actual `artifact_path` contract rather than a copied shape. |
 | `benchmark` | Workload, environment, baseline, and threshold support the ticket's performance claim. |
-| `stat_threshold` | Named split, evaluation command, metric, and threshold match; the split was not weakened to pass. |
+| `stat_threshold` | Named split, evaluation command, metric, and threshold match. |
 | `invariant` | The checker, property/fuzz run, or proof encodes the stated invariant and covers the declared corpus or budget. |
 | `hitl_sil` | Procedure and pass/fail criteria are committed; observations meet them, or an owner-authorized hardware deferral is explicit. |
 | `visual_regression` | Baseline, comparison, and threshold support the claimed visual outcome. |
 | `runbook_probe` | The stated apply/plan/probe procedure reaches the required end state. |
-| `live_probe` | Required behavior checks cover the ticket and the recipe matches TechSpec. Final runtime evidence is captured after the last milestone. Its absence before then, with the ticket kept `in_progress`, is not a finding. |
+| `live_probe` | Required behavior checks cover the ticket and the recipe matches TechSpec. Final runtime evidence is captured after the last milestone; its absence before then, with the ticket kept `in_progress`, is not a finding. |
 
-Prefer useful existing coverage and real public-interface behavior checks. Pure unit tests are rare high-value exceptions. Missing unit tests alone is not a finding, and there is no test-per-ticket or test-per-scenario quota. A proof gap matters when required acceptance or a concrete material regression risk lacks coverage.
+Prefer useful existing coverage and real public-interface behavior checks; pure unit tests are rare high-value exceptions. Missing unit tests alone is not a finding, and there is no test-per-ticket or test-per-scenario quota. A proof gap matters when required acceptance or a concrete material regression risk lacks coverage.
 
-Do not accept proof obtained by loosening the required threshold, baseline, corpus, or split. Missing or failed proof due at this milestone is a `P1`; evidence not yet due is not. A `done` ticket with absent or failed required results, a false pass, contradictory observations, or invalid evidence is a `P1`. Historical verified-at SHAs are not pins to update automatically.
+Do not accept proof obtained by loosening the required threshold, baseline, corpus, or split. A `P1` covers missing or failed proof due at this milestone, a `done` ticket with absent or failed required results, a false pass, contradictory observations, or invalid evidence; evidence not yet due is not a `P1`. Historical verified-at SHAs are not pins to update automatically.
 
 ## Investigate relevant risks
 
@@ -142,7 +130,7 @@ Do not accept proof obtained by loosening the required threshold, baseline, corp
 - *Verification quality:* Assertions observe real outcomes and meaningful interfaces, rather than merely mirroring implementation or using empty mocks.
 - *Language:* Canonical glossary terms apply to their intended domain concepts. A banned synonym replacing its canonical term on a binding domain-facing surface is a `P1`; internal naming feedback is non-blocking. A real new concept routes through candidate glossary terms in closeout. Technical vocabulary alone is not glossary material.
 
-Apply the owner's required gates. Private projects verify locally by default; remote tests require an owner need. Open-source projects accepting outside contributions use contribution CI behavior checks by default. Visibility alone does not establish that model. Keep test workflows/actions separate from authentication, signing, publishing, deployment, and release execution. Add a dependency between them only when the owner requires it. Arbitrary CI green is not a milestone-review condition.
+Apply the owner's required gates. Private projects verify locally by default, and remote tests require an owner need. Open-source projects accepting outside contributions use contribution CI behavior checks by default; visibility alone does not establish that model. Keep test workflows/actions separate from authentication, signing, publishing, deployment, and release execution, adding a dependency between them only when the owner requires it. Arbitrary CI green is not a milestone-review condition.
 
 ## Classify and return the review
 
@@ -154,9 +142,9 @@ Use the smallest supported severity:
 - `Investigate`: A grounded unresolved question and the evidence needed to decide it.
 - `General feedback`: Useful non-blocking feedback tied to the milestone.
 
-Do not classify speculative concerns or preference-only refactors as bugs. Accepted governing tradeoffs resolve preference concerns; a comment does not dismiss a proven defect. Source-based findings state the trigger, path, and consequence even when execution is unavailable.
+Speculative concerns and preference-only refactors are not bugs. Accepted governing tradeoffs resolve preference concerns, but a comment does not dismiss a proven defect.
 
-Return the exact reviewed commit or base/head and commit set, coverage completed and gaps, findings or an explicit statement that there are none, and verification inspected or run. State acceptance status and limits separately from review completeness. Neither is merge authorization. A missing source, wrong revision, or incomplete review is not a clean result.
+Return the exact reviewed commit or base/head and commit set, coverage completed and gaps, findings or an explicit statement that there are none, and verification inspected or run. State acceptance status and limits separately from review completeness; neither is merge authorization. A missing source, wrong revision, or incomplete review is not a clean result.
 
 Keep findings in this order, omitting empty subsections:
 
@@ -186,11 +174,5 @@ path:line-range
 Useful non-blocking observation tied to the milestone.
 ```
 
-{% if harness.id == "codex" %}After repair, independently verify the exact changed scope and interactions, using the
-prior reviewed head and findings. The same author-independent reviewer may continue;
-a fresh verifier receives prior results as artifacts. Reopen only judgments invalidated
-by the repair or missing coverage, and name any expanded scope. Every final behavioral edit
-needs verification, including behavior outside live-probe coverage. Reuse unaffected proof.
-After two same-premise failures, test the premise before another patch and apply the
-caller's approved nonconvergence policy.
-{% else %}After repair, independently verify the exact changed scope and its interactions. Every final behavioral edit needs that verification, including behavior outside live-probe coverage. Reuse unaffected evidence. If two related repairs fail under the same premise, state and test that premise before a third patch; follow the caller's approved nonconvergence policy rather than repeating a ritual or claiming unsupported acceptance.{% endif %}
+{% if harness.id == "codex" %}After repair, independently verify the exact changed scope and interactions from the prior reviewed head and findings. The same author-independent reviewer may continue, or a fresh verifier receives prior results as artifacts. Reopen only judgments invalidated by the repair or missing coverage, and name any expanded scope. Every final behavioral edit needs verification, including behavior outside live-probe coverage; reuse unaffected proof. After two same-premise failures, test the premise before another patch and apply the caller's approved nonconvergence policy.
+{% else %}After repair, independently verify the exact changed scope and its interactions; every final behavioral edit needs that verification, including behavior outside live-probe coverage. Reuse unaffected evidence. If two related repairs fail under the same premise, state and test that premise before a third patch; follow the caller's approved nonconvergence policy rather than repeating a ritual or claiming unsupported acceptance.{% endif %}
