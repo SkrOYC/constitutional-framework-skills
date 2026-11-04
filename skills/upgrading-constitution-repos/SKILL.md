@@ -41,7 +41,7 @@ If a prerequisite conversion reports conservation TODOs, inspect each source, de
 Plan mode lets you write only its one plan file, so do all of this read-only and put the result there.
 {% elif harness.id == "codex" %}## Step 2: Plan
 
-Write one plan file under the project's plan path or `.codex/plans/` before asking for approval. Codex does not require a special plan-mode file or mode switch.
+Write one plan file under the project's plan path or `.codex/plans/` before asking for approval. Codex does not require a special plan-mode file or mode switch. For approved Claude roles during stage alignment or review, read [Coordinate Codex and Claude](~/.codex/skills/constitution-tooling/references/codex-claude-bridge.md); record each role's runtime and reporting identity, and keep one blocking receive waiter active alongside sends.
 {% elif harness.id == "antigravity" %}## Step 2: Plan
 
 Write one plan file under the project's plan path or `.agents/plans/` before asking for approval.

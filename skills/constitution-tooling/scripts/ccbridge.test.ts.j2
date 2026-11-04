@@ -1,0 +1,133 @@
+{% if harness.id == "codex" -%}
+import { expect, test } from "bun:test";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createConnection } from "node:net";
+import { join } from "node:path";
+
+const cli = join(import.meta.dir, "ccbridge.ts");
+interface Bridge { run: string; name: string; pid: number; messagingSocketPath: string }
+interface Result { status: number; stdout: string; stderr: string }
+interface Fixture { a: Bridge; b: Bridge; env: Record<string, string | undefined> }
+
+async function command(args: string[], env: Fixture["env"]): Promise<Result> {
+  const child = Bun.spawn([process.execPath, "run", cli, ...args], { env, stdout: "pipe", stderr: "pipe" });
+  const [status, stdout, stderr] = await Promise.all([child.exited, new Response(child.stdout).text(), new Response(child.stderr).text()]);
+  return { status, stdout, stderr };
+}
+async function until(check: () => boolean): Promise<void> {
+  const deadline = Date.now() + 5000;
+  while (!check()) {
+    if (Date.now() >= deadline) throw new Error("Fixture did not become ready");
+    await Bun.sleep(10);
+  }
+}
+async function withBridges(action: (fixture: Fixture) => Promise<void>): Promise<void> {
+  const root = mkdtempSync("/tmp/constitution-bridge-test-");
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: join(root, "config"), XDG_RUNTIME_DIR: join(root, "runtime") };
+  const launch = (name: string) => {
+    const run = join(root, name);
+    const child = Bun.spawn([process.execPath, "run", cli, "serve", run, name], { env, stdout: "pipe", stderr: "pipe" });
+    return { run, child };
+  };
+  const a = launch("codex-test-a");
+  const b = launch("codex-test-b");
+  try {
+    await until(() => existsSync(join(a.run, "bridge.json")) && existsSync(join(b.run, "bridge.json")));
+    await action({ a: { ...JSON.parse(readFileSync(join(a.run, "bridge.json"), "utf8")), run: a.run }, b: { ...JSON.parse(readFileSync(join(b.run, "bridge.json"), "utf8")), run: b.run }, env });
+  } finally {
+    a.child.kill("SIGTERM");
+    b.child.kill("SIGTERM");
+    await Promise.all([a.child.exited, b.child.exited]);
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+async function raw(sock: string, data: string): Promise<void> {
+  await new Promise<void>((done, reject) => {
+    const socket = createConnection({ path: sock });
+    socket.once("error", reject);
+    socket.once("connect", () => socket.end(data, () => { socket.destroy(); done(); }));
+  });
+}
+function frame(id: number, content = `message ${id}`): string {
+  return JSON.stringify({ msgV: 1, msg_id: String(id), type: "user", from: "uds:/tmp/cc-socks/123.sock", message: { role: "user", content } }) + "\n";
+}
+
+test("discovers peers and sends literal content with the sending inbox as reply address", async () => {
+  await withBridges(async ({ a, b, env }) => {
+    const listed = await command(["list"], env);
+    expect(JSON.parse(listed.stdout).map((p: Bridge) => p.name).sort()).toEqual([a.name, b.name]);
+    const content = "literal $(no-command) `no-command`\nUnicode: café 🦊\tand another tab";
+    const path = join(a.run, "task.txt");
+    writeFileSync(path, content);
+    expect((await command(["send", a.run, b.name, path], env)).status).toBe(0);
+    const received = await command(["wait", b.run, "2000"], env);
+    expect(received.status).toBe(0);
+    expect(JSON.parse(received.stdout)).toMatchObject({ message_line: 1, body: content, from: `uds:${a.messagingSocketPath}` });
+    expect(readFileSync(join(b.run, "last-seen"), "utf8")).toBe("0\n");
+    const envelope = '<cross-session-message from-name="Claude &amp; friend">\n&lt;result&gt;\nline two\n</cross-session-message>';
+    await raw(b.messagingSocketPath, frame(2, envelope));
+    expect((await command(["ack", b.run, "1"], env)).status).toBe(0);
+    expect(JSON.parse((await command(["wait", b.run, "2000"], env)).stdout)).toMatchObject({ name: "Claude & friend", body: "<result>\nline two" });
+  });
+});
+
+test("retains a 25-message backlog and advances only one acknowledged message", async () => {
+  await withBridges(async ({ a, env }) => {
+    await raw(a.messagingSocketPath, Array.from({ length: 25 }, (_, i) => frame(i + 1)).join(""));
+    const first = await command(["wait", a.run, "2000"], env);
+    expect((await command(["wait", a.run, "2000"], env)).stdout).toBe(first.stdout);
+    expect((await command(["ack", a.run, "2"], env)).status).toBe(1);
+    for (let line = 1; line <= 25; line++) {
+      const next = await command(["wait", a.run, "2000"], env);
+      expect(JSON.parse(next.stdout)).toMatchObject({ message_line: line, msg_id: String(line), body: `message ${line}` });
+      expect((await command(["ack", a.run, String(line)], env)).status).toBe(0);
+    }
+    expect(readFileSync(join(a.run, "last-seen"), "utf8")).toBe("25\n");
+  });
+});
+
+test("waits silently for a complete frame and returns early when it arrives", async () => {
+  await withBridges(async ({ a, env }) => {
+    const waiter = Bun.spawn([process.execPath, "run", cli, "wait", a.run, "3000"], { env, stdout: "pipe", stderr: "pipe" });
+    await until(() => existsSync(join(a.run, "reader.lock", "owner.json")));
+    const socket = createConnection({ path: a.messagingSocketPath });
+    await new Promise<void>((done, reject) => { socket.once("error", reject); socket.once("connect", done); });
+    const data = frame(1);
+    socket.write(data.slice(0, -1));
+    await Bun.sleep(75);
+    expect(waiter.exitCode).toBeNull();
+    expect(readFileSync(join(a.run, "inbox.ndjson"), "utf8")).toBe("");
+    socket.end("\n");
+    expect(await waiter.exited).toBe(0);
+    expect(JSON.parse(await new Response(waiter.stdout).text()).body).toBe("message 1");
+  });
+});
+
+test("timeouts are silent, leave the checkpoint unchanged, and reject competing readers", async () => {
+  await withBridges(async ({ a, env }) => {
+    const waiter = Bun.spawn([process.execPath, "run", cli, "wait", a.run, "1000"], { env, stdout: "pipe", stderr: "pipe" });
+    await until(() => existsSync(join(a.run, "reader.lock", "owner.json")));
+    expect((await command(["wait", a.run, "20"], env)).status).toBe(1);
+    expect(await waiter.exited).toBe(124);
+    expect(await new Response(waiter.stdout).text()).toBe("");
+    expect(readFileSync(join(a.run, "last-seen"), "utf8")).toBe("0\n");
+    expect(existsSync(join(a.run, "reader.lock"))).toBe(false);
+    expect((await command(["wait", a.run, "3600001"], env)).status).toBe(1);
+  });
+});
+
+test("refuses truncated history and keeps unread records after listener shutdown", async () => {
+  await withBridges(async ({ a, env }) => {
+    await raw(a.messagingSocketPath, frame(1));
+    expect((await command(["wait", a.run, "2000"], env)).status).toBe(0);
+    expect((await command(["stop", a.run], env)).status).toBe(0);
+    await until(() => !existsSync(a.messagingSocketPath));
+    expect((await command(["wait", a.run, "20"], env)).status).toBe(0);
+    expect((await command(["ack", a.run, "1"], env)).status).toBe(0);
+    writeFileSync(join(a.run, "inbox.ndjson"), "");
+    expect((await command(["wait", a.run, "20"], env)).stderr).toContain("shorter than its checkpoint");
+    expect((await command(["status", a.run], env)).stdout).toContain('"alive":false');
+    expect(existsSync(join(env.CLAUDE_CONFIG_DIR ?? "", "sessions", `${a.pid}.json`))).toBe(false);
+  });
+});
+{% endif -%}

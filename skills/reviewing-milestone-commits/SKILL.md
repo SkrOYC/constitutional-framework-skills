@@ -13,7 +13,9 @@ Independently review one committed, coherent milestone during epic execution. Th
 
 This review assesses local implementation and milestone acceptance. PR review separately assesses cumulative integration, cross-milestone assumptions, and final claims. A clean milestone review does not prove the whole PR or grant merge authority.
 
-## Inputs and stance
+{% if harness.id == "codex" %}For a Claude caller, read [Coordinate Codex and Claude](~/.codex/skills/constitution-tooling/references/codex-claude-bridge.md). Establish your inbox, send the review through the caller's confirmed address, and keep one blocking receive waiter active alongside sends while the assignment expects continuation. Preserve the review-only scope.
+
+{% endif %}## Inputs and stance
 
 The caller supplies the exact source identity, matching checkout, milestone/ticket ids or lane claim, governing epic or issue, acceptance modes and evidence, relevant plan constraints, and verification references. A spec-patch review also needs its drift report. If source identity is missing or ambiguous, return an incomplete-review report.
 

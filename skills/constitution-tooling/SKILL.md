@@ -17,7 +17,9 @@ bun run ~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{
 
 The structured constitution keeps facts that something reads mechanically in YAML files validated by the schemas under `assets/schemas/`, and prose in markdown with front matter where one fact must be read. `references/layout.md` lists every file, its schema, and who writes it. `references/checks.md` lists every check id the validator can print. Stage skills hand the relevant schema to the agent writing a file; the schema is the output contract.
 
-## Commands
+{% if harness.id == "codex" %}For communication with Claude at any role, read [Coordinate Codex and Claude](references/codex-claude-bridge.md). Use the bundled `scripts/ccbridge.ts` for the persistent inbox, explicit-address sends, one-hour blocking waits, and read acknowledgments. Keep sending and receiving active together throughout an exchange. Never poll the outer wrapper; keep both tool layers blocked for the pending receive window.
+
+{% endif %}## Commands
 
 | Command | What it does | Who runs it |
 | :--- | :--- | :--- |

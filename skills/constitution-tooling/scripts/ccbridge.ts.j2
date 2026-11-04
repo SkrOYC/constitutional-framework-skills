@@ -1,0 +1,306 @@
+{% if harness.id == "codex" -%}
+#!/usr/bin/env bun
+// Minimal peer transport adapted from ccbridge 6622fa8 (protocol 1, Claude 2.1.312).
+// No dependency on the ccbridge checkout. Keep the listener separate from each wait.
+import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { appendFileSync, chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, readlinkSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { createConnection, createServer } from "node:net";
+import { homedir, hostname } from "node:os";
+import { basename, dirname, join, resolve } from "node:path";
+
+const HOUR = 3_600_000;
+const MAX_FRAME = 1 << 20;
+const sessions = join(process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude"), "sessions");
+
+interface Peer {
+  pid: number;
+  procStart?: string;
+  pidDomain?: string;
+  name?: string;
+  sessionId?: string;
+  messagingSocketPath?: string;
+}
+interface Inbox extends Peer {
+  procStart: string;
+  name: string;
+  sessionId: string;
+  messagingSocketPath: string;
+}
+interface Message {
+  msg_id: string;
+  name: string;
+  from: string;
+  body: string;
+}
+
+function object(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function peer(value: unknown): value is Peer {
+  return object(value) && Number.isSafeInteger(value.pid) && typeof value.pid === "number" && value.pid > 0
+    && ["procStart", "pidDomain", "name", "sessionId", "messagingSocketPath"].every(key => value[key] === undefined || typeof value[key] === "string");
+}
+function readJson(path: string): unknown {
+  return JSON.parse(readFileSync(path, "utf8"));
+}
+function atomic(path: string, value: string, mode = 0o600): void {
+  const temp = `${path}.${process.pid}.${randomUUID()}.tmp`;
+  writeFileSync(temp, value, { mode, flag: "wx" });
+  renameSync(temp, path);
+}
+function procStart(pid: number): string | undefined {
+  try {
+    const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
+    return stat.slice(stat.lastIndexOf(")") + 2).trim().split(/\s+/)[19];
+  } catch { return undefined; }
+}
+function alive(p: Peer): boolean {
+  const start = procStart(p.pid);
+  try {
+    return start !== undefined && (p.procStart === undefined || p.procStart === start)
+      && typeof p.messagingSocketPath === "string" && lstatSync(p.messagingSocketPath).isSocket();
+  } catch { return false; }
+}
+function peers(): Peer[] {
+  if (!existsSync(sessions)) return [];
+  const found: Peer[] = [];
+  for (const name of readdirSync(sessions)) {
+    if (!/^\d+\.json$/.test(name)) continue;
+    try {
+      const value = readJson(join(sessions, name));
+      if (peer(value) && alive(value)) found.push(value);
+    } catch { /* Ignore stale or partially replaced discovery entries. */ }
+  }
+  return found;
+}
+function socketPath(address: string): string {
+  const path = address.startsWith("uds:") ? decodeURI(address.slice(4)) : address;
+  const allowed = /^\/run\/user\/\d+\/cc-socks$/.test(dirname(path)) || /^\/tmp\/cc-socks(?:-\d+)?$/.test(dirname(path));
+  if (!allowed || !/^(?:\d{1,10}(?:-[0-9a-f]{8})?|[0-9a-f]{1,16})\.sock$/.test(basename(path)) || Buffer.byteLength(path) > 103) {
+    throw new Error("Expected a Claude peer socket in the cc-socks namespace");
+  }
+  return path;
+}
+function address(p: Inbox): string { return `uds:${encodeURI(p.messagingSocketPath)}`; }
+function keyPath(pid: number, sock: string): string {
+  return join(sessions, `${pid}.${createHash("sha256").update(sock).digest("hex")}.key`);
+}
+function inbox(run: string): Inbox {
+  const value = readJson(join(run, "bridge.json"));
+  if (!peer(value) || typeof value.name !== "string" || typeof value.sessionId !== "string"
+    || typeof value.procStart !== "string" || typeof value.messagingSocketPath !== "string") {
+    throw new Error("Invalid bridge.json; use the directory of an owned listener run");
+  }
+  return { ...value, name: value.name, sessionId: value.sessionId, procStart: value.procStart, messagingSocketPath: socketPath(value.messagingSocketPath) };
+}
+function target(to: string): { sock: string; pid?: number } {
+  if (to.startsWith("uds:") || to.endsWith(".sock")) {
+    const sock = socketPath(to);
+    const registered = peers().find(p => p.messagingSocketPath === sock);
+    const numeric = /^(\d{1,10})(?:-[0-9a-f]{8})?\.sock$/.exec(basename(sock));
+    return { sock, pid: registered?.pid ?? (numeric ? Number(numeric[1]) : undefined) };
+  }
+  const matches = peers().filter(p => p.name === to || p.sessionId === to || String(p.pid) === to);
+  const match = matches[0];
+  if (matches.length !== 1 || !match?.messagingSocketPath) throw new Error(`Peer '${to}' is missing or ambiguous; use list and an exact socket address`);
+  return { sock: socketPath(match.messagingSocketPath), pid: match.pid };
+}
+async function sendFrame(to: string, frame: Record<string, unknown>): Promise<void> {
+  const dest = target(to);
+  const frames: unknown[] = [];
+  if (dest.pid !== undefined) {
+    try {
+      const key = readJson(keyPath(dest.pid, dest.sock));
+      if (object(key) && typeof key.peerToken === "string" && /^[0-9a-f]{32}$/.test(key.peerToken)) frames.push({ type: "auth", token: key.peerToken });
+    } catch { /* Linux Claude sessions also accept unauthenticated peer frames. */ }
+  }
+  const encoded = JSON.stringify(frame);
+  if (Buffer.byteLength(encoded) > MAX_FRAME) throw new Error("Message exceeds the 1 MiB peer frame limit");
+  frames.push(frame);
+  await new Promise<void>((done, reject) => {
+    const socket = createConnection({ path: dest.sock });
+    const timer = setTimeout(() => { socket.destroy(); reject(new Error("Socket write timed out after 5 seconds")); }, 5000);
+    socket.once("error", error => { clearTimeout(timer); reject(error); });
+    socket.once("connect", () => socket.end(frames.map(value => JSON.stringify(value)).join("\n") + "\n", () => {
+      clearTimeout(timer);
+      socket.destroy();
+      done();
+    }));
+  });
+}
+function decode(value: string): string {
+  const entities: Record<string, string> = { quot: '"', amp: "&", lt: "<", gt: ">", apos: "'", "#39": "'" };
+  return value.replace(/&(quot|amp|lt|gt|apos|#39);/g, (original, name: string) => entities[name] ?? original);
+}
+function message(frame: unknown): Message | undefined {
+  if (!object(frame) || frame.type !== "user" || typeof frame.msg_id !== "string" || !object(frame.message) || typeof frame.message.content !== "string") return undefined;
+  const from = typeof frame.from === "string" ? frame.from : "";
+  const wrapped = /^\s*<cross-session-message\b([^>]*)>\n?([\s\S]*?)\n?<\/cross-session-message>\s*$/.exec(frame.message.content);
+  const attrs = wrapped?.[1];
+  const body = wrapped?.[2];
+  const name = attrs ? /\bfrom-name="([^"]*)"/.exec(attrs)?.[1] : undefined;
+  return { msg_id: frame.msg_id, from, name: name === undefined ? from : decode(name), body: body === undefined ? frame.message.content : decode(body) };
+}
+
+async function serve(run: string, name: string): Promise<void> {
+  if (process.platform !== "linux") throw new Error("This helper is verified only on Linux");
+  if (!/^[\p{L}\p{N}._-]{1,200}$/u.test(name)) throw new Error("Use a unique bridge name containing letters, numbers, dots, underscores, or hyphens");
+  if (peers().some(p => p.name === name)) throw new Error(`A live peer already uses '${name}'`);
+  mkdirSync(run, { recursive: true, mode: 0o700 });
+  chmodSync(run, 0o700);
+  if (existsSync(join(run, "bridge.json"))) throw new Error("Use a fresh directory for every listener run; retain the old inbox for recovery");
+  writeFileSync(join(run, "inbox.ndjson"), "", { mode: 0o600, flag: "wx" });
+  writeFileSync(join(run, "last-seen"), "0\n", { mode: 0o600, flag: "wx" });
+  const pid = process.pid;
+  const start = procStart(pid);
+  if (!start) throw new Error("Cannot read this process's Linux start identity");
+  let sock = join(process.env.XDG_RUNTIME_DIR || "/tmp", "cc-socks", `${pid}.sock`);
+  try { socketPath(sock); } catch { sock = join(`/tmp/cc-socks-${process.getuid?.() ?? 0}`, `${pid}.sock`); }
+  mkdirSync(dirname(sock), { recursive: true, mode: 0o700 });
+  chmodSync(dirname(sock), 0o700);
+  mkdirSync(sessions, { recursive: true });
+  const pidDomain = peers().find(p => p.pidDomain)?.pidDomain
+    ?? `linux:${createHash("sha256").update(hostname()).digest("hex").slice(0, 16)}:${readlinkSync("/proc/self/ns/pid")}`;
+  const own: Inbox = { pid, procStart: start, pidDomain, name, sessionId: randomUUID(), messagingSocketPath: sock };
+  const token = randomBytes(16).toString("hex");
+  const startedAt = Date.now();
+  const publish = () => atomic(join(sessions, `${pid}.json`), JSON.stringify({ ...own, cwd: process.cwd(), startedAt, version: "ccbridge/constitution-tooling", peerProtocol: 1, peerFeatures: ["notify_idle", "reply_across_default_dirs"], kind: "interactive", entrypoint: "cli", nameSource: "derived", status: "idle", updatedAt: Date.now(), statusUpdatedAt: Date.now() }), 0o644);
+  const server = createServer(socket => {
+    socket.setEncoding("utf8");
+    socket.on("error", error => console.error(error.message));
+    let buffer = "";
+    const line = (value: string) => {
+      if (Buffer.byteLength(value) > MAX_FRAME) { socket.destroy(); return; }
+      let frame: unknown;
+      try { frame = JSON.parse(value); } catch { return; }
+      const received = message(frame);
+      if (received) appendFileSync(join(run, "inbox.ndjson"), JSON.stringify(received) + "\n");
+      else if (object(frame) && frame.type === "control" && frame.action === "notify_when_idle" && typeof frame.from === "string") {
+        void sendFrame(frame.from, { msgV: 1, msg_id: randomUUID(), type: "control", action: "peer_idle_notice", from: address(own), orig_msg_id: frame.msg_id, state: "idle", finished_at: Date.now() }).catch(error => console.error(error instanceof Error ? error.message : String(error)));
+      }
+    };
+    socket.on("data", (chunk: string) => {
+      buffer += chunk;
+      let end = buffer.indexOf("\n");
+      while (end !== -1 && !socket.destroyed) {
+        line(buffer.slice(0, end));
+        buffer = buffer.slice(end + 1);
+        end = buffer.indexOf("\n");
+      }
+      if (Buffer.byteLength(buffer) > MAX_FRAME) socket.destroy();
+    });
+    socket.on("end", () => { if (buffer.trim()) line(buffer); socket.end(); });
+  });
+  await new Promise<void>((done, reject) => { server.once("error", reject); server.listen(sock, () => done()); });
+  chmodSync(sock, 0o600);
+  const cleanup = () => {
+    rmSync(sock, { force: true });
+    rmSync(join(sessions, `${pid}.json`), { force: true });
+    rmSync(keyPath(pid, sock), { force: true });
+  };
+  process.once("exit", cleanup);
+  process.once("SIGINT", () => process.exit(0));
+  process.once("SIGTERM", () => process.exit(0));
+  atomic(keyPath(pid, sock), JSON.stringify({ peerToken: token, procStart: start, pidDomain }));
+  publish();
+  atomic(join(run, "bridge.json"), JSON.stringify(own));
+  console.log(JSON.stringify({ ...own, address: address(own), run }));
+  const refresh = setInterval(publish, 30_000);
+  refresh.unref();
+  await new Promise<void>((_done, reject) => server.once("error", reject));
+}
+
+function checkpoint(run: string): number {
+  const value = readFileSync(join(run, "last-seen"), "utf8").trim();
+  if (!/^\d+$/.test(value) || !Number.isSafeInteger(Number(value))) throw new Error("Invalid last-seen checkpoint");
+  return Number(value);
+}
+function nextMessage(run: string, last: number): Message | undefined {
+  const log = readFileSync(join(run, "inbox.ndjson"), "utf8");
+  const end = log.lastIndexOf("\n");
+  const lines = end < 0 ? [] : log.slice(0, end).split("\n");
+  if (last > lines.length) throw new Error("Inbox is shorter than its checkpoint; preserve the log and inspect it");
+  const line = lines[last];
+  if (line === undefined) return undefined;
+  const value = JSON.parse(line);
+  if (!object(value) || typeof value.msg_id !== "string" || typeof value.name !== "string" || typeof value.from !== "string" || typeof value.body !== "string") throw new Error("Invalid saved inbox record");
+  return { msg_id: value.msg_id, name: value.name, from: value.from, body: value.body };
+}
+async function wait(run: string, timeoutMs: number): Promise<number> {
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > HOUR) throw new Error("Wait timeout must be 1 to 3600000 milliseconds");
+  const lock = join(run, "reader.lock");
+  mkdirSync(lock);
+  atomic(join(lock, "owner.json"), JSON.stringify({ pid: process.pid, procStart: procStart(process.pid) }));
+  const unlock = () => rmSync(lock, { recursive: true, force: true });
+  process.once("exit", unlock);
+  process.once("SIGTERM", () => process.exit(143));
+  process.once("SIGINT", () => process.exit(130));
+  try {
+    const last = checkpoint(run);
+    const until = Date.now() + timeoutMs;
+    while (true) {
+      const value = nextMessage(run, last);
+      if (value) { console.log(JSON.stringify({ message_line: last + 1, ...value })); return 0; }
+      if (!alive(inbox(run))) throw new Error("Listener is offline; retain unread records and recover before waiting again");
+      const remaining = until - Date.now();
+      if (remaining <= 0) return 124;
+      await new Promise<void>(done => setTimeout(done, Math.min(200, remaining)));
+    }
+  } finally {
+    process.removeListener("exit", unlock);
+    unlock();
+  }
+}
+function ack(run: string, line: number): void {
+  const lock = join(run, "reader.lock");
+  mkdirSync(lock);
+  try {
+    const last = checkpoint(run);
+    if (!Number.isSafeInteger(line) || line !== last + 1 || !nextMessage(run, last)) throw new Error("Acknowledge only the next complete record, after reading all its output");
+    atomic(join(run, "last-seen"), `${line}\n`);
+  } finally { rmSync(lock, { recursive: true, force: true }); }
+}
+
+async function main(args: string[]): Promise<number> {
+  const [command, directory, ...rest] = args;
+  if (command === "list") { console.log(JSON.stringify(peers())); return 0; }
+  if (!directory || !command || command === "--help") {
+    console.log("ccbridge.ts list | serve RUN NAME | status RUN | send RUN PEER MESSAGE_FILE | wait RUN [TIMEOUT_MS] | ack RUN LINE | stop RUN");
+    return command === "--help" ? 0 : 2;
+  }
+  const run = resolve(directory);
+  switch (command) {
+    case "serve": {
+      const name = rest[0];
+      if (!name) throw new Error("serve needs a stable, unique peer name");
+      await serve(run, name);
+      return 0;
+    }
+    case "status": { const own = inbox(run); console.log(JSON.stringify({ ...own, address: address(own), alive: alive(own), last_seen: checkpoint(run) })); return 0; }
+    case "send": {
+      const own = inbox(run);
+      if (!alive(own)) throw new Error("Start the listener before sending; its reply address must remain online");
+      const [to, file] = rest;
+      if (!to || !file) throw new Error("send needs PEER and MESSAGE_FILE");
+      const content = readFileSync(resolve(file), "utf8");
+      if (!content.trim()) throw new Error("Empty message file");
+      const msgId = randomUUID();
+      await sendFrame(to, { msgV: 1, msg_id: msgId, type: "user", message: { role: "user", content }, priority: "next", from: address(own) });
+      console.log(JSON.stringify({ msg_id: msgId, transport: "written", to }));
+      return 0;
+    }
+    case "wait": return await wait(run, rest[0] === undefined ? HOUR : Number(rest[0]));
+    case "ack": ack(run, Number(rest[0])); return 0;
+    case "stop": {
+      const own = inbox(run);
+      if (alive(own)) process.kill(own.pid, "SIGTERM");
+      return 0;
+    }
+    default: throw new Error(`Unknown command '${command}'`);
+  }
+}
+if (import.meta.main) {
+  try { process.exitCode = await main(process.argv.slice(2)); }
+  catch (error: unknown) { console.error(error instanceof Error ? error.message : String(error)); process.exit(1); }
+}
+{% endif -%}

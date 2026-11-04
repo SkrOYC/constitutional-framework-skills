@@ -12,7 +12,7 @@ Outside `.constitution/`, always. The orchestrator's write ban on the constituti
 
 ## Shape
 
-YAML front matter carries mechanical fields; the body carries binding constraints and execution state. Existing plans remain valid without the optional `invocation` and `reasoning_effort` fields. New plans state invocation explicitly; on legacy-plan dispatch, supply those facts in the prompt. Use `none` where a required field doesn't apply.
+YAML front matter carries mechanical fields; the body carries binding constraints and execution state. Existing plans remain valid without the optional `invocation` and `reasoning_effort` fields.{% if harness.id == "codex" %} Codex and Claude can be selected independently for every role. For mixed runtimes, read [Coordinate Codex and Claude](~/.codex/skills/constitution-tooling/references/codex-claude-bridge.md); retain each role's runtime, native lifecycle handle, inbox identity, reporting route, and expected continuation in execution state. A bridge identity is a messaging destination, not a native Codex parent handle.{% endif %} New plans state invocation explicitly; on legacy-plan dispatch, supply those facts in the prompt. Use `none` where a required field doesn't apply.
 
 ```yaml
 ---
@@ -34,7 +34,7 @@ base_branch: main                    # replace with the project's recorded defau
 planned_at_commit: 0b37d5f            # default-branch commit the repository_state assertions were checked against
 siblings:                              # every other lane in the wave; empty list when standalone or the wave is one
   - epic: EPIC-AK
-    lead: epic-lead-ak                 # {% if harness.id == "claude" %}that lead's background session name, which is also its SendMessage address{% elif harness.id == "codex" %}the name the orchestrator gave that subagent{% elif harness.id == "antigravity" %}a label for plans and reports; leads message each other with send_message using the conversationId the wave lead records in Amendments after dispatch{% else %}a label for plans and reports, not an address; leads message each other by the subagent id the wave lead records in Amendments after dispatch{% endif %}
+    lead: epic-lead-ak                 # {% if harness.id == "claude" %}that lead's background session name, which is also its SendMessage address{% elif harness.id == "codex" %}the native child label or Claude session name; record the sibling's runtime and reachable native handle or bridge address in execution state{% elif harness.id == "antigravity" %}a label for plans and reports; leads message each other with send_message using the conversationId the wave lead records in Amendments after dispatch{% else %}a label for plans and reports, not an address; leads message each other by the subagent id the wave lead records in Amendments after dispatch{% endif %}
     branch: epic/AK-notification-delivery
     merge_position: 2
 models:                                # available approved models or approved inheritance; don't invent tool options
@@ -103,7 +103,7 @@ What exists, what is partial, and what is missing for each ticket at `planned_at
 
 ### Binding envelope
 
-State the outcomes, acceptance, owned scope, contracts, dependencies, resource ceiling, permitted actions, and merge authority. Cite authoritative records and user rulings. Distinguish hard constraints from sizing and scheduling guides. A wave lead owns genuinely shared judgment; the epic lead owns execution inside this envelope. A single-epic wave runs directly as epic lead and retains wave merge/reconcile duties without another lead session.
+State the outcomes, acceptance, owned scope, contracts, dependencies, resource ceiling, permitted actions, and merge authority. Cite authoritative records and user rulings. Distinguish hard constraints from sizing and scheduling guides. A wave lead owns genuinely shared judgment; the epic lead owns execution inside this envelope. {% if harness.id == "codex" %}A single-epic wave uses the direct path when its epic lead is Codex. An approved Claude epic lead uses `orchestrated` invocation under the Codex wave lead, which retains merge/reconcile duties.{% else %}A single-epic wave runs directly as epic lead and retains wave merge/reconcile duties without another lead session.{% endif %}
 
 ### Milestones
 

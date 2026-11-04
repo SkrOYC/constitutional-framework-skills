@@ -14,7 +14,9 @@ Review a complete, revision-bound PR candidate in the requested mode. Use the ma
 
 Run that workflow's checks with the shared rules below. An axis review establishes coverage of that axis; it does not claim a full review.
 
-## Evidence and review judgment
+{% if harness.id == "codex" %}For a Claude caller, read [Coordinate Codex and Claude](~/.codex/skills/constitution-tooling/references/codex-claude-bridge.md). Establish your inbox, send the review through the caller's confirmed address, and keep one blocking receive waiter active alongside sends while the assignment expects continuation. Preserve the review-only scope.
+
+{% endif %}## Evidence and review judgment
 
 Identify what must remain true for the change to be safe. State the important safety assumptions, then seek the cheapest evidence that can decide them. Follow affected callers, data paths, failure states, and governing contracts. Match proof to the change:
 
