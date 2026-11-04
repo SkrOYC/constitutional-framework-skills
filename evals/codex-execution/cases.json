@@ -1,0 +1,50 @@
+{
+  "instructions": "These are independent planning and handoff replays. Apply the supplied rendered skills to each case. All stated evidence and approvals are current. Return the next decisions and any worker, reviewer, or lead brief you would issue. Explain consequential choices briefly. Do not execute production commands, start agents, or modify a repository during a replay.",
+  "cases": [
+    {
+      "id": "coherent-assignment",
+      "skills": ["execute-epic-end-to-end/SKILL.md", "execute-epic-end-to-end/references/epic-plan.md"],
+      "request": "Plan an approved layout-adoption epic. Three tickets cover the shared field component, adoption across 18 settings pages, and adoption across 18 reporting pages. The page changes are repetitive replacements of the same controls; all pages use the same existing interfaces. Forecast: 42 authored files and 2,100 diff lines, plus generated snapshots. The focused browser batches and static gates already exist. Owned paths include all affected pages and the shared component. One capable worker can understand the whole change. There is no useful concurrency between page batches because they share helpers and fixtures. Models, authority, and resources are settled. Give the milestone grouping and the first implementation assignment, including verification ownership."
+    },
+    {
+      "id": "healthy-worker",
+      "skills": ["execute-epic-end-to-end/SKILL.md"],
+      "request": "Continue as epic lead. A fresh worker is implementing M2 and has been running for 18 minutes. Its files and owned verification log are advancing. The approved stall threshold is 60 minutes. No blocker, failed check, resource conflict, new requirement, or safety concern has appeared. The lead notices a loop in the unfinished code and would personally prefer a Map; both approaches satisfy the contracts at this bounded input size. M3 is independent, and its brief is not prepared yet. Decide what to do next, including any message to the active worker."
+    },
+    {
+      "id": "unfinished-worker",
+      "skills": ["execute-epic-end-to-end/SKILL.md"],
+      "request": "Continue as epic lead. Worker worker-m2-17 paused before finishing M2 and returned a concrete blocker: a generator now imports a helper from a dependency absent from the pinned stack. You have authority to adopt the repository's existing local compatibility helper in newly generated files, without adding dependencies or changing a pinned contract. That choice preserves required behavior. The worker has not declared the assignment complete and no independent review has occurred. It can be resumed through the runtime's follow-up tool. State your ruling and the next worker action or brief."
+    },
+    {
+      "id": "post-review-repair",
+      "skills": ["execute-epic-end-to-end/SKILL.md", "pr-review-fix-loop/SKILL.md"],
+      "request": "Continue as epic lead in an approved PR loop. Worker worker-m2-17 completed M2, returned its final result, and its work was committed. Independent review then proved that a failed write leaves the transaction open and prevents later requests from completing. The repair is within scope and can be handled as one batch across two files. The original worker is idle and remembers the implementation. The approved fixer model is available. Decide whom to assign, draft the repair brief, and describe the subsequent verification."
+    },
+    {
+      "id": "review-materiality",
+      "skills": ["pr-review-fix-loop/SKILL.md", "reviewing-pull-requests/SKILL.md"],
+      "request": "Triage two review findings. A: a runbook says 'validate the import' while the implementation normalizes insignificant surrounding whitespace before validation. Published accepted values and all observable results agree with the governing contract; no required check fails. The reviewer proposes introducing a configurable validation pipeline to make the wording exact. B: an initialization cursor serializes timestamps to milliseconds, but its query orders microsecond timestamps; a reproduced row is selected forever and initialization never finishes. Existing acceptance missed this case. Both areas are owned. The owner requires real correctness defects fixed and prefers unrelated improvements deferred. Current required gates pass except the new reproduction for B. Decide the dispositions, repair scope, and necessary proof."
+    },
+    {
+      "id": "repair-verification",
+      "skills": ["pr-review-fix-loop/SKILL.md", "reviewing-milestone-commits/SKILL.md", "reviewing-pull-requests/SKILL.md"],
+      "request": "Arrange verification after a PR repair. The complete candidate A..H1 was independently reviewed. One accepted authorization defect was fixed in H1..H2, touching a resolver and its regression test. The base, contracts, environment, other source, and hosted requirements are unchanged. Focused checks for H2 pass. A previous naming preference was dismissed with a governing ruling that still applies. Reviewer review-17 authored no implementation and can continue; another fresh reviewer is also available. Supply the next review brief and completion condition. Decide what previous coverage remains valid."
+    },
+    {
+      "id": "shared-resource-wait",
+      "skills": ["execute-wave/SKILL.md", "execute-epic-end-to-end/SKILL.md"],
+      "request": "Continue as wave lead. Two lanes share a project-defined verification limit of one complete pool. Lane A owns the slot, its test process is advancing, and its completion estimate is ten minutes. Lane B finished its source work and is waiting in the recorded queue; it has made no source changes for 40 minutes. Its lead asks whether to replace its worker or run the pool without a slot to make progress. B's stack is healthy, and unrelated planning work remains available. All resource rules and authority are settled. Give the ruling and any coordination messages or follow-up checks."
+    },
+    {
+      "id": "recurring-fixture-repair",
+      "skills": ["execute-wave/SKILL.md", "execute-epic-end-to-end/references/epic-plan.md"],
+      "request": "Continue as wave lead. You have authority to amend an epic's delegated scope. The lane added an approved database constraint. Two out-of-scope test fixtures failed because their sample rows omit the newly required field; you already authorized minimal test-only repairs. A third equivalent fixture now fails. No sibling owns these test files. The epic lead asks for a ruling and notes that more equivalent fixture failures may appear. Production code, migrations, and seeds are outside this repair authority. Decide the scope of your ruling, what the lead may do next, and what remains an escalation."
+    },
+    {
+      "id": "unchanged-enforcement",
+      "skills": ["execute-epic-end-to-end/SKILL.md"],
+      "request": "Continue at the epic lead's verify-and-commit step. An authorized dependency patch update changed package.json and bun.lock inside the owned scope. The worker returned complete. The pinned install check, static gates, and relevant public-interface regression suite pass on this candidate. No test or script asserts the former patch version; those checks validate dependency consistency and behavior, and their assertions and inputs remain applicable. No published interface, snapshot, fixture corpus, or required threshold changed. Decide whether the enforcement check requires another file edit before committing and what evidence you will retain."
+    }
+  ]
+}

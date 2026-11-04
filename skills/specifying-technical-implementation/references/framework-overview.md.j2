@@ -25,11 +25,11 @@ Execution is a separate set of skills with separate write authority. They read t
 
 | Skill | Role | Reads | Writes |
 | :--- | :--- | :--- | :--- |
-| `execute-epic-end-to-end` | Epic lead: {% if harness.id == "grok" %}designs its own plan in a step-0 plan-mode session when standalone (or skips plan mode when the plan is already approved), writes the repo plan file after exit, or executes{% else %}writes its own plan file in a step-0 plan-mode session when standalone, or executes{% endif %} the wave lead's plan file when orchestrated; then runs without questions, dispatching a fresh worker per milestone, verifying (including live-verification recipes), committing, getting each milestone reviewed, opening the pull request, and running its review loop to clean | The epic file, the plan file when orchestrated, `critical-path.md`, `tech-spec/`, `architecture/`, `prd/`, the open-decisions register | Milestone commits; the epic's own file (status, deviations, discovered decisions, closeout); `evidence/` manifests |
+| `execute-epic-end-to-end` | Epic lead: {% if harness.id == "grok" %}designs its own plan in a step-0 plan-mode session when standalone (or skips plan mode when the plan is already approved), writes the repo plan file after exit, or executes{% elif harness.id == "codex" %}writes its own plan file in step 0 when standalone, or executes{% else %}writes its own plan file in a step-0 plan-mode session when standalone, or executes{% endif %} the wave lead's plan file when orchestrated; then runs without questions, dispatching a fresh worker per milestone, verifying (including live-verification recipes), committing, getting each milestone reviewed, opening the pull request, and running its review loop to clean | The epic file, the plan file when orchestrated, `critical-path.md`, `tech-spec/`, `architecture/`, `prd/`, the open-decisions register | Milestone commits; the epic's own file (status, deviations, discovered decisions, closeout); `evidence/` manifests |
 | Worker (dispatched by the lead) | Implements one bounded milestone, including routine formatting, types, and focused verification; never reused for another milestone | The assigned outcome, exact revision, named ticket and spec pointers, constraints, and required evidence | Code, tests, config; a spike file for a `Spike` ticket; nothing else under `.constitution/` |
 | Spec-patch worker (dispatched by the lead) | Answers one physical drift report | The drift report, the named tech-spec files | Only those `tech-spec/` files, in a commit with no code |
 | `reviewing-milestone-commits` | Independent review of one committed milestone | The commit, surrounding code, the constitution, `validate` output | Nothing |
-| `execute-wave` | Wave lead: {% if harness.id == "grok" %}designs every epic in the wave in one step-0 plan-mode session and writes the repo plan file or files after exit;{% else %}plans every epic in the wave outside the constitution in one step-0 plan-mode session;{% endif %} makes cross-epic judgments, dispatches epic leads, tracks native handles, merges eligible pull requests in the approved order, then reconciles and derives | `critical-path.md` waves, `constitution.yaml` concurrency, the epic files, the project's agent instructions | Plan files outside `.constitution/`; nothing in the constitution until reconciliation |
+| `execute-wave` | Wave lead: {% if harness.id == "grok" %}designs every epic in the wave in one step-0 plan-mode session and writes the repo plan file or files after exit;{% elif harness.id == "codex" %}plans every epic in the wave outside the constitution in step 0;{% else %}plans every epic in the wave outside the constitution in one step-0 plan-mode session;{% endif %} makes cross-epic judgments, dispatches epic leads, tracks native handles, merges eligible pull requests in the approved order, then reconciles and derives | `critical-path.md` waves, `constitution.yaml` concurrency, the epic files, the project's agent instructions | Plan files outside `.constitution/`; nothing in the constitution until reconciliation |
 | `reconcile` (a `constitution-tooling` command) | Applies closeout deltas and fast-lane commits after the pull requests merge, as one commit on the default branch | The closeouts, git history and its commit trailers | `tasks/completed/`, `critical-path.md`, `tasks/changelog.yaml`, `tech-spec/changelog.yaml`, verification-command flags, settled records, the register's proposed entries and already approved rulings, a routing report that carries the code decisions to Stage 3 |
 | `derive` (a `constitution-tooling` command) | Aligns the mechanical parts of `tech-spec/` with the repository | The lockfiles, the tree | With `--write`: `stack.yaml` pin versions, `guidelines.md` layout `exists` flags, a `tech-spec/changelog.yaml` patch entry |
 | `audit-improvements` | Read-only codebase audit, including assumptions the code contradicts | The codebase, the constitution | `reports/audit-*.md` |
@@ -40,7 +40,14 @@ The flow is: plan → plan execution {% if harness.id == "codex" or harness.id =
 
 Declare the role, mode, and effective authority before execution or resume. Execute the approved plan without routine approval pauses. Give concise progress updates and incorporate user steering without restarting planning. {% if harness.id == "codex" or harness.id == "antigravity" %}Step 0 is the planning session where the orchestrator writes the plan file, `check-plan` validates it, and the user approves it once.{% elif harness.id == "grok" %}Step 0 is the plan-mode session where the orchestrator designs the plan and the user approves it once. While plan mode is active the only writable file is the session plan; after exit the orchestrator writes the repo plan file or files and `check-plan` validates them. A bundle file is optional.{% else %}Step 0 is the plan-mode session where the orchestrator writes the plan file, `check-plan` validates it, and the user approves it once.{% endif %} Settle the decisions implementation needs: approved models, effort and fallbacks, review coverage, budget, liveness thresholds, and the `autonomy` policy for blockers, decisions, drift, conflicts, and nonconvergence.
 
-The wave lead owns cross-epic judgments and the shared path. Epic leads adapt execution within approved outcomes, acceptance, scope, contracts, dependencies, resources, and authority. Regrouping milestones, splitting a bounded step, reordering independent work, or slightly exceeding a size guide does not require a wave amendment. A standalone epic lead has the same discretion. Escalate shared or out-of-authority changes; route upstream repairs to the owning stage.
+{% if harness.id == "codex" %}Use engineering judgment to deliver the authorized outcome with proportionate effort.
+The user's instructions and sourced owner policy take precedence over skill defaults;
+actual permissions, required gates, acceptance, and binding contracts still apply.
+Interpret ambiguous wording against its purpose and observable behavior. A harmless
+difference in expression needs no redesign or escalation. A failed required gate needs
+the smallest sufficient repair, or an honest blocker when it cannot be repaired within authority.
+
+{% endif %}The wave lead owns cross-epic judgments and the shared path. Epic leads adapt execution within approved outcomes, acceptance, scope, contracts, dependencies, resources, and authority. Regrouping milestones, splitting a bounded step, reordering independent work, or slightly exceeding a size guide does not require a wave amendment. A standalone epic lead has the same discretion. Escalate shared or out-of-authority changes; route upstream repairs to the owning stage.
 
 Within that authority, the default for a blocker or open decision is the lead's recommendation as an interim assumption. Record it in the epic's `decisions` list with `interim` and the places it applies. `reconcile` proposes it to the register for a later ruling. An interim never changes upstream documents, expands scope, or authorizes an irreversible action. Defer affected tickets when the decision exceeds authority, and continue independent work.
 
@@ -48,9 +55,29 @@ Handoffs preserve sourced preferences, authorized continuation, the stop boundar
 
 ## Efficient execution
 
-Planning resolves scope, prerequisites, implementation seams, verification ownership, required evidence, and approved model fallbacks before dispatch. Give workers precise startup pointers instead of background dumps. Investigate uncertainties that can change the plan; route unrelated improvements to later work.
+{% if harness.id == "codex" %}Plan complete outcomes, binding constraints, dependencies, verification ownership, and resources.
+Leave routine implementation decisions to the worker. Group related work to reduce handoffs;
+split for a meaningful dependency, risk, comprehension, or resource boundary. A milestone,
+ticket, assignment, turn, commit, and review pass are different units. Several tickets or
+commits can belong to one worker assignment. Give focused source pointers and investigate
+uncertainties that could change the plan.
+{% else %}Planning resolves scope, prerequisites, implementation seams, verification ownership, required evidence, and approved model fallbacks before dispatch. Give workers precise startup pointers instead of background dumps. Investigate uncertainties that can change the plan; route unrelated improvements to later work.{% endif %}
 
-Assign a fresh worker to each milestone with a bounded outcome and context, without inherited parent conversation. Harness-required instructions still apply. Never reuse that worker for another milestone. It completes implementation and routine formatting, type checks, and focused verification in the same assignment. Use a coherent assignment for each repair batch. Preserve independent review of every committed milestone; pull-request review examines integration, cross-milestone behavior, and final claims.
+{% if harness.id == "codex" %}A fresh worker owns its complete milestone, including investigation, implementation,
+routine formatting, type corrections, and focused verification. It may continue the same
+unfinished assignment after a ruling. Once it returns complete and its work is reviewed,
+repairs go to a fresh fixer; another milestone also gets a fresh worker. Leads persist.
+New milestones get fresh independent reviewers; an author-independent reviewer may continue
+for scoped verification of its own findings. Reuse valid coverage and dispositions in
+either a continuing or fresh reviewer context.
+
+While a worker is healthy, prepare independent work or wait for its result. Intervene for
+a reported blocker, changed binding facts, a material correctness or safety problem,
+shared-resource contention, or the project's liveness trigger. Reviewing unfinished code
+to steer routine implementation, preference messages, and activity-only status demands
+are not useful supervision. Review completed work; keep independent work progressing
+when review inputs can remain stable.
+{% else %}Assign a fresh worker to each milestone with a bounded outcome and context, without inherited parent conversation. Harness-required instructions still apply. Never reuse that worker for another milestone. It completes implementation and routine formatting, type checks, and focused verification in the same assignment. Use a coherent assignment for each repair batch. Preserve independent review of every committed milestone; pull-request review examines integration, cross-milestone behavior, and final claims.{% endif %}
 
 Write almost no ordinary code comments. Express meaning through names, types, structure, and invariants. TSDoc-style API contracts, license headers, and rare essential external constraints are exceptions. Write almost no isolated unit tests: prefer public-interface behavior checks and useful existing coverage. Add a unit test only when it provides decisive value; no blanket TDD or test-per-ticket quota applies.
 

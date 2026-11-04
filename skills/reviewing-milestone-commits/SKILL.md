@@ -9,7 +9,12 @@ metadata:
 
 # Reviewing milestone commits
 
-Independently review one committed, coherent milestone during epic execution. The source can be one commit, an explicit base/head range, or an explicit coherent commit set that includes incidental implementation and repair commits. Review the exact combined milestone delta and its interactions. Do not group separate milestones or infer a larger range.
+{% if harness.id == "codex" %}Independently review one committed, coherent milestone. An initial review covers the explicit
+commit, base/head range, or coherent commit set and its interactions. A repair verification
+with a prior reviewed head (`since`) covers only the repair delta and affected interactions,
+carrying forward unaffected coverage and dispositions. Do not group separate milestones or
+infer a larger range; new context alone does not restart a complete milestone review.
+{% else %}Independently review one committed, coherent milestone during epic execution. The source can be one commit, an explicit base/head range, or an explicit coherent commit set that includes incidental implementation and repair commits. Review the exact combined milestone delta and its interactions. Do not group separate milestones or infer a larger range.{% endif %}
 
 This review assesses local implementation and milestone acceptance. PR review separately assesses cumulative integration, cross-milestone assumptions, and final claims. A clean milestone review does not prove the whole PR or grant merge authority.
 
@@ -19,11 +24,23 @@ This review assesses local implementation and milestone acceptance. PR review se
 
 The caller supplies the exact source identity, matching checkout, milestone/ticket ids or lane claim, governing epic or issue, acceptance modes and evidence, relevant plan constraints, and verification references. A spec-patch review also needs its drift report. If source identity is missing or ambiguous, return an incomplete-review report.
 
-Read unfamiliar constitution layout from `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/references/layout.md`. Use the active epic, TechSpec contracts and actual artifacts, architecture boundaries, PRD constraints, and applicable authorized decisions. In Issue mode, use the issue and passed acceptance criteria. If requirements are unavailable, review the source but state the acceptance limit.
+{% if harness.id == "codex" %}For repair verification, also obtain the prior reviewed head, findings and dispositions,
+and the exact repair range or commit set. If independent milestones landed in between,
+`since` records the earlier coverage baseline; it does not assign those milestones to this
+review. Inspect their interaction with the repair when relevant, preserving their separate
+review coverage. Ask for a precise repair scope if it cannot be established.
+
+{% endif %}Read unfamiliar constitution layout from `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/references/layout.md`. Use the active epic, TechSpec contracts and actual artifacts, architecture boundaries, PRD constraints, and applicable authorized decisions. In Issue mode, use the issue and passed acceptance criteria. If requirements are unavailable, review the source but state the acceptance limit.
 
 Treat implementation notes and earlier checks as evidence to inspect, not proof to accept uncritically. Ground findings in the source, affected code paths, acceptance criteria, contracts, or binding conventions. Cite and quote requirements when a finding depends on them. A concrete source trace can prove a defect without runtime execution; unavailable execution must be disclosed separately.
 
-Use this skill for committed milestone review, including spec patches and spikes. It is not for implementation help, uncommitted diffs, PR review, or a repository-wide audit.
+{% if harness.id == "codex" %}Use practical consequence to judge materiality. Equivalent wording and reasonable local
+implementation choices need no repair when intent, behavior, and binding contracts agree.
+Do not grow them into an abstraction or a new requirement. Real correctness defects,
+false acceptance claims, and failed required gates still matter. A compatible interpretation
+can resolve a question without a code change.
+
+{% endif %}Use this skill for committed milestone review, including spec patches and spikes. It is not for implementation help, uncommitted diffs, PR review, or a repository-wide audit.
 
 ## Establish the exact delta
 
@@ -169,4 +186,11 @@ path:line-range
 Useful non-blocking observation tied to the milestone.
 ```
 
-After repair, independently verify the exact changed scope and its interactions. Every final behavioral edit needs that verification, including behavior outside live-probe coverage. Reuse unaffected evidence. If two related repairs fail under the same premise, state and test that premise before a third patch; follow the caller's approved nonconvergence policy rather than repeating a ritual or claiming unsupported acceptance.
+{% if harness.id == "codex" %}After repair, independently verify the exact changed scope and interactions, using the
+prior reviewed head and findings. The same author-independent reviewer may continue;
+a fresh verifier receives prior results as artifacts. Reopen only judgments invalidated
+by the repair or missing coverage, and name any expanded scope. Every final behavioral edit
+needs verification, including behavior outside live-probe coverage. Reuse unaffected proof.
+After two same-premise failures, test the premise before another patch and apply the
+caller's approved nonconvergence policy.
+{% else %}After repair, independently verify the exact changed scope and its interactions. Every final behavioral edit needs that verification, including behavior outside live-probe coverage. Reuse unaffected evidence. If two related repairs fail under the same premise, state and test that premise before a third patch; follow the caller's approved nonconvergence policy rather than repeating a ritual or claiming unsupported acceptance.{% endif %}

@@ -18,7 +18,14 @@ Run that workflow's checks with the shared rules below. An axis review establish
 
 {% endif %}## Evidence and review judgment
 
-Identify what must remain true for the change to be safe. State the important safety assumptions, then seek the cheapest evidence that can decide them. Follow affected callers, data paths, failure states, and governing contracts. Match proof to the change:
+{% if harness.id == "codex" %}Review consequences, using the governing intent and observable behavior to distinguish
+defects from equivalent wording or reasonable implementation choices. A finding needs an
+affected outcome, binding requirement, or concrete operational failure. Do not prescribe
+an abstraction merely to reconcile harmless differences. Required gate failures and
+demonstrated correctness defects still require an honest disposition; a compatible
+interpretation may establish that no code change is needed.
+
+{% endif %}Identify what must remain true for the change to be safe. State the important safety assumptions, then seek the cheapest evidence that can decide them. Follow affected callers, data paths, failure states, and governing contracts. Match proof to the change:
 
 | Change | Useful decisive evidence |
 | :--- | :--- |
@@ -47,7 +54,12 @@ A milestone review establishes its scoped implementation and acceptance assessme
 
 When the prompt names `since` and prior findings, review the delta from that exact commit to the head plus its affected dependencies and interactions. Confirm each prior Act-on finding is resolved; report unresolved findings at their original severity. Do not reopen a reasoned dismissal unless the delta or other changed evidence invalidates its grounds. Retain complete candidate context. Expand coverage when a base change, repaired shared assumption, changed contract, or missing prior coverage requires it.
 
-Inspect recorded results by source and input identity, command, environment, outcome, and coverage. Rerun only invalidated, unreliable, missing, risk-driven, or required checks. A role change alone does not invalidate evidence. Historical verified-at evidence remains historical; assess whether its inputs cover the candidate rather than demanding a fresh SHA label.
+{% if harness.id == "codex" %}This verification scope takes precedence over a mode's initial full-review checklist.
+Complete candidate context remains available for interactions; it does not require repeating
+unaffected analysis or rebuilding unchanged capture material. Identify any reason to expand.
+Continuing reviewers and fresh verifiers apply the same scope and preserve prior dispositions.
+
+{% endif %}Inspect recorded results by source and input identity, command, environment, outcome, and coverage. Rerun only invalidated, unreliable, missing, risk-driven, or required checks. A role change alone does not invalidate evidence. Historical verified-at evidence remains historical; assess whether its inputs cover the candidate rather than demanding a fresh SHA label.
 
 Every final behavioral repair requires scoped independent review, whether or not a live probe covers that behavior. Runtime checks and review answer different questions.
 

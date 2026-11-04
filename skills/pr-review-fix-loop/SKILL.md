@@ -59,9 +59,15 @@ Before accepting a result, confirm the candidate base/head and relevant hosted r
 
 ## Triage findings
 
-Read each finding against the code and governing requirements. Deduplicate shared defects and retain reviewer attribution. Agreement is supporting signal, not proof. Choose one bucket and record a short reason:
+{% if harness.id == "codex" %}Judge the consequence as well as the evidence. A provable discrepancy is not automatically
+a useful change. Interpret ambiguous wording against the governing intent, actual behavior,
+and compatible established practice. An equivalent expression needs no abstraction or repair.
+Honor required gates and acceptance; repair their failures minimally or report the blocker.
+Do not dismiss a demonstrated correctness defect as a preference.
 
-- *Act on:* A confirmed `P0` or `P1`, or a real `P2` correctness, user-facing, contract, or acceptance defect. Broken documented commands and handoffs count.
+{% endif %}Read each finding against the code and governing requirements. Deduplicate shared defects and retain reviewer attribution. Agreement is supporting signal, not proof. Choose one bucket and record a short reason:
+
+- *Act on:* {% if harness.id == "codex" %}A confirmed `P0` or `P1`, failed required acceptance or gates, or a concrete `P2` whose effect and proportionate repair justify changing this candidate. A binding contract violation or broken documented command remains actionable; explain the actual failure, rather than treating wording alone as one.{% else %}A confirmed `P0` or `P1`, or a real `P2` correctness, user-facing, contract, or acceptance defect. Broken documented commands and handoffs count.{% endif %}
 - *Consider:* A valid improvement whose cost or scope exceeds its value for this candidate. Fix it only when authorized and worthwhile; otherwise name its follow-up owner.
 - *Noted:* Valid context or historical evidence bookkeeping. An older verified-at SHA is not itself a defect. Missing required proof, a false pass, contradictory observations, failed validation, or a `done` ticket with failed or absent required results belongs in Act on.
 - *Dismissed:* Unsupported, incorrect, preference-only, or already resolved by governing policy. Cite the evidence or accepted ruling. A comment can explain intent; it cannot prove safety or dismiss a concrete defect.
@@ -72,7 +78,14 @@ If the initial review is complete and has no Act-on findings, proceed to complet
 
 ## Repair coherent causes
 
-Group accepted findings by shared root cause, owned scope, and validation needs. Use one bounded fix assignment per substantive batch; the lead can handle a mechanical correction within its authority. Keep the same worker responsible for routine formatting, typing, and focused verification within that assignment. Do not create workers or commits for each minor nit.
+{% if harness.id == "codex" %}Group accepted findings by cause, scope, and proof into coherent repair batches. Dispatch
+a fresh fix worker with `fork_turns: "none"` for each native Codex batch, or an isolated
+worker on the approved external runtime. Do not resume the completed implementation worker
+to repair reviewed work. The fixer owns the whole batch, including formatting, typing, and
+focused verification; it may continue while that assignment remains unfinished. Leads
+handle only mechanical bookkeeping within their own write authority. Do not create a
+worker or commit for each minor finding, or insert a new implementation milestone for a repair.
+{% else %}Group accepted findings by shared root cause, owned scope, and validation needs. Use one bounded fix assignment per substantive batch; the lead can handle a mechanical correction within its authority. Keep the same worker responsible for routine formatting, typing, and focused verification within that assignment. Do not create workers or commits for each minor nit.{% endif %}
 
 Give the fixer the candidate, accepted findings, relevant paths and constraints, prior failed attempts, and the required evidence. Require these outcomes:
 
@@ -89,7 +102,13 @@ When the caller owns commit discipline, return the repaired changes for that pro
 
 After repairs, obtain independent verification of the changed candidate. Supply the prior reviewed SHA as `since`, the exact repair delta, prior Act-on and Dismissed findings, relevant interactions, and reusable evidence. Keep the complete candidate context available. Refresh only invalidated snapshot material and metadata, following the snapshot contract.
 
-One independent verifier is the default for bounded repairs. Add expertise or expand coverage when the repair introduces distinct security, migration, concurrency, compatibility, or integration risk. Changed-file count alone does not require a full panel. The verifier confirms every accepted repair, examines its interactions, and reviews any uncovered effects. Unchanged findings are not reopened unless the new evidence changes their grounds.
+{% if harness.id == "codex" %}Continue the same author-independent reviewer with `followup_task` when appropriate, or
+give a fresh verifier the prior report and dispositions. In either case, brief it explicitly
+as repair verification from `since`, not another initial full review. Reuse unaffected
+coverage. Broaden only for a changed interaction, invalidated assumption, or missing prior
+coverage, and identify that reason. The verifier remains read-only and never becomes a fixer.
+
+{% endif %}One independent verifier is the default for bounded repairs. Add expertise or expand coverage when the repair introduces distinct security, migration, concurrency, compatibility, or integration risk. Changed-file count alone does not require a full panel. The verifier confirms every accepted repair, examines its interactions, and reviews any uncovered effects. Unchanged findings are not reopened unless the new evidence changes their grounds.
 
 Triage new findings and repair further Act-on defects. Stop when required coverage is complete, every prior Act-on finding is resolved, and the independent review finds no new Act-on finding. A second confirming clean round is unnecessary.
 

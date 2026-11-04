@@ -115,12 +115,20 @@ An ordered list. Each milestone carries:
 - **verification**: focused implementation checks and the final required gate set, copied from declared project commands. Name who runs each and when source freezes. Leads and reviewers reuse valid results for unchanged inputs, adding checks only for uncovered risk or a mandatory project rule. Do not put final `live_probe` capture in an implementation milestone; capture once per epic after the last milestone. A run-mode ticket names its minimal evidence directory.
 - **scope**: in-scope paths and out-of-scope paths for the worker, including the `artifact_path` of any contract or data-model artifact it creates or changes, and the tech-spec records and flow slugs it must follow.
 - **repository_state**: relevant preconditions checkable by path or command. The epic lead checks changed inputs, distinguishes ordinary adaptation from binding drift, and reuses still-valid readiness on resume.
-- **approach**: constraints the planner sets that the epic file does not, such as an ordering inside the milestone, a pattern to follow from a named existing file, or a thing not to do. Keep it to constraints. How the worker implements is the worker's.
+- **approach**: {% if harness.id == "codex" %}only the implementation constraints needed for a concrete contract, risk, dependency, or shared resource. Explain why a required sequence or pattern matters. Routine design, local corrections, and the means of implementation belong to the worker; do not prescribe each edit.{% else %}constraints the planner sets that the epic file does not, such as an ordering inside the milestone, a pattern to follow from a named existing file, or a thing not to do. Keep it to constraints. How the worker implements is the worker's.{% endif %}
 - **expected_spec_patches**: tech-spec files the planner already expects physical drift in, so the lead can budget the extra commit and review. Expectation does not waive the spec-patch milestone.
 - **independent_of**: milestone ids that may continue while this one is blocked or drifting, or none.
 - **pilot**: `true` only for an uncertain prerequisite, with its decisive proof and dependent work to hold. Independent work continues.
 
-Roughly 30 files or 1,500 lines is a sizing guide, not an escalation threshold. Review each coherent milestone's combined base/head delta once; incidental commits don't each create another gate. Preserve independent milestone coverage and separate code/spec commits. Small related stage changes can share a PR.
+{% if harness.id == "codex" %}Choose coherent outcomes with few unnecessary handoffs. Ticket count, worker count, turns,
+commits, and review passes need not match. A worker can finish related tickets, all routine
+corrections, and focused verification in one assignment. Split for comprehension, risk,
+dependencies, or actual resource capacity. A broad but repetitive migration can remain
+one assignment; a small concurrency change may need a separate one. Review the milestone's
+combined delta once, and subsequent repairs with their affected interactions. New reviewer
+contexts receive prior coverage and dispositions instead of restarting the full review.
+Preserve independent coverage and code/spec commit separation.
+{% else %}Roughly 30 files or 1,500 lines is a sizing guide, not an escalation threshold. Review each coherent milestone's combined base/head delta once; incidental commits don't each create another gate. Preserve independent milestone coverage and separate code/spec commits. Small related stage changes can share a PR.{% endif %}
 
 ### Step-0 rulings
 
