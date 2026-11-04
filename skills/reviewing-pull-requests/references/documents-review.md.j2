@@ -1,22 +1,22 @@
 # Documents review
 
-Review a constitution-only PR for contradictions, stage authority, broken handoffs, and claims the next stage would rely on. Apply the router's evidence, candidate, verification, and completion rules. Keep wording preferences non-blocking.
+Review a constitution-only PR for contradictions, stage authority, broken handoffs, and claims the next stage would rely on, applying the router's evidence, candidate, verification, and completion rules. Keep wording preferences non-blocking.
 
 ## Identify the candidate and owning stages
 
-Use the supplied complete offline snapshot, or capture the PR context, exact base/head, full diff and inventory, and referenced issues through `gh`. Confirm every changed path is under `.constitution/`. If code changed too, report that the PR needs full review with each surface judged by its own rules.
+Use the supplied complete offline snapshot, or capture the PR context, exact base/head, full diff and inventory, and referenced issues through `gh`. Confirm every changed path is under `.constitution/`; if code changed too, report that the PR needs full review with each surface judged by its own rules.
 
-Identify each owning stage: `prd/`, `architecture/`, `tech-spec/`, `tasks/`, or the interview/register/report workflow. Small related stage changes and patches can share a coherent PR. Multiple stage directories alone are not a finding. Check the sequence and authorized ownership of each decision, plus the combined downstream result.
+Identify each owning stage: `prd/`, `architecture/`, `tech-spec/`, `tasks/`, or the interview/register/report workflow. Small related stage changes and patches can share a coherent PR, so multiple stage directories alone are not a finding. Check the sequence and authorized ownership of each decision, plus the combined downstream result.
 
 ## Inspect machine-check results
 
-Use the caller's matching checkout without switching branches or creating worktrees. Inspect a valid `validate` result for the candidate's validation inputs. If none exists, run this read-only command when permitted:
+In the caller's matching checkout, without switching branches or creating worktrees, inspect a valid `validate` result for the candidate's validation inputs. If none exists, run this read-only command when permitted:
 
 ```sh
 bun run ~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/scripts/cli.ts validate --root <checkout>
 ```
 
-Report each validation error as a `P1` with its check id. Do not manually repeat schema, digest, or file-existence checks already established by valid results. For a TechSpec change, inspect a read-only `derive` result when relevant; report concrete unapplied drift at the severity its effect warrants. Do not write derived changes during review.
+Report each validation error as a `P1` with its check id, without manually repeating schema, digest, or file-existence checks already established by valid results. For a TechSpec change, inspect a read-only `derive` result when relevant and report concrete unapplied drift at the severity its effect warrants; do not write derived changes during review.
 
 ## Check meaning and handoffs
 
@@ -29,14 +29,14 @@ Then investigate what validation cannot decide:
 - *Downstream effects:* Affected downstream work is updated through its owner in this PR or identified as stale with a concrete continuation. Separate PRs per stage are not mandatory.
 - *Artifacts:* Raw contracts and data models belong at their code `artifact_path` with TechSpec sidecars. A legitimate `.constitution/` patch does not embed implementation artifacts there.
 - *Deferred obligations:* Consult active and archived work and explicit ownership, replacement, delivery, or retirement evidence. Do not close an obligation speculatively or re-file an already owned preference.
-- *Final claims:* Completed tickets, decisions, and evidence describe what the candidate actually establishes. Historical verified-at evidence remains historical; missing or failed proof required for a completion claim is a defect.
+- *Final claims:* Completed tickets, decisions, and evidence describe what the candidate actually establishes; missing or failed proof required for a completion claim is a defect.
 
-Use a source trace or focused scenario when it decides a disputed instruction or handoff. A comment explaining intent cannot prove the instruction works. State execution limits without suppressing a demonstrable defect.
+Use a source trace or focused scenario when it decides a disputed instruction or handoff; a comment explaining intent cannot prove the instruction works.
 
 ## Return findings and verification
 
 Use the full-review severity and bug/flag format. Keep tone and structure preferences in General feedback. For a program-detectable mismatch, append the smallest useful validator check as a tooling follow-up; do not expand this review into a tooling implementation project.
 
-For `since` verification, inspect the exact delta, affected records and dependencies, and each prior accepted repair. Do not reopen unchanged reasoned dismissals. A substantive final edit needs scoped independent verification; a round limit cannot make an unresolved document defect clean.
+For `since` verification, inspect the exact delta, affected records and dependencies, and each prior accepted repair, without reopening unchanged reasoned dismissals. A substantive final edit needs scoped independent verification, and a round limit cannot make an unresolved document defect clean.
 
-Return reviewed base/head and optional `since`, coverage and gaps, findings or an explicit statement that there are none, and verification results inspected or run. Keep review completeness, acceptance status, and merge authorization separate.
+Return the router's completion fields, keeping review completeness, acceptance status, and merge authorization separate.

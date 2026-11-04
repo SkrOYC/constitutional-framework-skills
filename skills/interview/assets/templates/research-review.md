@@ -10,12 +10,12 @@ question: the one concrete question the register entry asks
 ## Question and constraints
 
 - **Question:** restate the register entry's question in one sentence
-- **Constraints that bind the answer:** the PRD records, meters, and architecture boundaries an option has to respect
+- **Constraints that bind the answer:** the PRD records, meters, and architecture boundaries an option must respect
 - **What counts as reputable here:** the bodies of work, prior systems, or standards this question is judged against
 
 ## Options
 
-One entry per option, in the register's order. Add an option the register missed when the sources justify it.
+One entry per option, in the register's order, plus any option the register missed that the sources justify.
 
 - **OPTION_NAME.** What it is in two sentences. The method, prior art, or source behind it, with a pinned reference (URL, version or edition, date checked). Where it fits the constraints and where it strains them.
 
@@ -27,7 +27,7 @@ One entry per option, in the register's order. Add an option the register missed
 
 ## Where the interviewer's view was shallow
 
-Written after the review reaches its own recommendation. Say where the interviewer's framing missed a method, a precedent, or a failure mode, or write "it held" when the review agrees and adds only grounding.
+Write this after the review reaches its own recommendation: where the interviewer's framing missed a method, a precedent, or a failure mode, or "it held" when the review agrees and adds only grounding.
 
 ## What a ruling from this review settles
 

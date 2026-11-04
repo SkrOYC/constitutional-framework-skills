@@ -1,8 +1,8 @@
 # Framework overview
 
-Read this before doing stage or execution work. It describes each stage's inputs, authority, and obligations without loading every stage skill. All seven source copies stay byte-identical; compare them after editing one.
+Read this before stage or execution work. It gives each stage's inputs, authority, and obligations without loading every stage skill. All seven source copies stay byte-identical; compare them after editing one.
 
-The pipeline reduces ambiguity in layers. Each stage reads the directories above it and writes exactly one directory of its own, all under `.constitution/` at the repository root. The constitution is structured: facts that something reads mechanically live in YAML files validated by JSON Schemas, prose lives in markdown with front matter where one fact must be read. The `constitution-tooling` skill ships the schemas, the layout reference, and the CLI that validates, renders, migrates, and reconciles. Its `references/layout.md` names every file, its schema, and its writer.
+The pipeline reduces ambiguity in layers. Each stage reads the directories above it and writes exactly one directory of its own, all under `.constitution/` at the repository root. Facts something reads mechanically live in YAML validated by JSON Schemas; prose lives in markdown, with front matter where one fact must be read. The `constitution-tooling` skill ships the schemas, the CLI that validates, renders, migrates, and reconciles, and `references/layout.md`, which names every file, its schema, and its writer.
 
 | Stage | Skill | Reads | Writes | Decides |
 | :--- | :--- | :--- | :--- | :--- |
@@ -11,17 +11,17 @@ The pipeline reduces ambiguity in layers. Each stage reads the directories above
 | 3 | `specifying-technical-implementation` | `prd/`, `architecture/`, the code | `tech-spec/` | The technical decisions, and where each artifact lives in the code |
 | 4 | `planning-engineering-execution` | `prd/`, `architecture/`, `tech-spec/` | `tasks/`, `constitution.yaml` concurrency | The epic graph and its tickets |
 
-The `interview` skill runs before any of these four stages, and is optional. It writes an interview record and owns the open-decisions register, and never writes a stage directory. It can also close a question on the spot with a bounded spike, or commission a design review the user rules from. A stage that hits a question only evidence can answer sends the user back to it. Under its Realign target, the interview audits a running project against the whole constitution and schedules Evolution passes down the pipeline.
+The optional `interview` skill runs before any of the four stages. It writes an interview record, owns the open-decisions register, and never writes a stage directory. It can close a question on the spot with a bounded spike or commission a design review the user rules from; a stage that hits a question only evidence can answer sends the user back to it. Its Realign target audits a running project against the whole constitution and schedules Evolution passes down the pipeline.
 
-Every stage ends with valid output and reports warnings. Reuse validation whose inputs remain unchanged. Small related stage changes and patches can share one coherent pull request, reviewed by `pr-review-fix-loop` in `documents` mode when it changes only constitution documents. Preserve each stage's decision ownership and useful commit boundaries; a stage or commit does not require its own pull request.
+Every stage ends with valid output and reports warnings; reuse validation whose inputs are unchanged. Small related stage changes and patches can share one coherent pull request, reviewed by `pr-review-fix-loop` in `documents` mode when it changes only constitution documents. Keep each stage's decision ownership and useful commit boundaries; no stage or commit needs its own pull request.
 
-Stage 3 has two full-stage pass types. Its decisions pass, before Stage 4, chooses the stack, writes the ADRs and guidelines, and writes sidecars that point at where each contract and data-model artifact will live in the code. Its alignment pass, after a wave merges, records what the code settled and puts the decisions execution made in front of the user. A bounded `pass: execution-patch` also repairs authorized physical drift during execution and returns changes and verification to the epic lead. The lead owns the separate spec commit and independent review; reconciliation handles shared bookkeeping. Raw artifacts such as SQL, migrations, OpenAPI, and `.proto` files live in the code, never under `.constitution/`: `tech-spec/` holds decisions and pointers, not a second copy.
+Stage 3 has two full-stage pass types. The decisions pass, before Stage 4, chooses the stack and writes the ADRs, guidelines, and sidecars pointing at where each contract and data-model artifact will live in the code. The alignment pass, after a wave merges, records what the code settled and puts the decisions execution made in front of the user. A bounded `pass: execution-patch` repairs authorized physical drift during execution and returns changes and verification to the epic lead, who owns the separate spec commit and independent review; reconciliation handles shared bookkeeping. Raw artifacts such as SQL, migrations, OpenAPI, and `.proto` files live in the code, never under `.constitution/`; `tech-spec/` holds decisions and pointers, not a second copy.
 
-`validate` accepts a constitution that has only the stages written so far. After a greenfield Stage 1 pass, `architecture/` is absent, and that is not an error. Coverage checks that need a later stage run once that later stage is present. A later stage without its upstream is still an error. `init --stage architecture` (and the later stage names) writes that stage's empty files when you're ready.
+`validate` accepts a constitution with only the stages written so far: an absent `architecture/` after a greenfield Stage 1 pass is not an error, and coverage checks that need a later stage run once that stage is present. A later stage without its upstream is an error. `init --stage architecture` (or a later stage name) writes that stage's empty files.
 
 ## After planning
 
-Execution is a separate set of skills with separate write authority. They read the constitution; only reconciliation writes the shared parts of it.
+Execution skills have separate write authority: they read the constitution, and only reconciliation writes its shared parts.
 
 | Skill | Role | Reads | Writes |
 | :--- | :--- | :--- | :--- |
@@ -34,81 +34,53 @@ Execution is a separate set of skills with separate write authority. They read t
 | `derive` (a `constitution-tooling` command) | Aligns the mechanical parts of `tech-spec/` with the repository | The lockfiles, the tree | With `--write`: `stack.yaml` pin versions, `guidelines.md` layout `exists` flags, a `tech-spec/changelog.yaml` patch entry |
 | `audit-improvements` | Read-only codebase audit, including assumptions the code contradicts | The codebase, the constitution | `reports/audit-*.md` |
 
-The flow is: plan → plan execution {% if harness.id == "codex" or harness.id == "antigravity" %}in step 0{% else %}in plan mode (step 0){% endif %} → execute on branches → independently review each milestone → review pull requests → merge in order → reconcile once (it commits), then `derive --write` in its own commit → Stage 3 alignment → next wave. A single epic can run directly under its epic lead, which also owns the required merge, reconciliation, and derive work.
+The flow is: plan → plan execution {% if harness.id == "codex" or harness.id == "antigravity" %}in step 0{% else %}in plan mode (step 0){% endif %} → execute on branches → independently review each milestone → review pull requests → merge in order → reconcile once (it commits), then `derive --write` in its own commit → Stage 3 alignment → next wave. A single epic can run directly under its epic lead, which then also owns the required merge, reconciliation, and derive work.
 
 ## Autonomous execution
 
-Declare the role, mode, and effective authority before execution or resume. Execute the approved plan without routine approval pauses. Give concise progress updates and incorporate user steering without restarting planning. {% if harness.id == "codex" or harness.id == "antigravity" %}Step 0 is the planning session where the orchestrator writes the plan file, `check-plan` validates it, and the user approves it once.{% elif harness.id == "grok" %}Step 0 is the plan-mode session where the orchestrator designs the plan and the user approves it once. While plan mode is active the only writable file is the session plan; after exit the orchestrator writes the repo plan file or files and `check-plan` validates them. A bundle file is optional.{% else %}Step 0 is the plan-mode session where the orchestrator writes the plan file, `check-plan` validates it, and the user approves it once.{% endif %} Settle the decisions implementation needs: approved models, effort and fallbacks, review coverage, budget, liveness thresholds, and the `autonomy` policy for blockers, decisions, drift, conflicts, and nonconvergence.
+Declare the role, mode, and effective authority before execution or resume. Execute the approved plan without routine approval pauses, give concise progress updates, and incorporate user steering without restarting planning. {% if harness.id == "codex" or harness.id == "antigravity" %}Step 0 is the planning session where the orchestrator writes the plan file, `check-plan` validates it, and the user approves it once.{% elif harness.id == "grok" %}Step 0 is the plan-mode session where the orchestrator designs the plan and the user approves it once. In plan mode the only writable file is the session plan; after exit the orchestrator writes the repo plan file or files and `check-plan` validates them. A bundle file is optional.{% else %}Step 0 is the plan-mode session where the orchestrator writes the plan file, `check-plan` validates it, and the user approves it once.{% endif %} Settle the decisions implementation needs: approved models, effort and fallbacks, review coverage, budget, liveness thresholds, and the `autonomy` policy for blockers, decisions, drift, conflicts, and nonconvergence.
 
-{% if harness.id == "codex" %}Use engineering judgment to deliver the authorized outcome with proportionate effort.
-The user's instructions and sourced owner policy take precedence over skill defaults;
-actual permissions, required gates, acceptance, and binding contracts still apply.
-Interpret ambiguous wording against its purpose and observable behavior. A harmless
-difference in expression needs no redesign or escalation. A failed required gate needs
-the smallest sufficient repair, or an honest blocker when it cannot be repaired within authority.
+{% if harness.id == "codex" %}Use engineering judgment to deliver the authorized outcome with proportionate effort. The user's instructions and sourced owner policy override skill defaults; actual permissions, required gates, acceptance, and binding contracts still apply. Interpret ambiguous wording by its purpose and observable behavior; a harmless difference in expression needs no redesign or escalation. A failed required gate needs the smallest sufficient repair, or an honest blocker when it cannot be repaired within authority.
 
-{% endif %}The wave lead owns cross-epic judgments and the shared path. Epic leads adapt execution within approved outcomes, acceptance, scope, contracts, dependencies, resources, and authority. Regrouping milestones, splitting a bounded step, reordering independent work, or slightly exceeding a size guide does not require a wave amendment. A standalone epic lead has the same discretion. Escalate shared or out-of-authority changes; route upstream repairs to the owning stage.
+{% endif %}The wave lead owns cross-epic judgments and the shared path. An epic lead, orchestrated or standalone, adapts execution within approved outcomes, acceptance, scope, contracts, dependencies, resources, and authority; regrouping milestones, splitting a bounded step, reordering independent work, or slightly exceeding a size guide needs no wave amendment. Escalate shared or out-of-authority changes; route upstream repairs to the owning stage.
 
-Within that authority, the default for a blocker or open decision is the lead's recommendation as an interim assumption. Record it in the epic's `decisions` list with `interim` and the places it applies. `reconcile` proposes it to the register for a later ruling. An interim never changes upstream documents, expands scope, or authorizes an irreversible action. Defer affected tickets when the decision exceeds authority, and continue independent work.
+Within that authority, a blocker or open decision defaults to the lead's recommendation as an interim assumption, recorded in the epic's `decisions` list with `interim` and the places it applies. An interim never changes upstream documents, expands scope, or authorizes an irreversible action. When a decision exceeds authority, defer the affected tickets and continue independent work.
 
-Handoffs preserve sourced preferences, authorized continuation, the stop boundary, current work, next gate, exact revision, and native task handles. Restore those records and rerun only invalidated readiness checks. Distinguish queued, delivered, and applied steering when the host exposes those states. A task amendment changes the assignment, not host permissions, sandbox limits, or actual tool capabilities.
+Handoffs preserve sourced preferences, authorized continuation, the stop boundary, current work, next gate, exact revision, and native task handles; restore those records and rerun only invalidated readiness checks. Distinguish queued, delivered, and applied steering when the host exposes those states. A task amendment changes the assignment, not host permissions, sandbox limits, or actual tool capabilities.
 
 ## Efficient execution
 
-{% if harness.id == "codex" %}Plan complete outcomes, binding constraints, dependencies, verification ownership, and resources.
-Leave routine implementation decisions to the worker. Group related work to reduce handoffs;
-split for a meaningful dependency, risk, comprehension, or resource boundary. A milestone,
-ticket, assignment, turn, commit, and review pass are different units. Several tickets or
-commits can belong to one worker assignment. Give focused source pointers and investigate
-uncertainties that could change the plan.
-{% else %}Planning resolves scope, prerequisites, implementation seams, verification ownership, required evidence, and approved model fallbacks before dispatch. Give workers precise startup pointers instead of background dumps. Investigate uncertainties that can change the plan; route unrelated improvements to later work.{% endif %}
+{% if harness.id == "codex" %}Plan complete outcomes, binding constraints, dependencies, verification ownership, and resources; leave routine implementation decisions to the worker. Group related work to reduce handoffs, and split at a meaningful dependency, risk, comprehension, or resource boundary. A milestone, ticket, assignment, turn, commit, and review pass are different units; one worker assignment can cover several tickets or commits. Give focused source pointers and investigate uncertainties that could change the plan.{% else %}Before dispatch, planning resolves scope, prerequisites, implementation seams, verification ownership, and required evidence. Give workers precise startup pointers, not background dumps. Investigate uncertainties that can change the plan; route unrelated improvements to later work.{% endif %}
 
-{% if harness.id == "codex" %}A fresh worker owns its complete milestone, including investigation, implementation,
-routine formatting, type corrections, and focused verification. It may continue the same
-unfinished assignment after a ruling. Once it returns complete and its work is reviewed,
-repairs go to a fresh fixer; another milestone also gets a fresh worker. Leads persist.
-New milestones get fresh independent reviewers; an author-independent reviewer may continue
-for scoped verification of its own findings. Reuse valid coverage and dispositions in
-either a continuing or fresh reviewer context.
+{% if harness.id == "codex" %}A fresh worker owns its complete milestone: investigation, implementation, routine formatting, type corrections, and focused verification. It may continue the same unfinished assignment after a ruling; once it returns complete and its work is reviewed, repairs go to a fresh fixer. Leads persist. Each new milestone gets a fresh independent reviewer; an author-independent reviewer may continue for scoped verification of its own findings. A continuing or fresh reviewer context reuses valid coverage and dispositions.
 
-While a worker is healthy, prepare independent work or wait for its result. Intervene for
-a reported blocker, changed binding facts, a material correctness or safety problem,
-shared-resource contention, or the project's liveness trigger. Reviewing unfinished code
-to steer routine implementation, preference messages, and activity-only status demands
-are not useful supervision. Review completed work; keep independent work progressing
-when review inputs can remain stable.
-{% else %}Assign a fresh worker to each milestone with a bounded outcome and context, without inherited parent conversation. Harness-required instructions still apply. Never reuse that worker for another milestone. It completes implementation and routine formatting, type checks, and focused verification in the same assignment. Use a coherent assignment for each repair batch. Preserve independent review of every committed milestone; pull-request review examines integration, cross-milestone behavior, and final claims.{% endif %}
+While a worker is healthy, prepare independent work or wait for its result. Intervene for a reported blocker, changed binding facts, a material correctness or safety problem, shared-resource contention, or the project's liveness trigger; reviewing unfinished code to steer routine implementation, preference messages, and activity-only status demands are not useful supervision. Review completed work, and keep independent work progressing when review inputs can remain stable.{% else %}Give each milestone a fresh worker with a bounded outcome and context and no inherited parent conversation; harness-required instructions still apply. Use a coherent assignment for each repair batch. Every committed milestone keeps its independent review; pull-request review examines integration, cross-milestone behavior, and final claims.{% endif %}
 
-Write almost no ordinary code comments. Express meaning through names, types, structure, and invariants. TSDoc-style API contracts, license headers, and rare essential external constraints are exceptions. Write almost no isolated unit tests: prefer public-interface behavior checks and useful existing coverage. Add a unit test only when it provides decisive value; no blanket TDD or test-per-ticket quota applies.
+Write almost no ordinary code comments; express meaning through names, types, structure, and invariants. TSDoc-style API contracts, license headers, and rare essential external constraints are exceptions. Write almost no isolated unit tests: prefer public-interface behavior checks and useful existing coverage, and add a unit test only when it provides decisive value. No blanket TDD or test-per-ticket quota applies.
 
-Private projects verify locally by default; CI/CD focuses on secure authentication, signing, artifact publication, deployment, and release. Remote tests are opt-in when the owner needs them. For open-source projects accepting outside contributions, contribution CI behavior checks are appropriate by default. Don't infer that contribution model from visibility alone. Keep test workflows separate from release execution without inventing coupling or gates. Owner requirements and existing required project gates remain binding.
+Private projects verify locally by default, with CI/CD focused on secure authentication, signing, artifact publication, deployment, and release; remote tests are opt-in when the owner needs them. For open-source projects accepting outside contributions, contribution CI behavior checks are appropriate by default; don't infer that contribution model from visibility alone. Keep test workflows separate from release execution without inventing coupling or gates. Owner requirements and existing required project gates remain binding.
 
-Reuse verification by its inputs, environment, and coverage. Record the command, source identity, exit status, environment, and outcome in the existing task summary, commit, or pull request. Keep snapshots complete and revision-bound; reuse immutable baseline material until its relevant inputs change. Leads and reviewers add checks for changed inputs, uncovered risk, unreliable results, or mandatory project rules. Report partial coverage and passing retries truthfully. Historical `verified-at` evidence remains historical.
+Reuse verification by its inputs, environment, and coverage. Record the command, source identity, exit status, environment, and outcome in the existing task summary, commit, or pull request. Keep snapshots complete and revision-bound, and reuse immutable baseline material until its relevant inputs change. Leads and reviewers add checks for changed inputs, uncovered risk, unreliable results, or mandatory project rules. Report partial coverage and passing retries truthfully. Historical `verified-at` evidence remains historical.
 
-Adapt review to the risk: behavior, refactor, migration, concurrency, performance, or documents. Identify the assumptions safety depends on and seek the cheapest decisive evidence. Source-based proof is valid; disclose unavailable execution. Treat a smell as a question, not an automatic refactor. After two related failed repairs, state and test the premise before patching again. Size panels to risk, use approved fallbacks, and independently verify changed behavior after review. Review completeness, acceptance, and merge authorization are separate claims.
+Adapt review and panel size to the risk: behavior, refactor, migration, concurrency, performance, or documents. Identify the assumptions safety depends on and seek the cheapest decisive evidence; source-based proof is valid, with unavailable execution disclosed. Treat a smell as a question, not an automatic refactor. After two related failed repairs, state and test the premise before patching again. Independently verify changed behavior after review. Review completeness, acceptance, and merge authorization are separate claims.
 
-During implementation, use focused checks. Freeze implementation before final gates and live probes; later fixes invalidate only affected checks, including integration checks affected by a rebase. Retain concise acceptance summaries and run references. Use manifests for measurements and behavior automated checks cannot establish. Keep temporary output outside the constitution. Keep durable triage locally and publish a cumulative review report at completion or a blocker, unless the owner requires per-round comments. Reuse existing records rather than adding ledgers.
+Use focused checks during implementation, then freeze it before final gates and live probes; later fixes invalidate only affected checks, including integration checks a rebase affects. Retain concise acceptance summaries and run references, and use manifests for measurements and for behavior automated checks cannot establish. Keep temporary output outside the constitution. Keep durable triage local and publish a cumulative review report at completion or a blocker, unless the owner requires per-round comments. Reuse existing records rather than adding ledgers.
 
-A pilot holds only work that depends on its uncertain prerequisite. Merge the earliest eligible pull request in the approved order while later lanes progress. On a notification, inspect the affected lane; reserve full scans for heartbeat, recovery, or integration. Use stable native handles and events, with no duplicate worker for status. Derive mechanical summaries from existing state and measure execution through available traces, not mandatory telemetry.
+A pilot holds only work that depends on its uncertain prerequisite. Merge the earliest eligible pull request in the approved order while later lanes progress. On a notification, inspect the affected lane; reserve full scans for heartbeat, recovery, or integration. Use stable native handles and events, with no duplicate worker for status. Derive mechanical summaries from existing state, and measure execution through available traces, not mandatory telemetry.
 
-Choose models and runtimes by verified capabilities, task difficulty, user preferences, and cost. Preserve approved model, effort, and fallback choices. Independent review uses an isolated context; a different family or runtime is useful when available. Verify harness mechanics against the local binary, tool schema, or official source. Keep actual host constraints and harness-specific mechanics in the rendered instructions.{% if harness.id == "codex" %} Codex and Claude can fill any role independently. For cross-runtime dispatch, reports, or continuation, read [Coordinate Codex and Claude](~/.codex/skills/constitution-tooling/references/codex-claude-bridge.md). Pass that reference and explicit reporting identities to Codex workers, reviewers, and fixers with a Claude caller; keep one blocking receive loop active alongside outgoing sends while continuation is expected. Never poll the outer wrapper; keep both tool layers blocked for the pending receive window.{% endif %}
+Choose models and runtimes by verified capabilities, task difficulty, user preferences, and cost, and preserve approved model, effort, and fallback choices. Independent review uses an isolated context; a different family or runtime is useful when available. Verify harness mechanics against the local binary, tool schema, or official source, and keep actual host constraints and harness-specific mechanics in the rendered instructions.{% if harness.id == "codex" %} Codex and Claude can fill any role independently. For cross-runtime dispatch, reports, or continuation, read [Coordinate Codex and Claude](~/.codex/skills/constitution-tooling/references/codex-claude-bridge.md). Pass that reference and explicit reporting identities to Codex workers, reviewers, and fixers with a Claude caller; keep one blocking receive loop active alongside outgoing sends while continuation is expected. Never poll the outer wrapper; keep both tool layers blocked for the pending receive window.{% endif %}
 
 ## How to work
 
-Act as a senior engineering partner to a solo developer.
-
-- **Optimize for the user's outcome.** Don't optimize for agreement.
-- **State risks plainly.** Surface contradictions and missing information as you find them.
-- **Trace every important decision.** Tie it to an upstream record, to evidence in the codebase, or to an assumption you write into the record.
-- **Prefer the simpler system.** Lower operational burden beats theoretical completeness.
+Act as a senior engineering partner to a solo developer. Optimize for the user's outcome, not for agreement. State risks plainly, surfacing contradictions and missing information as you find them. Trace every important decision to an upstream record, evidence in the codebase, or an assumption you write into the record. Prefer the simpler system: lower operational burden beats theoretical completeness.
 
 ## Modes
 
 Identify the mode before you start; it changes what you read and how much you rewrite.
 
-- **Greenfield.** No prior artifacts and little or no code. Establish the foundational structure. Every record defaults to `assumed`.
-- **Brownfield.** Working code exists, with `.constitution/` files that are absent, partial, or stale. Treat the code as the truth about what exists today, cite it as repository evidence, and report every gap you find between the code and the written files.
-- **Evolution.** Both the code and the `.constitution/` files are current, and the user wants a specific change. Leave unchanged structures alone and work only the delta, including anything the latest reconciliation report routed to your stage.
+- **Greenfield.** No prior artifacts and little or no code. Establish the foundational structure; every record defaults to `assumed`.
+- **Brownfield.** Working code exists, and `.constitution/` files are absent, partial, or stale. Treat the code as the truth about what exists today, cite it as repository evidence, and report every gap between it and the written files.
+- **Evolution.** The code and the `.constitution/` files are both current, and the user wants a specific change. Leave unchanged structures alone and work only the delta, including anything the latest reconciliation report routed to your stage.
 
 ## Precedence
 
@@ -119,19 +91,15 @@ Authority flows downward:
 3. `architecture/` binds `tech-spec/`.
 4. `tech-spec/` binds `tasks/`.
 
-In Brownfield mode the code often reveals that an upstream directory is stale. Report the mismatch. Don't rewrite the upstream contract from inside a downstream directory.
-
-Preserve stable identifiers downstream. Rename them only when the user approves a migration.
+Brownfield code often reveals a stale upstream directory; report the mismatch instead of rewriting the upstream contract downstream. Preserve stable identifiers downstream; rename them only when the user approves a migration.
 
 ## Stay in your layer
 
-Don't repair an upstream defect inside a downstream directory. Stage 2 must not change product scope. Stage 3 must not invent a missing logical protocol. Stage 4 must not invent endpoints, schemas, or data flows.
-
-When you find such a defect, explain it and name the owning stage. Stop only affected work, route the repair through the authorized stage, and continue independent work.
+Don't repair an upstream defect inside a downstream directory: Stage 2 must not change product scope, Stage 3 must not invent a missing logical protocol, and Stage 4 must not invent endpoints, schemas, or data flows. Explain such a defect and name the owning stage; stop only affected work, route the repair through the authorized stage, and continue independent work.
 
 ## Write authority
 
-Every role may write only what the table says. A write outside it is a defect, whatever its content.
+Each role writes only what this table allows; any other write is a defect, whatever its content.
 
 | Path | Stage pass | Interview | Epic lead | Worker | Spec-patch worker | Reconcile |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -149,42 +117,42 @@ Every role may write only what the table says. A write outside it is a defect, w
 | `reports/open-decisions.yaml` | No | Yes | No | No | No | Appends proposed entries and applies already approved rulings |
 | `reports/` others | Audit, constitution review | The interview record | No | No | No | The reconciliation report |
 
-**The two-commit rule.** A commit that changes code never changes `prd/`, `architecture/`, or `tech-spec/`. A commit that changes those never changes code. The epic's own file, a spike file, and evidence files are bookkeeping and may ride in a code commit. The reviewer treats any other mix as a `P1`, because it defeats the review: the code would be judged against a spec rewritten in the same commit.
+**The two-commit rule.** No commit changes both code and `prd/`, `architecture/`, or `tech-spec/`. The epic's own file, a spike file, and evidence files are bookkeeping and may ride in a code commit. The reviewer treats any other mix as a `P1`, because it defeats review: the code would be judged against a spec rewritten in the same commit.
 
-**Drift is reported, not applied.** Contract and data-model artifacts live in the code, so changing one inside the epic's owned paths is ordinary milestone work, not drift; the reviewer checks it against the sidecar, the compatibility ADR, and any pinned shape. A worker that cannot follow a `tech-spec/` record returns a drift report. The epic lead classifies it: physical drift (a guideline, a stack pin, an ADR detail, or a sidecar field, in a file the epic declared it may patch) becomes a spec-patch milestone by a fresh worker, reviewed on its own; logical drift (a boundary, a communication style, a trust boundary, scope, priority, or a pinned contract) becomes a blocker the plan's `autonomy` policy resolves.
+**Drift is reported, not applied.** Contract and data-model artifacts live in the code, so changing one inside the epic's owned paths is ordinary milestone work, not drift; the reviewer checks it against the sidecar, the compatibility ADR, and any pinned shape. A worker that cannot follow a `tech-spec/` record returns a drift report, which the epic lead classifies. Physical drift (a guideline, a stack pin, an ADR detail, or a sidecar field, in a file the epic declared it may patch) becomes a spec-patch milestone by a fresh worker, reviewed on its own. Logical drift (a boundary, a communication style, a trust boundary, scope, priority, or a pinned contract) becomes a blocker the plan's `autonomy` policy resolves.
 
-**Code decisions are recorded, not hidden.** A dependency, pattern, convention, or contract shape execution introduces without a Stage 3 record goes into the closeout's `code_decisions`. Reconcile routes them to Stage 3, whose alignment pass puts each one in front of the user.
+**Code decisions are recorded, not hidden.** A dependency, pattern, convention, or contract shape execution introduces without a Stage 3 record goes into the closeout's `code_decisions`, which reconcile routes to Stage 3's alignment pass.
 
-**Reconciliation is code.** `reconcile` applies what the closeouts say and decides nothing. It validates the proposed constitution before writing or committing; an invalid result leaves the original unchanged. Candidate terms, proposed decisions, and other judgments go to the owning stage's routing report. Migration likewise preserves substantive source records and identifies unsupported content for conservation review before originals can be discarded.
+**Reconciliation is code.** `reconcile` applies what the closeouts say and decides nothing. It validates the proposed constitution before writing or committing, and an invalid result leaves the original unchanged. Candidate terms, proposed decisions, and other judgments go to the owning stage's routing report. Migration likewise preserves substantive source records and identifies unsupported content for conservation review before originals can be discarded.
 
 ## Certainty
 
-Every binding record carries `certainty`: a capability, a job, a constraint meter, a boundary, a flow, a stack pin, a contract or data-model sidecar, an ADR, a ticket. A sidecar settles through meaningful evidence about the artifact it names. Narrative files carry nothing. The values:
+Every binding record carries `certainty`: a capability, a job, a constraint meter, a boundary, a flow, a stack pin, a contract or data-model sidecar, an ADR, a ticket. Narrative files carry none. A sidecar settles through meaningful evidence about the artifact it names. The values:
 
 - **`settled`** needs `evidence` the tool can check: `repository` (a path, checked against the tree), `external` (a pinned document, allowed only on claims about the world such as a stack pin or an ADR, never on a claim about this system), `spike` (a spike id), `ruling` (an interview record or user message), or `measurement` (an `evidence/` directory).
-- **`assumed`** needs an `assumption` stated next to the record. Greenfield defaults to assumed, and that is honest, not weak.
+- **`assumed`** needs an `assumption` stated next to the record. The Greenfield default of assumed is honest, not weak.
 - **`open`** names a `decision` in the register.
 
-Settling records a supported fact: a closeout names the records meaningful verification established, and `reconcile` applies that evidence. A spike report does the same for what it answered. The next stage cites a decision-owned spike directly because no closeout carries it. Evidence that disappears decays the record to assumed. Stage 4 sequences against certainty; reviewers check claims, Realign opens with assumptions, and audits compare them with the code.
+Settling records a supported fact: a closeout names the records meaningful verification established, and `reconcile` applies that evidence. A spike report does the same for what it answered; the next stage cites a decision-owned spike directly because no closeout carries it. Evidence that disappears decays the record to assumed. Stage 4 sequences against certainty, reviewers check claims, Realign opens with assumptions, and audits compare them with the code.
 
 ## Keep the vocabulary fixed
 
-`prd/glossary.yaml` defines the canonical **domain** vocabulary: the concepts that appear in the domain model, the capabilities, or on a user-facing surface. Technical vocabulary such as pool, worker, cache, migration, or handler belongs to Stage 3 and needs no glossary entry, and a banned list must never contain generic English or technical words.
+`prd/glossary.yaml` defines the canonical domain vocabulary: the concepts in the domain model, the capabilities, or on a user-facing surface. Technical vocabulary such as pool, worker, cache, migration, or handler belongs to Stage 3 and needs no glossary entry, and a banned list never contains generic English or technical words.
 
-Two checks follow from that, and only two:
+Two checks follow, and only two:
 
 - **Banned synonym.** A synonym the glossary says not to use, appearing on a surface `constitution.yaml` declares (contracts, schemas, migrations, UI copy, public API names), is a validation error and a `P1` in review. Off-surface occurrences are general feedback.
-- **New domain concept.** A concept that would belong in the domain model but has no glossary entry is a judgment call. In a stage pass, name it and ask the user for a Stage 1 patch. In execution, the epic lead lists it under candidate terms in the closeout, and reconcile routes it to Stage 1.
+- **New domain concept.** A concept that would belong in the domain model but has no glossary entry is a judgment call. In a stage pass, name it and ask the user for a Stage 1 patch; in execution, the epic lead lists it under candidate terms in the closeout, and reconcile routes it to Stage 1.
 
 ## Open decisions
 
-`reports/open-decisions.yaml` is the single live register, owned by the interview. An entry is a well-formed decision, never a topic: one question, what it blocks, at least two options with pros and cons, a recommendation, and a closure path. `spike` closure names the spike: the interview runs it during the session when it fits three points, and otherwise Stage 4 plans it ahead of everything the entry blocks. `ruling` closure names who rules and what they wait for, which can be a design review under `research/`. An `interim` assumption lets downstream work proceed and records where it was applied, so a ruling can revisit those places. Closure needs a ruling reference.
+`reports/open-decisions.yaml` is the single live register, owned by the interview. An entry is a well-formed decision, never a topic: one question, what it blocks, at least two options with pros and cons, a recommendation, and a closure path. `spike` closure names the spike, which the interview runs during the session when it fits three points; otherwise Stage 4 plans it ahead of everything the entry blocks. `ruling` closure names who rules and what they wait for, which can be a design review under `research/`. An `interim` assumption lets downstream work proceed and records where it was applied, so a ruling can revisit those places. Closure needs a ruling reference.
 
-Execution proposes entries through the epic file's `decisions` list; later milestones in that epic read them there, and reconcile appends unresolved entries to the register as `proposed`. An entry carrying an already approved ruling closes the matching id and question in place; identical closed rulings are deduplicated, and conflicting rulings are routed without overwriting the register. Reconciliation records approval; it never creates authority to rule. Nobody answers an open entry silently: a stage pass that needs the answer asks the user, since the user is present for stage passes. Execution after step 0 doesn't ask; it applies the plan's `autonomy` policy, by default adopting the recommendation as a recorded interim assumption that the user rules on after the run. A stage pass never runs a spike and never writes the register. When a question needs one, state it in register shape: the question, the options with pros and cons, and your recommendation. Then ask the user to rule now or to run `/interview` for your stage.
+Execution proposes entries through the epic file's `decisions` list, where later milestones in that epic read them; reconcile appends unresolved entries to the register as `proposed`. An entry carrying an already approved ruling closes the matching id and question in place; identical closed rulings are deduplicated, and conflicting rulings are routed without overwriting the register. Reconciliation records approval; it never creates authority to rule. Nobody answers an open entry silently. A stage pass that needs the answer asks the user, who is present for stage passes. Execution after step 0 doesn't ask; it applies the plan's `autonomy` policy, by default adopting the recommendation as a recorded interim assumption the user rules on after the run. A stage pass never runs a spike or writes the register: when a question needs one, state it in register shape (the question, the options with pros and cons, and your recommendation), then ask the user to rule now or to run `/interview` for your stage.
 
 ## Deferred obligations
 
-Deferred tickets and closeout follow-ups remain obligations after their epic is archived. The derived view follows ticket `replaces` links and explicit closeout `obligation_resolutions`, using source references printed by `render`. Preserve ownership, replacement, delivery evidence, or an authorized retirement ruling in those records. New active claims with unavailable current or historical proof remain outstanding; archived claims without proof are labeled as unverified historical claims. An artifact's availability at an immutable git SHA establishes historical availability, not semantic proof. A plausible replacement, done label, or audit recommendation alone does not establish delivery. Audits consult owners and rulings while preserving remaining risk.
+Deferred tickets and closeout follow-ups remain obligations after their epic is archived. The derived view follows ticket `replaces` links and explicit closeout `obligation_resolutions`, using source references printed by `render`; preserve ownership, replacement, delivery evidence, or an authorized retirement ruling in those records. New active claims with unavailable current or historical proof remain outstanding; archived claims without proof are labeled as unverified historical claims. An artifact's availability at an immutable git SHA establishes historical availability, not semantic proof, and a plausible replacement, done label, or audit recommendation alone does not establish delivery. Audits consult owners and rulings while preserving remaining risk.
 
 ## Directories with a defined reader
 
@@ -195,11 +163,11 @@ Deferred tickets and closeout follow-ups remain obligations after their epic is 
 
 ## Read archives with a purpose
 
-`tasks/completed/` holds archived epics with actuals and unresolved follow-ups. Avoid broad archive discovery. Read the specific archived record needed for calibration, a deferred obligation, replacement evidence, or a named historical claim.
+`tasks/completed/` holds archived epics with actuals and unresolved follow-ups. Avoid broad archive discovery; read the specific archived record needed for calibration, a deferred obligation, replacement evidence, or a named historical claim.
 
 ## Versioning
 
-Version each directory independently with semantic versioning, recorded in that directory's `changelog.yaml`. The newest entry's version is the directory's version; nothing else carries one. A directory's first version is `v0.0.1`.
+Version each directory independently with semantic versioning, recorded in its `changelog.yaml`. The newest entry's version is the directory's version; nothing else carries one. A directory's first version is `v0.0.1`.
 
 - **Major** for a rewrite of the directory's governing structure.
 - **Minor** for new scope, new epics, or materially expanded capabilities.
@@ -209,13 +177,13 @@ A stage pass bumps its own directory and records the upstream versions it was wr
 
 ## Proportionality
 
-Every section in a stage's output contract is mandatory to address, not mandatory to fill. When a section doesn't apply, say so in one line, in place. An invented database, a fake SLO, or an empty ADR to satisfy ceremony is a defect; a stated "not applicable because X" is not. Stage 3's `no_durable_state` field is the model.
+Every section in a stage's output contract must be addressed, not necessarily filled: when one doesn't apply, say so in one line, in place. An invented database, a fake SLO, or an empty ADR to satisfy ceremony is a defect; a stated "not applicable because X" is not. Stage 3's `no_durable_state` field is the model.
 
 A change that alters no product scope and no logical boundary may take the **patch lane**: one constitution commit in the owning directory with its changelog entry, reviewed as a document-only milestone, with no interview and no replan. Anything that moves scope or a boundary takes the full Evolution pass of the owning stage.
 
 ## Epics, tickets, and waves
 
-Epics are the dependency nodes. Each declares what it depends on, the paths it owns, and the tech-spec files it may propose patches to. Tickets depend only on tickets in the same epic; a cross-epic need is an epic dependency. Waves are not written; `render` derives them as the layers of the epic graph, split wherever two epics in a layer overlap in scope. A wave of one is a serial segment. Split an epic when the parts are scope-disjoint and the split widens a wave or shortens the longest chain; the rendered file prints both numbers.
+Epics are the dependency nodes. Each declares what it depends on, the paths it owns, and the tech-spec files it may propose patches to. Tickets depend only on tickets in the same epic; a cross-epic need is an epic dependency. Waves are not written: `render` derives them as the layers of the epic graph, split wherever two epics in a layer overlap in scope, and a wave of one is a serial segment. Split an epic when the parts are scope-disjoint and the split widens a wave or shortens the longest chain; the rendered file prints both numbers.
 
 An active out-of-band prerequisite blocks dependent in-band epics and their transitive dependents from scheduled waves. Missing, cyclic, or conflicting prerequisites also block affected work. Valid out-of-band dependencies remain in longest-chain analysis; invalid chains are excluded and reported.
 
@@ -225,13 +193,13 @@ Concurrent epics must be scope-disjoint. The 10,000 to 15,000-line merged-diff r
 
 ## Spikes and research
 
-A spike produces research, never committed code and never an edit to the active specs. Its only output is one markdown file at `spikes/SPK-<ACRONYM>-<EPIC><NNN>.md`, budgeted in points. A spike is owned by a `Spike` ticket, or by the open decision it closes. A decision-owned spike puts `OD` and the entry's number where the epic segment goes, so `OD-07` gives `SPK-FIX-OD007`, and no epic takes `OD` as its id. The interview runs a decision-owned spike itself when it fits three points; anything larger is a Stage 4 ticket. A recommended close to Stage 3 is a scaffold spike: create the empty layout from guidelines, compile it, and report every contradiction, because that is the cheapest way to turn unknown knowns into settled facts.
+A spike produces research, never committed code or an edit to the active specs. It is budgeted in points and owned by a `Spike` ticket or by the open decision it closes, and its only output is one markdown file at `spikes/SPK-<ACRONYM>-<EPIC><NNN>.md`. A decision-owned spike puts `OD` and the entry's number where the epic segment goes, so `OD-07` gives `SPK-FIX-OD007`, and no epic takes `OD` as its id. A recommended close to Stage 3 is a scaffold spike: create the empty layout from guidelines, compile it, and report every contradiction, because that is the cheapest way to turn unknown knowns into settled facts.
 
-Research deliverables that are not spikes live in `research/`. A design review is one: the interview commissions it when a recommendation has no method, prior art, or source behind it, and the user rules from it. Its findings are external-grade, so they can settle a claim about the world and never a claim about this system.
+A design review is a `research/` deliverable: the interview commissions it when a recommendation has no method, prior art, or source behind it, and the user rules from it. Its findings are external-grade, so they can settle a claim about the world, never a claim about this system.
 
 ## Design terms
 
-Two terms appear as gates in the Stage 2 checklist and in audit reports. Both come from John Ousterhout's *A Philosophy of Software Design*.
+The Stage 2 checklist and audit reports use two gates from John Ousterhout's *A Philosophy of Software Design*.
 
-- **Depth Standard.** A boundary is deep when a small interface hides a large amount of internal complexity. A boundary whose interface is about as complex as what it hides is shallow, and shallow boundaries add cost without absorbing any.
+- **Depth Standard.** A boundary is deep when a small interface hides a large amount of internal complexity. A boundary whose interface is about as complex as what it hides is shallow, adding cost without absorbing any.
 - **Deletion Test.** Imagine deleting the boundary and moving its work into its neighbors. If real complexity disperses into them, the boundary was earning its place. If only pass-through code disappears, it was a box with a name.
