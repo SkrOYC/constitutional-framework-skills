@@ -3,7 +3,9 @@ name: {{ skill_name | yaml_str }}
 description: {{ skill_description | yaml_str }}
 ---
 
-# Reviewing pull requests
+{% if harness.id == "devin" %}`<skills-root>` is the parent directory of this invoked skill’s `Base directory: <dir>`.
+
+{% endif %}# Reviewing pull requests
 
 Review a complete, revision-bound PR candidate in the requested mode. Use the matching workflow:
 
