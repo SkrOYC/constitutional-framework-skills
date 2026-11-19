@@ -6,18 +6,20 @@ metadata:
   companion: {{ metadata.companion | yaml_str }}
 ---
 
-# Upgrading constitution repos
+{% if harness.id == "devin" %}`<skills-root>` is the parent directory of this invoked skill’s `Base directory: <dir>`.
+
+{% endif %}# Upgrading constitution repos
 
 Bring one repository's `.constitution/` up to the current framework. A repository that never upgrades still works, with warnings for the legacy layout. Upgrading removes the duplicate contract and schema copies that turn ordinary code changes into spec patches, gives autonomous runs a way to prove behavior on the running system, and fixes the calibration data.
 
-Read `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/specifying-technical-implementation/references/framework-overview.md` first, then the sidecar and live-verification sections of `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/specifying-technical-implementation/SKILL.md`. The CLI is `bun run ~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/scripts/cli.ts <command> --root <repo>`.
+Read `{% if harness.id == "devin" %}<skills-root>{% else %}~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills{% endif %}/specifying-technical-implementation/references/framework-overview.md` first, then the sidecar and live-verification sections of `{% if harness.id == "devin" %}<skills-root>{% else %}~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills{% endif %}/specifying-technical-implementation/SKILL.md`. The CLI is `bun run {% if harness.id == "devin" %}<skills-root>{% else %}~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills{% endif %}/constitution-tooling/scripts/cli.ts <command> --root <repo>`.
 
 ## Hard rules
 
 - **One repository per run, named by the user.** Resolve and state its absolute path before touching anything; ask only when the target is ambiguous. If the user has said a repository is off limits, don't run anything there, including read-only commands.
 - **Never during a wave.** The survey's gates must pass: default branch checked out and clean, no open pull requests, no ticket in progress. Inspect each extra git worktree it lists; one with unmerged work means an epic is in flight. When a gate fails or a worktree shows an epic in flight, report it and stop; don't work around it.
 - **The two-commit rule holds throughout.** A commit that changes code never changes `prd/`, `architecture/`, or `tech-spec/`, and the reverse. `references/move-map.md` gives the commit order.
-{% if harness.id == "codex" or harness.id == "antigravity" %}- **The user decides once, during planning.** Put unsettled judgments in the plan, reusing sourced preferences and existing rulings. After approval, run the phases without further questions unless a material change exceeds that authority; Phase 3 asks only for stage decisions the approved plan leaves unresolved.{% else %}- **The user decides once, in plan mode.** Put unsettled judgments in the plan, reusing sourced preferences and existing rulings. After approval, run the phases without further questions unless a material change exceeds that authority; Phase 3 asks only for stage decisions the approved plan leaves unresolved.{% endif %}
+{% if harness.id == "codex" or harness.id == "antigravity" %}- **The user decides once, during planning.** Put unsettled judgments in the plan, reusing sourced preferences and existing rulings. After approval, run the phases without further questions unless a material change exceeds that authority; Phase 3 asks only for stage decisions the approved plan leaves unresolved.{% elif harness.id == "devin" %}- **The user decides once, during planning.** Write the plan at the project path or `.devin/plans/`, with `planned_by: self`, and ask for approval once via a blocking message to the user. After approval, run the phases within approved authority; escalate only material changes beyond it.{% else %}- **The user decides once, in plan mode.** Put unsettled judgments in the plan, reusing sourced preferences and existing rulings. After approval, run the phases without further questions unless a material change exceeds that authority; Phase 3 asks only for stage decisions the approved plan leaves unresolved.{% endif %}
 - **Merge within the user's authority.** Finish with review-clean PRs. The user merges, or authorizes you to; reuse an authorization already given. Review completeness, acceptance status, required project gates, and merge permission stay distinct.
 - **Group related work.** Small related phases, stage changes, and patches share one branch and coherent PR by default, with separate commits preserving stage ownership and the code/spec boundary. Split PRs for a meaningful scope, risk, dependency, or owner boundary, not because a phase or stage ended.
 - **Commits and PRs.** Branches follow `type/description` (`chore/constitution-upgrade-estimates`, `chore/constitution-upgrade-artifacts`, `docs/constitution-live-verification`). Commit messages and PR bodies are human-written and complete, with body paragraphs on one line each and no AI attribution.
@@ -27,7 +29,7 @@ Read `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ 
 Run the survey from this skill's directory:
 
 ```bash
-bun ~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/upgrading-constitution-repos/scripts/survey.ts --root <repo>
+bun {% if harness.id == "devin" %}<skills-root>{% else %}~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills{% endif %}/upgrading-constitution-repos/scripts/survey.ts --root <repo>
 ```
 
 The survey is read-only. It runs `validate` and `derive`, checks the gates, and lists every legacy artifact with a classification, the patchable entries that name raw artifacts, back-filled estimates, declared recipes, sidecars by surface, and surface globs still pointing into `tech-spec/`. Keep its output for the final comparison; add `--json` for the data in machine-readable form.
@@ -45,6 +47,9 @@ Write one plan file under the project's plan path or `.codex/plans/` before aski
 {% elif harness.id == "antigravity" %}## Step 2: Plan
 
 Write one plan file under the project's plan path or `.agents/plans/` before asking for approval.
+{% elif harness.id == "devin" %}## Step 2: Plan
+
+Write the plan at the project path or `.devin/plans/`, with `planned_by: self`; Devin has no plan mode. Run `validate`, then ask the user to approve once via a blocking message to the user. Record rulings and check amendments against the approved scope before execution.
 {% else %}## Step 2: Plan in plan mode
 
 Call `enter_plan_mode`; while it is active, the only writable file is the session `plan.md` under `~/.grok/sessions/...`. Do the repository reads first and put the plan there. Skip plan mode if the upgrade plan is already approved.{% endif %}

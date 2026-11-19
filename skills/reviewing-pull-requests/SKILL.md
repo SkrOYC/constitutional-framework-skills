@@ -16,11 +16,13 @@ Run that workflow's checks with the shared rules below. An axis review covers on
 
 {% if harness.id == "codex" %}For a Claude caller, read [Coordinate Codex and Claude](~/.codex/skills/constitution-tooling/references/codex-claude-bridge.md). Establish your inbox, send the review through the caller's confirmed address, and keep one blocking receive waiter active alongside sends while the assignment expects continuation. Preserve the review-only scope.
 
+{% elif harness.id == "devin" %}Return the review in your final message, or the requested structured output. Use `devin_session_interact` action=`message` for an urgent caller escalation, addressed by session id.
+
 {% endif %}## Evidence and review judgment
 
 {% if harness.id == "codex" %}Review consequences: use the governing intent and observable behavior to tell defects from equivalent wording or reasonable implementation choices. A finding needs an affected outcome, binding requirement, or concrete operational failure; do not prescribe an abstraction merely to reconcile harmless differences. Required gate failures and demonstrated correctness defects still need an honest disposition, though a compatible interpretation may establish that no code change is needed.
 
-{% endif %}State the important safety assumptions, what must remain true for the change to be safe, then decide each with the cheapest evidence, following affected callers, data paths, failure states, and governing contracts. Match proof to the change:
+{% elif harness.id == "devin" %}{% endif %}State the important safety assumptions, what must remain true for the change to be safe, then decide each with the cheapest evidence, following affected callers, data paths, failure states, and governing contracts. Match proof to the change:
 
 | Change | Useful decisive evidence |
 | :--- | :--- |
@@ -51,7 +53,7 @@ When the prompt names `since` and prior findings, review the delta from that exa
 
 {% if harness.id == "codex" %}This verification scope takes precedence over a mode's initial full-review checklist. Complete candidate context is there for interactions, not a reason to repeat unaffected analysis or rebuild unchanged capture material; name any reason to expand. Continuing reviewers and fresh verifiers apply the same scope and preserve prior dispositions.
 
-{% endif %}Inspect recorded results by source and input identity, command, environment, outcome, and coverage. Rerun only invalidated, unreliable, missing, risk-driven, or required checks; a role change alone does not invalidate evidence. Historical verified-at evidence stays historical: assess whether its inputs cover the candidate rather than demanding a fresh SHA label.
+{% elif harness.id == "devin" %}{% endif %}Inspect recorded results by source and input identity, command, environment, outcome, and coverage. Rerun only invalidated, unreliable, missing, risk-driven, or required checks; a role change alone does not invalidate evidence. Historical verified-at evidence stays historical: assess whether its inputs cover the candidate rather than demanding a fresh SHA label.
 
 Every final behavioral repair needs scoped independent review, whether or not a live probe covers that behavior, because runtime checks and review answer different questions.
 

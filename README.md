@@ -1,6 +1,6 @@
 # Constitutional Framework Skills
 
-One [skillprism](https://tuvren.github.io/skillprism/) source for the AI Project Development Framework skills, compiled to Claude Code, Codex CLI, Grok CLI, and Antigravity CLI.
+One [skillprism](https://tuvren.github.io/skillprism/) source for the AI Project Development Framework skills, compiled to Claude Code, Codex CLI, Grok CLI, Antigravity CLI, and Devin (Cognition’s cloud agent).
 
 `skills/` is the only source of truth. Each harness gets its own rendered `SKILL.md` carrying that harness's delegation and plan-file mechanics, and its own rendered references where those differ. Editors and agents still read the same framework: a governed, directory-isolated artifact chain under `.constitution/`.
 
@@ -28,8 +28,9 @@ Harness adapters change tool usage, not these policies. Project instructions sup
 | `codex` (Codex CLI) | skillprism built-in | `~/.codex/skills/` | `/skill-name` |
 | `grok` (Grok CLI) | custom, `harnesses/grok.yaml` | `~/.grok/skills/` | `/skill-name` |
 | `antigravity` (Antigravity CLI) | custom, `harnesses/antigravity.yaml` | `~/.gemini/antigravity-cli/skills/` | `/skill-name` |
+| `devin` (Devin) | custom, `harnesses/devin.yaml` | plugin cache (`~/.config/devin/skills/` for user scope) | `/skill-name` |
 
-Grok and Antigravity use custom harness definitions for their ids, capability flags, and directories. See [`harnesses/grok.yaml`](harnesses/grok.yaml) and [`harnesses/antigravity.yaml`](harnesses/antigravity.yaml).
+Grok, Antigravity, and Devin use custom definitions in `harnesses/` for their ids, capability flags, and directories. Devin loads the packaged skills from an unpredictable plugin-cache path.
 
 ## Skills
 
@@ -70,6 +71,18 @@ bunx skillprism@0.5.0 add . --target project
 bunx skillprism@0.5.0 add . --target user --harnesses claude,codex,grok,antigravity
 ```
 
+## Install into Devin
+
+From this checkout, run:
+
+```bash
+./scripts/package-devin-plugin.sh
+```
+
+The script pins `SKILLPRISM_VERSION=0.5.0`, builds all 14 skills for all five harnesses, and assembles `dist/devin-plugin/` with `.devin-plugin/plugin.json` and `skills/`. Install or upload that directory as a Devin plugin; the script does not modify live user skills. Plugin version starts at `0.1.0`. Keep the packaged directory for installation.
+
+Devin children run on their own VMs: pass the repository, pushed branch, plan path and contents, and skill to invoke. Choose the child’s batch-level `devin_mode`, request `notify_on_response=true`, and wait for settle notifications rather than polling. Use session ids for messages. A lane’s `worktree` records a verification checkout on the lead VM; fetch the remote branch before verifying child work. Transport-only child commits carry patches to the lead, which owns final milestone commits.
+
 ## Project structure
 
 ```
@@ -81,20 +94,22 @@ skills/<name>/
   scripts/              # same: *.j2 rendered, the rest copied
 harnesses/grok.yaml     # custom harness for Grok CLI
 harnesses/antigravity.yaml # custom harness for Antigravity CLI
+harnesses/devin.yaml    # custom harness for Devin
+scripts/package-devin-plugin.sh # build and package the Devin plugin
 skillprism.yaml         # harnesses + skills_dir
 dist/<harness>/         # build output (gitignored)
 ```
 
 ## How harness differences are handled
 
-- **Tooling paths** use `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/...`, resolving to each harness's user skill root.
-- **`SKILL.md` conditionals**: native delegation, plan-mode constraints, and messaging use branches for Claude, Codex, and Antigravity, with Grok as `else`. Only `execute-epic-end-to-end`, `execute-wave`, `interview`, `pr-review-fix-loop`, `specifying-technical-implementation`, and `upgrading-constitution-repos` diverge. A skill without such a branch stays harness-neutral in `SKILL.md`, though tooling paths and references can differ per harness.
+- **Tooling paths** resolve to each existing harness’s user skill root. Devin renders `<skills-root>/...`, defined as the parent directory of the invoked skill’s `Base directory: <dir>`, so plugin cache locations need not be predictable.
+- **`SKILL.md` conditionals**: delegation, planning, and messaging have explicit Devin branches alongside existing harness behavior. Devin uses fresh child sessions on separate VMs, approved batch-level `devin_mode`, session-id messaging, and settle notifications without polling. Plans are written at the project path or `.devin/plans/` and approved once through a blocking user message; lane branches are pushed and fetched rather than shared worktrees. Codex-only bridge templates remain zero-byte files for Devin.
 - **Templated references**: any file named `*.j2` anywhere in a skill directory renders once per harness with the suffix stripped ([skillprism#46](https://github.com/Tuvren/skillprism/issues/46), fixed in v0.5.0). The harness-sensitive references are `.md.j2` templates and use the same `harness.*` context as `SKILL.md`. Everything else is copied verbatim, so non-templated references, assets, and scripts must stay harness-neutral.
 - **Descriptions are one short string for all harnesses.** Codex rejects a description over 500 bytes (Claude Code allows more, Grok none documented) and caps its initial skills list, so each description stays comfortably under 500 and prioritizes clarity over richness.
-- **Location-independent scripts.** `upgrading-constitution-repos/scripts/survey.ts` derives the `constitution-tooling` CLI from `import.meta.dir` and scans `.claude`, `.codex`, `.grok`, and `.agents` plan directories.
+- **Location-independent scripts.** `upgrading-constitution-repos/scripts/survey.ts` derives the `constitution-tooling` CLI from `import.meta.dir` and scans `.claude`, `.codex`, `.grok`, `.agents`, and `.devin` plan directories.
 
 ## Notes
 
 - The hand-synced copies this replaces had drifted; the unified source uses the newest canonical content (from the `~/.claude/skills` repository) for every harness, so Codex and Grok pick up checks and wording their copies lacked.
-- `constitution-tooling`'s `epic-plan.schema.json` accepts every runtime (`claude`, `codex`, `grok`, `antigravity`, `pi`, `pig`) so a plan written under one harness validates under the others.
+- `constitution-tooling`'s `epic-plan.schema.json` accepts every runtime (`claude`, `codex`, `grok`, `antigravity`, `devin`, `pi`, `pig`) so a plan written under one harness validates under the others.
 - v0.5.0 is a breaking change for projects that shipped `*.j2` files expecting them to be copied unchanged: those files are now templates.
