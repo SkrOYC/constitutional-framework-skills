@@ -6,5 +6,6 @@ dist/
 .codex/
 .grok/
 .agents/
+.devin/
 .factory/
 .pi/

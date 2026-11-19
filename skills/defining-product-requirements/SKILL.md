@@ -8,13 +8,15 @@ metadata:
   upstream: {{ metadata.upstream | yaml_str }}
 ---
 
-# Defining product requirements
+{% if harness.id == "devin" %}`<skills-root>` is the parent directory of this invoked skill’s `Base directory: <dir>`.
+
+{% endif %}# Defining product requirements
 
 Stage 1 of the four-stage documentation pipeline. Read `references/framework-overview.md` before any stage work; it covers the shared rules for modes, precedence, certainty, versioning, and vocabulary.
 
 Stage 1 settles what to build, why it matters, whom it serves, which capabilities are required, and what is out of scope, as technology-agnostic files under `.constitution/prd/` plus the product archetype in `.constitution/constitution.yaml`.
 
-The data files are the upstream contract Stages 2 through 4 read. Read each file's schema in `~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/assets/schemas/` before writing it, and run `validate` before declaring the pass complete.
+The data files are the upstream contract Stages 2 through 4 read. Read each file's schema in `{% if harness.id == "devin" %}<skills-root>{% else %}~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills{% endif %}/constitution-tooling/assets/schemas/` before writing it, and run `validate` before declaring the pass complete.
 
 ## Inputs
 
@@ -49,7 +51,7 @@ The data files are the upstream contract Stages 2 through 4 read. Read each file
 On a repository with no constitution, run `init` first; it writes the Stage 1 files, and later stages add theirs in their own passes or with `init --stage architecture` and the later stage names. On an interview-only tree, run `init --stage prd` instead.
 
 ```bash
-bun run ~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills/constitution-tooling/scripts/cli.ts init --root . --acronym ABC --archetype "CLI/Tooling"
+bun run {% if harness.id == "devin" %}<skills-root>{% else %}~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills{% endif %}/constitution-tooling/scripts/cli.ts init --root . --acronym ABC --archetype "CLI/Tooling"
 ```
 
 Then produce or revise the files below. Re-read each file before writing so user edits made between turns survive, and integrate each change rather than appending disconnected fragments.

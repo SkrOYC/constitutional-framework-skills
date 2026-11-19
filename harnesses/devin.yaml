@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://tuvren.github.io/skillprism/schema/v1/harness.json
+id: devin
+name: Devin
+capabilities:
+  supports_subagent: true
+  requires_sidecar: false
+  requires_manifest: false
+  name_max_length: 64
+  description_max_length: 1536
+paths:
+  project_scope_path: ".devin/skills"
+  user_scope_path: ".config/devin/skills"
+  skill_filename: SKILL.md
+skill_ref_pattern: "/{name}"
