@@ -1,0 +1,73 @@
+{% if harness.id == "claude" or harness.id == "codex" or harness.id == "grok" -%}
+# Run Devin CLI headless
+
+Use this reference whenever a leaf role runs on headless Devin CLI (`devin -p` non-interactive sessions, runtime id `devin-cli`). These facts were verified against devin 3000.14.30821.
+
+Contents: [Scope](#scope), [Preflight](#preflight), [Permissions](#permissions), [Launch](#launch), [Session id](#session-id), [Brief contract](#brief-contract), [Waiting](#waiting--never-poll), [Results](#results), [Continuation](#continuation), [Stopping](#stopping), [Plan record](#plan-record).
+
+## Scope
+
+Leaf roles only: milestone workers, milestone reviewers, PR reviewers, fixers, spec-patch workers, designers, spikes, research workers, and upgrade code-group workers. Never an epic lead or a wave lead. Each run is one-shot with fresh context: no parent history, on the same machine and filesystem as the caller. The caller owns commits; a Devin role never commits, pushes, opens PRs, or starts subagents.
+
+## Preflight
+
+Run once per session: `devin` is on PATH; `devin models list --format json` succeeds (proving sign-in) and contains the approved model's `model_uid`; when the brief names a framework skill, `devin skills list` shows it. Devin loads its own `devin-cli` rendering from its install (`~/.config/devin/skills`), which already returns its report in the final message. A failed check is a capability blocker: use an approved fallback runtime or report it.
+
+## Permissions
+
+In `-p` mode any tool call that needs confirmation is rejected, stderr gets `warning: rejected a tool call that requires confirmation...`, and the run still exits 0. `auto` approves read-only tools only (no `exec`) — fit only for research that needs no commands. `accept-edits` additionally approves workspace edits. `smart` additionally auto-runs actions a fast model judges safe; `dangerous` approves every tool. Workers, fixers, and reviewers that must run commands need the user-ruled `smart` or `dangerous`; the brief, not the mode, keeps a reviewer review-only. After every run, check stderr for that warning: a rejection means incomplete work or coverage, never a clean result.
+
+## Launch
+
+Write the brief to a prompt file, then run in the role's checkout:
+
+```sh
+( cd <checkout> && devin -p --prompt-file <scratch>/devin-<role-id>-brief.md --model <model_uid> --permission-mode <ruled mode> --respect-workspace-trust false --export <scratch>/devin-<role-id>-transcript.json > <scratch>/devin-<role-id>-report.md 2> <scratch>/devin-<role-id>-stderr.log; echo $? > <scratch>/devin-<role-id>.exit )
+```
+
+with `<scratch>` = `<checkout>/.{{ harness.id }}/scratch`. `--respect-workspace-trust false` is required because `-p` cannot show the trust prompt. Stdout is the final message only, so the report file is the role's only report. Startup errors (e.g. an unknown model) exit 1 with the error on stderr.
+
+## Session id
+
+Read the top-level `session_id` from the export file once it exists:
+
+```sh
+bun -e 'console.log((await Bun.file("<transcript>").json()).session_id)'
+```
+
+This is race-free with parallel roles in one checkout; don't use `devin list` for it.
+
+## Brief contract
+
+Self-contained: role, outcome, revision, absolute checkout path (all work there), absolute plan path, skill to invoke by name if any, ticket and acceptance pointers, owned and excluded paths (reviewers and research: no edits), authority, and proof to return. End every brief with:
+
+```text
+You run headless and nobody can answer you: never use `ask_user_question`.
+Don't use `run_subagent` or start other agents; don't commit, push, or open PRs.
+Your final message is your only report, and it starts with `## Blocked` when you are blocked.
+```
+
+## Waiting — never poll
+{% if harness.id == "claude" %}
+Launch with Bash `run_in_background: true`; wait for its completion event or `Monitor` the `.exit` file. No repeated reads, sleeps, or status checks.
+{% elif harness.id == "codex" %}
+Keep `functions.exec` blocked for the run; if it already yielded a cell ID, resume it with one blocking `functions.wait` for the remaining window — short repeated waits are prohibited. For parallel roles, start them as background jobs in one command ending in `wait`, and keep that one exec blocked.
+{% else %}
+Launch it as a background shell job (`run_in_background: true` where the exposed schema has it) and record the task id; a completion notification resumes you; then collect with `get_command_or_subagent_output`, `task_ids: [id]`, `block_until_ms: 0`.
+{% endif %}
+## Results
+
+Read `.exit`, the report, and stderr. A non-zero exit, an empty report, or a rejection warning is a failed or incomplete run: re-dispatch fresh on approved terms, or report the blocker. Verify the role's edits in the checkout yourself before committing.
+
+## Continuation
+
+Only for an unfinished assignment awaiting a ruling, or an author-independent reviewer's scoped verification — never to route review repairs back to a completed worker. Never resume while its process still runs. `devin -r <session_id> -p --prompt-file <scratch>/devin-<role-id>-followup-<n>.md` resumes with the full session history; use the same model, permission mode, `--respect-workspace-trust false`, and the same `--export` path (the export keeps the full session); report to `devin-<role-id>-report-<n>.md`, exit to `devin-<role-id>-<n>.exit`.
+
+## Stopping
+
+Stop the owned background command through its harness handle and confirm no process still runs that brief (`pgrep -f <brief path>` is empty) before dispatching a replacement.
+
+## Plan record
+
+Role model: runtime `devin-cli`, model the `model_uid`; record the permission mode. Execution state records the session id, scratch paths, and the owned command handle.
+{% endif -%}

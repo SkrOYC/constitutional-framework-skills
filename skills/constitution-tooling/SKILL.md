@@ -21,7 +21,9 @@ Facts that something reads mechanically live in YAML files validated by the sche
 
 {% if harness.id == "codex" %}For communication with Claude in any role, read [Coordinate Codex and Claude](references/codex-claude-bridge.md); the bundled `scripts/ccbridge.ts` provides the persistent inbox, explicit-address sends, one-hour blocking waits, and read acknowledgments. Keep sending and receiving active together throughout an exchange. Never poll the outer wrapper; keep both tool layers blocked for the pending receive window.
 
-{% elif harness.id == "devin-cloud" %}{% endif %}## Commands
+{% elif harness.id == "devin-cloud" %}{% endif %}{% if harness.id == "claude" or harness.id == "codex" or harness.id == "grok" %}To run a leaf role on headless Devin CLI, read [Run Devin CLI headless](references/devin-cli-headless.md).
+
+{% endif %}## Commands
 
 | Command | What it does | Who runs it |
 | :--- | :--- | :--- |

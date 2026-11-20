@@ -52,6 +52,7 @@ dist/<harness>/         # build output (gitignored)
 - **References can be harness-specific via `.j2`.** A reference that names a path, tool, or model per harness is a `.md.j2` template, not a neutral `.md`. Name a file `foo.md.j2`; `build` writes `foo.md`.
 - **The bridge is Codex-only content.** `constitution-tooling/references/codex-claude-bridge.md.j2` and `scripts/ccbridge*.ts.j2` wrap their entire contents in a Codex conditional. skillprism 0.6.0 omits a template that renders empty for a harness, so the bridge produces no file outside Codex — the earlier zero-byte placeholder workaround is gone. Don't add bridge instructions or code for the other harnesses, or introduce per-harness asset filtering that this version doesn't support.
 - **Never poll the outer wrapper during a bridge receive.** Keep `functions.exec` and its pending `write_stdin` blocked for the receive window. If the wrapper already yielded a cell ID, use one blocking `functions.wait` for the remaining window. Short repeated waits, periodic status checks, and "still waiting" commentary are prohibited during a quiet receive. Preserve this hard rule in the Codex-only bridge reference and its callers.
+- **`references/devin-cli-headless.md.j2` is claude/codex/grok-only.** Its whole contents sit inside one conditional, so it renders empty (and is omitted) for antigravity, devin-cloud, and devin-cli. Headless Devin CLI fills leaf roles only (workers, reviewers, fixers, spec-patch workers, designers, spikes, research, upgrade code-group workers), never epic or wave leads. Callers link it from `framework-overview.md.j2`, `execute-wave`, `execute-epic-end-to-end` (including `epic-plan.md.j2`), `pr-review-fix-loop`, `interview`, `specifying-technical-implementation`, `upgrading-constitution-repos`, and `constitution-tooling`.
 - **`references/framework-overview.md.j2` is duplicated into seven skills and must stay byte-identical.** Edit one, copy to the others, verify with `cmp`.
 - Quote every interpolated frontmatter value with the `yaml_str` filter; `yaml_str` and `tojson` work in `.j2` files too.
 - `constitution-tooling/assets/schemas/epic-plan.schema.json` accepts every runtime (`claude`, `codex`, `grok`, `antigravity`, `devin`, `devin-cloud`, `devin-cli`, `pi`, `pig`), so a plan written under one harness validates under the others.
@@ -66,6 +67,13 @@ dist/<harness>/         # build output (gitignored)
 - Harness macros (`harness.<key>`) can only be added by replacing a built-in harness with a full `harnesses/<id>.yaml`; the built-ins' manifest templates and macros are not exposed. This repo keeps the built-ins and uses inline `{% if harness.id == ... %}` branches.
 - `dist/` is compile-only and never touches live agent dirs. Installing is `skillprism add`.
 - The `tuvren/skillprism` docs and `--help` text are sometimes wrong; verify against the binary.
+
+## Devin CLI headless facts (verified on 3000.14.30821)
+
+- In `-p` mode a tool call that needs confirmation is rejected, stderr gets `warning: rejected a tool call that requires confirmation...`, and the run still exits 0 — check stderr after every run; a rejection means incomplete work, never a clean result.
+- Read the top-level `session_id` from the `--export` file once it exists; don't use `devin list` for it.
+- `devin -r <session_id> -p` resumes a headless session with its full history; reuse the same `--export` path to keep one export.
+- A startup error such as an unknown model exits 1 with the error on stderr.
 
 ## Templates and neutralization
 
@@ -94,6 +102,7 @@ Then confirm:
 - `dist/claude`, `dist/codex`, `dist/grok`, `dist/antigravity`, `dist/devin-cloud`, and `dist/devin-cli` each contain 14 skills.
 - Skills differ per harness only in the expected regions: tooling paths, harness-conditional `SKILL.md` or reference text, and frontmatter quoting. A skill with none of those stays byte-identical across harnesses.
 - The seven rendered `references/framework-overview.md` copies are identical within a harness.
+- `references/devin-cli-headless.md` exists only in `dist/claude`, `dist/codex`, and `dist/grok`; it is absent from `dist/antigravity`, `dist/devin-cloud`, and `dist/devin-cli`.
 - `bun test skills/constitution-tooling/scripts/` passes.
 - After changing the bridge, `bun test dist/codex/constitution-tooling/scripts/ccbridge.test.ts` passes. Its source is a template, so the source-directory test command doesn't execute it.
 - Delete `dist/` when done unless packaging for installation; leave `dist/devin-cloud-plugin/` in place when it is the requested deliverable.
