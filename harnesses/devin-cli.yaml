@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://tuvren.github.io/skillprism/schema/v1/harness.json
+# Devin CLI harness definition.
+#
+# `devin-cli` is not a skillprism built-in, so this file supplies its id,
+# capability flags, and directories. Facts taken from the Devin CLI docs
+# shipped at
+# /nix/store/97cfjx7sqz8ifqhz5jxhrgifmwiiq9sb-devin-3000.14.30821/share/devin/docs
+# (extensibility/skills/overview.mdx for skill locations and the `Base
+# directory:` listing, extensibility/subagents.mdx for run_subagent and the
+# subagent_general/subagent_explore profiles). Install with `skillprism add`
+# into ~/.config/devin/skills; it is not packaged as a plugin.
+id: devin-cli
+name: Devin CLI
+capabilities:
+  supports_subagent: true
+  requires_sidecar: false
+  requires_manifest: false
+  name_max_length: 64
+  description_max_length: 1536
+paths:
+  project_scope_path: ".devin/skills"
+  user_scope_path: ".config/devin/skills"
+  skill_filename: SKILL.md
+skill_ref_pattern: "/{name}"

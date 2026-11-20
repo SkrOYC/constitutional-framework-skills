@@ -7,18 +7,20 @@ metadata:
   artifact: {{ metadata.artifact | yaml_str }}
 ---
 
-{% if harness.id == "devin" %}`<skills-root>` is the parent directory of this invoked skill’s `Base directory: <dir>`.
+{% if harness.id == "devin-cloud" or harness.id == "devin-cli" %}`<skills-root>` is the parent directory of this invoked skill’s `Base directory: <dir>`.
 
 {% endif %}# Reviewing milestone commits
 
 {% if harness.id == "codex" %}Independently review one committed, coherent milestone. An initial review covers the explicit commit, base/head range, or coherent commit set and its interactions. A repair verification from a prior reviewed head (`since`) covers only the repair delta and affected interactions, carrying forward unaffected coverage and dispositions. Do not group separate milestones or infer a larger range; new context alone does not restart a complete milestone review.
-{% elif harness.id == "devin" %}Independently review one committed, coherent milestone during epic execution: one commit, an explicit base/head range, or an explicit coherent commit set that includes incidental implementation and repair commits. Review the exact combined milestone delta and its interactions; do not group separate milestones or infer a larger range.{% else %}Independently review one committed, coherent milestone during epic execution: one commit, an explicit base/head range, or an explicit coherent commit set that includes incidental implementation and repair commits. Review the exact combined milestone delta and its interactions; do not group separate milestones or infer a larger range.{% endif %}
+{% elif harness.id == "devin-cloud" or harness.id == "devin-cli" %}Independently review one committed, coherent milestone during epic execution: one commit, an explicit base/head range, or an explicit coherent commit set that includes incidental implementation and repair commits. Review the exact combined milestone delta and its interactions; do not group separate milestones or infer a larger range.{% else %}Independently review one committed, coherent milestone during epic execution: one commit, an explicit base/head range, or an explicit coherent commit set that includes incidental implementation and repair commits. Review the exact combined milestone delta and its interactions; do not group separate milestones or infer a larger range.{% endif %}
 
 This review assesses local implementation and milestone acceptance; PR review separately assesses cumulative integration, cross-milestone assumptions, and final claims. A clean milestone review does not prove the whole PR or grant merge authority.
 
 {% if harness.id == "codex" %}For a Claude caller, read [Coordinate Codex and Claude](~/.codex/skills/constitution-tooling/references/codex-claude-bridge.md). Establish your inbox, send the review through the caller's confirmed address, and keep one blocking receive waiter active alongside sends while the assignment expects continuation. Preserve the review-only scope.
 
-{% elif harness.id == "devin" %}Return the review in your final message, or the requested structured output. Use `devin_session_interact` action=`message` for an urgent caller escalation, addressed by session id.
+{% elif harness.id == "devin-cloud" %}Return the review in your final message, or the requested structured output. Use `devin_session_interact` action=`message` for an urgent caller escalation, addressed by session id.
+
+{% elif harness.id == "devin-cli" %}Return the review in your final message, or the requested structured output; a subagent cannot message its caller mid-run, so an urgent escalation goes first in that final message.
 
 {% endif %}## Inputs and stance
 
@@ -26,13 +28,13 @@ The caller supplies the exact source identity, matching checkout, milestone/tick
 
 {% if harness.id == "codex" %}For repair verification, also obtain the prior reviewed head, findings and dispositions, and the exact repair range or commit set; ask for a precise repair scope if it cannot be established. If independent milestones landed in between, `since` records the earlier coverage baseline without assigning those milestones to this review; inspect their interaction with the repair when relevant, preserving their separate review coverage.
 
-{% elif harness.id == "devin" %}{% endif %}Read unfamiliar constitution layout from `{% if harness.id == "devin" %}<skills-root>{% else %}~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills{% endif %}/constitution-tooling/references/layout.md`. In Issue mode, use the issue and passed acceptance criteria. If requirements are unavailable, review the source but state the acceptance limit.
+{% elif harness.id == "devin-cloud" %}{% endif %}Read unfamiliar constitution layout from `{% if harness.id == "devin-cloud" or harness.id == "devin-cli" %}<skills-root>{% else %}~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills{% endif %}/constitution-tooling/references/layout.md`. In Issue mode, use the issue and passed acceptance criteria. If requirements are unavailable, review the source but state the acceptance limit.
 
 Treat implementation notes and earlier checks as evidence to inspect, not proof to accept uncritically. Ground findings in the source, affected code paths, acceptance criteria, contracts, or binding conventions, citing and quoting any requirement a finding depends on. A concrete source trace can prove a defect without runtime execution: a source-based finding states the trigger, path, and consequence, and discloses unavailable execution separately.
 
 {% if harness.id == "codex" %}Judge materiality by practical consequence. Equivalent wording and reasonable local implementation choices need no repair, abstraction, or new requirement when intent, behavior, and binding contracts agree. Real correctness defects, false acceptance claims, and failed required gates still matter, and a compatible interpretation can resolve a question without a code change.
 
-{% elif harness.id == "devin" %}{% endif %}Use this skill for committed milestone review, including spec patches and spikes. It is not for implementation help, uncommitted diffs, PR review, or a repository-wide audit.
+{% elif harness.id == "devin-cloud" %}{% endif %}Use this skill for committed milestone review, including spec patches and spikes. It is not for implementation help, uncommitted diffs, PR review, or a repository-wide audit.
 
 ## Establish the exact delta
 
@@ -100,7 +102,7 @@ Inspect recorded command results by candidate and input identity, environment, e
 Inspect a successful framework `validate` result for the committed validation inputs. If none exists and execution is permitted, run:
 
 ```sh
-bun run {% if harness.id == "devin" %}<skills-root>{% else %}~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills{% endif %}/constitution-tooling/scripts/cli.ts validate --root <checkout>
+bun run {% if harness.id == "devin-cloud" or harness.id == "devin-cli" %}<skills-root>{% else %}~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills{% endif %}/constitution-tooling/scripts/cli.ts validate --root <checkout>
 ```
 
 A validation error on the reviewed tree is a `P1` with its check id. Manifest validation establishes declared file existence and digests; inspect the observations that substantiate behavior without manually repeating every hash.
@@ -179,4 +181,4 @@ Useful non-blocking observation tied to the milestone.
 ```
 
 {% if harness.id == "codex" %}After repair, independently verify the exact changed scope and interactions from the prior reviewed head and findings. The same author-independent reviewer may continue, or a fresh verifier receives prior results as artifacts. Reopen only judgments invalidated by the repair or missing coverage, and name any expanded scope. Every final behavioral edit needs verification, including behavior outside live-probe coverage; reuse unaffected proof. After two same-premise failures, test the premise before another patch and apply the caller's approved nonconvergence policy.
-{% elif harness.id == "devin" %}After repair, independently verify the exact changed scope and its interactions; every final behavioral edit needs that verification, including behavior outside live-probe coverage. Reuse unaffected evidence. If two related repairs fail under the same premise, state and test that premise before a third patch; follow the caller's approved nonconvergence policy rather than repeating a ritual or claiming unsupported acceptance.{% else %}After repair, independently verify the exact changed scope and its interactions; every final behavioral edit needs that verification, including behavior outside live-probe coverage. Reuse unaffected evidence. If two related repairs fail under the same premise, state and test that premise before a third patch; follow the caller's approved nonconvergence policy rather than repeating a ritual or claiming unsupported acceptance.{% endif %}
+{% elif harness.id == "devin-cloud" %}After repair, independently verify the exact changed scope and its interactions; every final behavioral edit needs that verification, including behavior outside live-probe coverage. Reuse unaffected evidence. If two related repairs fail under the same premise, state and test that premise before a third patch; follow the caller's approved nonconvergence policy rather than repeating a ritual or claiming unsupported acceptance.{% else %}After repair, independently verify the exact changed scope and its interactions; every final behavioral edit needs that verification, including behavior outside live-probe coverage. Reuse unaffected evidence. If two related repairs fail under the same premise, state and test that premise before a third patch; follow the caller's approved nonconvergence policy rather than repeating a ritual or claiming unsupported acceptance.{% endif %}

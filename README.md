@@ -1,6 +1,6 @@
 # Constitutional Framework Skills
 
-One [skillprism](https://tuvren.github.io/skillprism/) source for the AI Project Development Framework skills, compiled to Claude Code, Codex CLI, Grok CLI, Antigravity CLI, and Devin (Cognition’s cloud agent).
+One [skillprism](https://tuvren.github.io/skillprism/) source for the AI Project Development Framework skills, compiled to Claude Code, Codex CLI, Grok CLI, Antigravity CLI, Devin Cloud (Cognition’s cloud agent), and the local Devin CLI.
 
 `skills/` is the only source of truth. Each harness gets its own rendered `SKILL.md` carrying that harness's delegation and plan-file mechanics, and its own rendered references where those differ. Editors and agents still read the same framework: a governed, directory-isolated artifact chain under `.constitution/`.
 
@@ -28,9 +28,10 @@ Harness adapters change tool usage, not these policies. Project instructions sup
 | `codex` (Codex CLI) | skillprism built-in | `~/.codex/skills/` | `/skill-name` |
 | `grok` (Grok CLI) | custom, `harnesses/grok.yaml` | `~/.grok/skills/` | `/skill-name` |
 | `antigravity` (Antigravity CLI) | custom, `harnesses/antigravity.yaml` | `~/.gemini/antigravity-cli/skills/` | `/skill-name` |
-| `devin` (Devin) | custom, `harnesses/devin.yaml` | plugin cache (`~/.config/devin/skills/` for user scope) | `/skill-name` |
+| `devin-cloud` (Devin Cloud) | plugin, `platforms: ["cloud"]` | plugin cache | `/skill-name` |
+| `devin-cli` (Devin CLI) | custom, `harnesses/devin-cli.yaml` | `~/.config/devin/skills/` | `/skill-name` |
 
-Grok, Antigravity, and Devin use custom definitions in `harnesses/` for their ids, capability flags, and directories. Devin loads the packaged skills from an unpredictable plugin-cache path.
+Grok, Antigravity, and both Devin harnesses use custom definitions in `harnesses/` for their ids, capability flags, and directories. Devin Cloud ships only as a packaged plugin (`harnesses/devin-cloud.yaml` is never passed to `skillprism add`), and it loads the packaged skills from an unpredictable plugin-cache path.
 
 ## Skills
 
@@ -60,28 +61,30 @@ Fourteen framework skills. `stage`/role comes from each `skill.yaml`'s `metadata
 Pin `SKILLPRISM_VERSION` — without it the launcher hits GitHub's API on every invocation and eventually 403s.
 
 ```bash
-export SKILLPRISM_VERSION=0.5.0
+export SKILLPRISM_VERSION=0.6.0
 
-bunx skillprism@0.5.0 validate .    # check every skill for every harness
-bunx skillprism@0.5.0 build         # compile to dist/<harness>/, never touches live dirs
-bunx skillprism@0.5.0 build --force # overwrite existing dist/ files non-interactively
+bunx skillprism@0.6.0 validate .    # check every skill for every harness
+bunx skillprism@0.6.0 build         # compile to dist/<harness>/, never touches live dirs
+bunx skillprism@0.6.0 build --force # overwrite existing dist/ files non-interactively
 
 # Install where an agent actually reads skills. `add` is separate from `build`.
-bunx skillprism@0.5.0 add . --target project
-bunx skillprism@0.5.0 add . --target user --harnesses claude,codex,grok,antigravity
+bunx skillprism@0.6.0 add . --target project
+bunx skillprism@0.6.0 add . --target user --harnesses claude,codex,grok,antigravity,devin-cli
 ```
 
-## Install into Devin
+## Install into Devin Cloud
 
 From this checkout, run:
 
 ```bash
-./scripts/package-devin-plugin.sh
+./scripts/package-devin-cloud-plugin.sh
 ```
 
-The script pins `SKILLPRISM_VERSION=0.5.0`, builds all 14 skills for all five harnesses, and assembles `dist/devin-plugin/` with `.devin-plugin/plugin.json` and `skills/`. Install or upload that directory as a Devin plugin; the script does not modify live user skills. Plugin version starts at `0.1.0`. Keep the packaged directory for installation.
+The script pins `SKILLPRISM_VERSION=0.6.0`, builds all 14 skills for all six harnesses, and assembles `dist/devin-cloud-plugin/` with `.devin-plugin/plugin.json` and `skills/`. Install or upload that directory as a Devin plugin; the script does not modify live user skills. Plugin version starts at `0.2.0`. Keep the packaged directory for installation. Re-upload the plugin when moving to this version: its `plugin.json` carries `platforms: ["cloud"]`, which prevents it loading in the Devin CLI.
 
-Devin children run on their own VMs: pass the repository, pushed branch, plan path and contents, and skill to invoke. Choose the child’s batch-level `devin_mode`, request `notify_on_response=true`, and wait for settle notifications rather than polling. Use session ids for messages. A lane’s `worktree` records a verification checkout on the lead VM; fetch the remote branch before verifying child work. Transport-only child commits carry patches to the lead, which owns final milestone commits.
+Devin Cloud children run on their own VMs: pass the repository, pushed branch, plan path and contents, and skill to invoke. Choose the child’s batch-level `devin_mode`, request `notify_on_response=true`, and wait for settle notifications rather than polling. Use session ids for messages. A lane’s `worktree` records a verification checkout on the lead VM; fetch the remote branch before verifying child work. Transport-only child commits carry patches to the lead, which owns final milestone commits.
+
+Under the Devin CLI the interactive session is the epic lead and dispatches leaf roles directly with `run_subagent` — `subagent_general` for roles that edit or run commands, `subagent_explore` for read-only research — sharing one worktree, with subagents never committing. Multi-epic waves run one headless lead per lane (`devin -p --prompt-file ... --export`, resumed with `devin -r <session id>`), reporting through report files rather than cross-session messaging.
 
 ## Project structure
 
@@ -94,16 +97,17 @@ skills/<name>/
   scripts/              # same: *.j2 rendered, the rest copied
 harnesses/grok.yaml     # custom harness for Grok CLI
 harnesses/antigravity.yaml # custom harness for Antigravity CLI
-harnesses/devin.yaml    # custom harness for Devin
-scripts/package-devin-plugin.sh # build and package the Devin plugin
+harnesses/devin-cloud.yaml # custom harness for Devin Cloud (plugin only)
+harnesses/devin-cli.yaml  # custom harness for the local Devin CLI
+scripts/package-devin-cloud-plugin.sh # build and package the Devin Cloud plugin
 skillprism.yaml         # harnesses + skills_dir
 dist/<harness>/         # build output (gitignored)
 ```
 
 ## How harness differences are handled
 
-- **Tooling paths** resolve to each existing harness’s user skill root. Devin renders `<skills-root>/...`, defined as the parent directory of the invoked skill’s `Base directory: <dir>`, so plugin cache locations need not be predictable.
-- **`SKILL.md` conditionals**: delegation, planning, and messaging have explicit Devin branches alongside existing harness behavior. Devin uses fresh child sessions on separate VMs, approved batch-level `devin_mode`, session-id messaging, and settle notifications without polling. Plans are written at the project path or `.devin/plans/` and approved once through a blocking user message; lane branches are pushed and fetched rather than shared worktrees. Codex-only bridge templates remain zero-byte files for Devin.
+- **Tooling paths** resolve to each existing harness’s user skill root. The Devin harnesses render `<skills-root>/...`, defined as the parent directory of the invoked skill’s `Base directory: <dir>`, so plugin cache locations need not be predictable.
+- **`SKILL.md` conditionals**: delegation, planning, and messaging have explicit `devin-cloud` and `devin-cli` branches alongside existing harness behavior. Devin Cloud uses fresh child sessions on separate VMs, approved batch-level `devin_mode`, session-id messaging, and settle notifications without polling. The Devin CLI uses `run_subagent` leaf roles in a shared worktree, headless lane leads launched with `devin -p` and resumed with `devin -r`, and one-time approval through `ask_user_question`. Both write plans at the project path or `.devin/plans/`. Codex-only bridge templates render empty for the other harnesses, so skillprism 0.6.0 omits those files entirely outside Codex.
 - **Templated references**: any file named `*.j2` anywhere in a skill directory renders once per harness with the suffix stripped ([skillprism#46](https://github.com/Tuvren/skillprism/issues/46), fixed in v0.5.0). The harness-sensitive references are `.md.j2` templates and use the same `harness.*` context as `SKILL.md`. Everything else is copied verbatim, so non-templated references, assets, and scripts must stay harness-neutral.
 - **Descriptions are one short string for all harnesses.** Codex rejects a description over 500 bytes (Claude Code allows more, Grok none documented) and caps its initial skills list, so each description stays comfortably under 500 and prioritizes clarity over richness.
 - **Location-independent scripts.** `upgrading-constitution-repos/scripts/survey.ts` derives the `constitution-tooling` CLI from `import.meta.dir` and scans `.claude`, `.codex`, `.grok`, `.agents`, and `.devin` plan directories.
@@ -111,5 +115,6 @@ dist/<harness>/         # build output (gitignored)
 ## Notes
 
 - The hand-synced copies this replaces had drifted; the unified source uses the newest canonical content (from the `~/.claude/skills` repository) for every harness, so Codex and Grok pick up checks and wording their copies lacked.
-- `constitution-tooling`'s `epic-plan.schema.json` accepts every runtime (`claude`, `codex`, `grok`, `antigravity`, `devin`, `pi`, `pig`) so a plan written under one harness validates under the others.
+- `constitution-tooling`'s `epic-plan.schema.json` accepts every runtime (`claude`, `codex`, `grok`, `antigravity`, `devin`, `devin-cloud`, `devin-cli`, `pi`, `pig`) so a plan written under one harness validates under the others.
+- Devin CLI `read_config_from` imports (from Claude or Codex) can load duplicate copies of these skills from `~/.claude/skills` and `~/.codex/skills`; disable those imports when the `devin-cli` harness is installed.
 - v0.5.0 is a breaking change for projects that shipped `*.j2` files expecting them to be copied unchanged: those files are now templates.

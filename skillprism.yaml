@@ -4,5 +4,6 @@ harnesses:
   - codex
   - grok
   - antigravity
-  - devin
+  - devin-cloud
+  - devin-cli
 skills_dir: skills

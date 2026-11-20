@@ -8,13 +8,13 @@ metadata:
   upstream: {{ metadata.upstream | yaml_str }}
 ---
 
-{% if harness.id == "devin" %}`<skills-root>` is the parent directory of this invoked skill’s `Base directory: <dir>`.
+{% if harness.id == "devin-cloud" or harness.id == "devin-cli" %}`<skills-root>` is the parent directory of this invoked skill’s `Base directory: <dir>`.
 
 {% endif %}# Planning engineering execution
 
 Stage 4 of the four-stage documentation pipeline. Read `references/framework-overview.md` before doing stage work. Decompose the contracts, schemas, and guidelines under `tech-spec/` into an epic graph under `tasks/epics/`, where every ticket carries an effort estimate, its place inside its epic, mode-tagged acceptance evidence (Gherkin is one mode among several), the flows it implements, and a certainty tag.
 
-Schemas live in `{% if harness.id == "devin" %}<skills-root>{% else %}~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills{% endif %}/constitution-tooling/assets/schemas/`; `epic.schema.json` is the output contract. Run `render` after writing epics and `validate` before declaring the pass complete.
+Schemas live in `{% if harness.id == "devin-cloud" or harness.id == "devin-cli" %}<skills-root>{% else %}~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills{% endif %}/constitution-tooling/assets/schemas/`; `epic.schema.json` is the output contract. Run `render` after writing epics and `validate` before declaring the pass complete.
 
 ## Inputs
 

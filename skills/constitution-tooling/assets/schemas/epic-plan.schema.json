@@ -141,7 +141,7 @@
     }
   },
   "$defs": {
-    "runtime": { "type": "string", "enum": ["claude", "codex", "grok", "antigravity", "devin", "pi", "pig"] },
+    "runtime": { "type": "string", "enum": ["claude", "codex", "grok", "antigravity", "devin", "devin-cloud", "devin-cli", "pi", "pig"] },
     "runtimeModel": {
       "type": "object",
       "additionalProperties": false,

@@ -8,13 +8,13 @@ metadata:
   upstream: {{ metadata.upstream | yaml_str }}
 ---
 
-{% if harness.id == "devin" %}`<skills-root>` is the parent directory of this invoked skill’s `Base directory: <dir>`.
+{% if harness.id == "devin-cloud" or harness.id == "devin-cli" %}`<skills-root>` is the parent directory of this invoked skill’s `Base directory: <dir>`.
 
 {% endif %}# Designing solution architecture
 
 Stage 2 of the four-stage documentation pipeline. It reads the product requirements under `.constitution/prd/` and writes the logical system design under `.constitution/architecture/`, which binds Stages 3 and 4.
 
-Read `references/framework-overview.md` before you start, and read the archetype block in `constitution.yaml` and the meters in `prd/constraints.yaml` before choosing diagram types or resilience tactics; don't assume a web container topology. Schemas live in `{% if harness.id == "devin" %}<skills-root>{% else %}~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills{% endif %}/constitution-tooling/assets/schemas/`; run `validate` before declaring the pass complete.
+Read `references/framework-overview.md` before you start, and read the archetype block in `constitution.yaml` and the meters in `prd/constraints.yaml` before choosing diagram types or resilience tactics; don't assume a web container topology. Schemas live in `{% if harness.id == "devin-cloud" or harness.id == "devin-cli" %}<skills-root>{% else %}~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills{% endif %}/constitution-tooling/assets/schemas/`; run `validate` before declaring the pass complete.
 
 ## Inputs
 

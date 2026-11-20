@@ -13,7 +13,7 @@ Identify each owning stage: `prd/`, `architecture/`, `tech-spec/`, `tasks/`, or 
 In the caller's matching checkout, without switching branches or creating worktrees, inspect a valid `validate` result for the candidate's validation inputs. If none exists, run this read-only command when permitted:
 
 ```sh
-bun run {% if harness.id == "devin" %}<skills-root>{% else %}~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills{% endif %}/constitution-tooling/scripts/cli.ts validate --root <checkout>
+bun run {% if harness.id == "devin-cloud" or harness.id == "devin-cli" %}<skills-root>{% else %}~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills{% endif %}/constitution-tooling/scripts/cli.ts validate --root <checkout>
 ```
 
 Report each validation error as a `P1` with its check id, without manually repeating schema, digest, or file-existence checks already established by valid results. For a TechSpec change, inspect a read-only `derive` result when relevant and report concrete unapplied drift at the severity its effect warrants; do not write derived changes during review.

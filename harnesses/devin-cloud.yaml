@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://tuvren.github.io/skillprism/schema/v1/harness.json
+# Devin Cloud harness definition.
+#
+# `devin-cloud` is not a skillprism built-in, so this file supplies its id,
+# capability flags, and directories. It renders the skills for Devin cloud
+# sessions and ships only as a plugin (scripts/package-devin-cloud-plugin.sh).
+# It must never be passed to `skillprism add`: it shares its scope paths with
+# devin-cli (the local Devin CLI harness), which is the one installed into
+# user/project skill directories.
+id: devin-cloud
+name: Devin Cloud
+capabilities:
+  supports_subagent: true
+  requires_sidecar: false
+  requires_manifest: false
+  name_max_length: 64
+  description_max_length: 1536
+paths:
+  project_scope_path: ".devin/skills"
+  user_scope_path: ".config/devin/skills"
+  skill_filename: SKILL.md
+skill_ref_pattern: "/{name}"

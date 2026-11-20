@@ -7,21 +7,21 @@ metadata:
   artifact: {{ metadata.artifact | yaml_str }}
 ---
 
-{% if harness.id == "devin" %}`<skills-root>` is the parent directory of this invoked skill’s `Base directory: <dir>`.
+{% if harness.id == "devin-cloud" or harness.id == "devin-cli" %}`<skills-root>` is the parent directory of this invoked skill’s `Base directory: <dir>`.
 
 {% endif %}# Constitution tooling
 
 One CLI, run from the skills directory against any repository, so it never enters the project's dependency graph:
 
 ```bash
-bun run {% if harness.id == "devin" %}<skills-root>{% else %}~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills{% endif %}/constitution-tooling/scripts/cli.ts <command> --root <repo> [--json]
+bun run {% if harness.id == "devin-cloud" or harness.id == "devin-cli" %}<skills-root>{% else %}~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills{% endif %}/constitution-tooling/scripts/cli.ts <command> --root <repo> [--json]
 ```
 
 Facts that something reads mechanically live in YAML files validated by the schemas under `assets/schemas/`; prose lives in markdown, with front matter where one fact must be read. `references/layout.md` lists every file, its schema, and its writer; `references/checks.md` lists every check id `validate` can print. Stage skills hand the relevant schema to the agent writing a file as its output contract.
 
 {% if harness.id == "codex" %}For communication with Claude in any role, read [Coordinate Codex and Claude](references/codex-claude-bridge.md); the bundled `scripts/ccbridge.ts` provides the persistent inbox, explicit-address sends, one-hour blocking waits, and read acknowledgments. Keep sending and receiving active together throughout an exchange. Never poll the outer wrapper; keep both tool layers blocked for the pending receive window.
 
-{% elif harness.id == "devin" %}{% endif %}## Commands
+{% elif harness.id == "devin-cloud" %}{% endif %}## Commands
 
 | Command | What it does | Who runs it |
 | :--- | :--- | :--- |
@@ -102,7 +102,7 @@ Automatic repository text scans skip the reserved `.constitution-migration-sourc
 ## Tests
 
 ```bash
-bun test {% if harness.id == "devin" %}<skills-root>{% else %}~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills{% endif %}/constitution-tooling/scripts/
+bun test {% if harness.id == "devin-cloud" or harness.id == "devin-cli" %}<skills-root>{% else %}~/.{% if harness.id == "antigravity" %}gemini/antigravity-cli{% else %}{{ harness.id }}{% endif %}/skills{% endif %}/constitution-tooling/scripts/
 ```
 
 The fixtures under `assets/fixtures/` cover valid, invalid, legacy, and partial constitutions; preserve those checks. For a tooling defect, prefer a focused regression through the CLI or a public operation that demonstrates the failed behavior, and avoid wording tests and proliferating isolated tests. Reuse valid results while the tested inputs and environment are unchanged.
